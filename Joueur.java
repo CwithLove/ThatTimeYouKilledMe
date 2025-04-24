@@ -39,7 +39,9 @@ public class Joueur {
     }
 
     public void declone(){
-		this.nbClones -= 1;
+        if (this.nbClones > 0) {
+            this.nbClones -= 1;
+        }
 	}
 
     public void setProchainPlateau(Plateau.TypePlateau prochainPlateau) {
@@ -47,25 +49,45 @@ public class Joueur {
     }
 
 	public Coup choisirCoup(Plateau plateau){
+        java.util.List<Coup> coupsPossibles = new java.util.ArrayList<>();
+
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                if (plateau.getPiece(i, j) != null && plateau.getPiece(i, j).getOwner() == this) {
-                    return new Coup(plateau.getPiece(i, j), new Point(i, j), plateau, null);
+                Piece piece = plateau.getPiece(i, j);
+                if (piece != null && piece.getOwner() == this) {
+                    coupsPossibles.add(new Coup(piece, new Point(i, j), plateau, Coup.typeCoup.MOVE));
+
+                    // logique pour les futures
                 }
             }
         }
+        
+        if (!coupsPossibles.isEmpty()) {
+            int index = (int)(Math.random() * coupsPossibles.size());
+            return coupsPossibles.get(index);
+        }
+        
         return new Coup(null, null, plateau, null);
 	}
 
 	public Piece choisirPiece(Plateau plateau){
+        java.util.List<Piece> piecesDisponibles = new java.util.ArrayList<>();
+        
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                if (plateau.getPiece(i, j) != null && plateau.getPiece(i, j).getOwner() == this) {
-                    return plateau.getPiece(i, j);
+                Piece piece = plateau.getPiece(i, j);
+                if (piece != null && piece.getOwner() == this) {
+                    piecesDisponibles.add(piece);
                 }
             }
         }
-		return null;
+        
+        if (!piecesDisponibles.isEmpty()) {
+            int index = (int)(Math.random() * piecesDisponibles.size());
+            return piecesDisponibles.get(index);
+        }
+        
+        return null;
 	}
 
 }

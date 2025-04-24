@@ -4,16 +4,16 @@ public class Coup {
     private Piece piece;
     private Point direction;
     private Plateau pltCourant;
-    private typeCoup typeCoup;
+    private TypeCoup typeCoup;
 
-    public enum typeCoup {
+    public enum TypeCoup {
         JUMP, // Travel Forward: Sauter a la future
         MOVE, // Move: Deplacer une piece dans le meme plateau
         CLONE // Clone: Travel Backward: Revenir dans le passe et se cloner
     }
 
 
-    public Coup(Piece piece, Point direction, Plateau pltCourant, typeCoup typeCoup) {
+    public Coup(Piece piece, Point direction, Plateau pltCourant, TypeCoup typeCoup) {
         this.direction = direction;
         this.piece = piece;
         this.pltCourant = pltCourant;  
@@ -32,7 +32,7 @@ public class Coup {
         return piece;
     }
 
-    public typeCoup getTypeCoup() {
+    public TypeCoup getTypeCoup() {
         return typeCoup;
     }
 }

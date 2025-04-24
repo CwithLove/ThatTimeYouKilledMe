@@ -27,7 +27,23 @@ public class Plateau {
         grille[x][y] = p;
     }
 
+    public TypePlateau getTypePlateau() {
+        return type;
+    }
 
+    public Piece[][] getGrille() {
+        return grille;
+    }
+
+    public Piece getPiece(int x, int y) {
+        return grille[x][y];
+    }
+
+    public void supprimerPiece(int x, int y) {
+        if (grille[x][y] != null) {
+            grille[x][y] = null;
+        }
+    }
 
 
     // getPiece(int x, int y) => retourne la piece a la position (x,y)

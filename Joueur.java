@@ -44,5 +44,16 @@ public class Joueur {
         this.prochainPlateau = prochainPlateau;
     }
 
+	public Coup choisirCoup(Plateau plateau){
+		// 选择一个行动（移动、跳跃或克隆）
+		// 这里应该由子类实现具体逻辑
+		return null;
+	}
+
+	public Piece choisirPiece(Plateau plateau){
+		// 选择一个棋子
+		// 这里应该由子类实现具体逻辑
+		return null;
+	}
 
 }

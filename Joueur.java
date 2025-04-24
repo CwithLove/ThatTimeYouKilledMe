@@ -1,3 +1,5 @@
+import java.awt.Point;
+
 public class Joueur {
 
     private String nom;
@@ -45,14 +47,24 @@ public class Joueur {
     }
 
 	public Coup choisirCoup(Plateau plateau){
-		// choisir un coup (jump, move, clone)
-		// 这里应该由子类实现具体逻辑
-		return null;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (plateau.getPiece(i, j) != null && plateau.getPiece(i, j).getOwner() == this) {
+                    return new Coup(plateau.getPiece(i, j), new Point(i, j), plateau, null);
+                }
+            }
+        }
+        return new Coup(null, null, plateau, null);
 	}
 
 	public Piece choisirPiece(Plateau plateau){
-		// choisir une piece
-		// 这里应该由子类实现具体逻辑
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (plateau.getPiece(i, j) != null && plateau.getPiece(i, j).getOwner() == this) {
+                    return plateau.getPiece(i, j);
+                }
+            }
+        }
 		return null;
 	}
 

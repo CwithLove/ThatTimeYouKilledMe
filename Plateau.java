@@ -5,7 +5,7 @@ public class Plateau {
         FUTURE
     }
 
-    private TypePlateau typePlateau;
+    private Plateau typePlateau;
     private Piece[][] grille; // tableau de pieces, null si pas de piece
 
     // Les methodes a completer

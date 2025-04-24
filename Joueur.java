@@ -2,7 +2,7 @@ public class Joueur {
     private String nom;
     private int id; // 1 ou 2
     private int nbClones;
-    private Plateau.TypePlateau prochainPlateau;
+    private Plateau prochainPlateau;
     
     // Les methodes a completer
 

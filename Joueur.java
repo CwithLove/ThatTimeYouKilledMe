@@ -1,11 +1,3 @@
-/*
- * @Author: ThearchyHelios work@thearchyhelios.com
- * @Date: 2025-04-24 13:32:27
- * @LastEditors: ThearchyHelios work@thearchyhelios.com
- * @LastEditTime: 2025-04-24 14:00:58
- * @FilePath: /ThatTimeYouKilledMe/Joueur.java
- * @Description: 
- */
 public class Joueur {
 
     private String nom;

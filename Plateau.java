@@ -55,4 +55,16 @@ public class Plateau {
     public void decNoirs() {
         this.nbNoirs -= 1;
     }
+
+    public void appliquerCoup(Coup coup) {
+        return;
+    }
+
+    public boolean estCoupValide(Coup coup) {
+        if (coup.getTypeCoup() == Coup.TypeCoup.MOVE) {
+            
+        }
+        
+        return true;
+    }
 }   

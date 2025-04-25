@@ -1,4 +1,5 @@
 import java.awt.Point;
+import java.util.Scanner;
 
 public class Joueur {
 
@@ -6,6 +7,7 @@ public class Joueur {
     private int id;
     private int nbClones;
     private Plateau.TypePlateau prochainPlateau;
+    private Scanner scanner;
 
     public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau) {
         this.nom = nom;
@@ -48,44 +50,80 @@ public class Joueur {
         this.prochainPlateau = prochainPlateau;
     }
 
-	public Coup choisirCoup(Plateau plateau){
-        java.util.List<Coup> coupsPossibles = new java.util.ArrayList<>();
+	public Coup choisirCoup(Plateau plateau, Piece piece) {
+        scanner = new Scanner(System.in);
+        Coup.TypeCoup type = null;
+        boolean validChoice = false;
 
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                Piece piece = plateau.getPiece(i, j);
-                if (piece != null && piece.getOwner() == this) {
-                    coupsPossibles.add(new Coup(piece, new Point(i, j), plateau, Coup.TypeCoup.MOVE));
+        while (!validChoice) {
+            System.out.println("Choose your action: JUMP, PUSH, MOVE");
+            String choice = scanner.nextLine().toUpperCase();
 
-                    // logique pour les futures
-                }
+            switch (choice) {
+            case "JUMP":
+                type = Coup.TypeCoup.JUMP;
+                validChoice = true;
+                break;
+            case "CLONE":
+                type = Coup.TypeCoup.CLONE;
+                validChoice = true;
+                break;
+            case "MOVE":
+                type = Coup.TypeCoup.MOVE;
+                validChoice = true;
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
             }
         }
         
-        if (!coupsPossibles.isEmpty()) {
-            int index = (int)(Math.random() * coupsPossibles.size());
-            return coupsPossibles.get(index);
+        Point dir = null;
+        switch (type) {
+            case JUMP:
+                break;
+            case CLONE:
+                break;
+            case MOVE:
+                boolean validDirection = false;
+
+                while (!validDirection) {
+                    try {
+                        System.out.println("Choose the direction: UP, DOWN, LEFT, RIGHT");
+                        String direction = scanner.nextLine().toUpperCase();
+
+                        switch (direction) {
+                            case "UP":
+                                dir = new Point(-1, 0);
+                                validDirection = true;
+                                break;
+                            case "DOWN":
+                                dir = new Point(1, 0);
+                                validDirection = true;
+                                break;
+                            case "LEFT":
+                                dir = new Point(0, -1);
+                                validDirection = true;
+                                break;
+                            case "RIGHT":
+                                dir = new Point(0, 1);
+                                validDirection = true;
+                                break;
+                            default:
+                                throw new IllegalArgumentException("Invalid direction. Please try again.");
+                        }
+                    } catch (IllegalArgumentException e) {
+                        System.out.println(e.getMessage());
+                    }
+                }
+
         }
-        
-        return new Coup(null, null, plateau, null);
+
+
+        return new Coup(piece, dir, plateau, type);
 	}
 
 	public Piece choisirPiece(Plateau plateau){
-        java.util.List<Piece> piecesDisponibles = new java.util.ArrayList<>();
         
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                Piece piece = plateau.getPiece(i, j);
-                if (piece != null && piece.getOwner() == this) {
-                    piecesDisponibles.add(piece);
-                }
-            }
-        }
-        
-        if (!piecesDisponibles.isEmpty()) {
-            int index = (int)(Math.random() * piecesDisponibles.size());
-            return piecesDisponibles.get(index);
-        }
         
         return null;
 	}

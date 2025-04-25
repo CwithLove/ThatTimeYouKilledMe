@@ -56,7 +56,7 @@ public class Joueur {
         boolean validChoice = false;
 
         while (!validChoice) {
-            System.out.println("Choose your action: JUMP, PUSH, MOVE");
+            System.out.println("Choose your action: JUMP, CLONE, MOVE");
             String choice = scanner.nextLine().toUpperCase();
 
             switch (choice) {

@@ -47,12 +47,12 @@ public class Jeu {
                 case PAST:
                     plateauCourant = past;
                     break;
-                    case PRESENT:
-                        plateauCourant = present;
-                        break;
-                        case FUTURE:
-                        plateauCourant = future;
-                        break;
+                case PRESENT:
+                    plateauCourant = present;
+                    break;
+                case FUTURE:
+                plateauCourant = future;
+                break;
             }
             plateauTraitant = plateauCourant;
 
@@ -60,15 +60,24 @@ public class Jeu {
 
             // A FIXER SI ON TAPE CLONE DANS CE CAS LA ET CA SE TERMINE LE TOUR
             try {
-                System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
                 int lig, col;
                 do {
+                    System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
                     lig = sc.nextInt();
                     col = sc.nextInt();
-                    pieceCourante = plateauCourant.getPiece(lig, col);
-                    if (pieceCourante == null||!pieceCourante.getOwner().equals(joueurCourant)) {
+                    //Verifie si les coordonnees sont dans le plateau
+                    if ( lig < 0 || col < 0 || lig > (plateauCourant.getSize()-1) || col > (plateauCourant.getSize()-1)){
+                        System.out.println("Coordonées incorrectes.");
+                        continue;
+                    }
+                    else{
+                        pieceCourante = plateauCourant.getPiece(lig, col);
+                    }
+
+                    if (pieceCourante == null||!pieceCourante.getOwner().equals(joueurCourant) ) {
                         System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
                     }
+
                 } while (pieceCourante == null|| !pieceCourante.getOwner().equals(joueurCourant));
             } catch (Exception e) {
                 System.out.println("Erreur : " + e.getMessage());
@@ -99,74 +108,232 @@ public class Jeu {
                 joueurCourant.setProchainPlateau(plateauCourant.getType());
                 printGamePlay();
                 i-=1;
-            } while (i > 0);
+            } while (i > 0 && gameOver(joueurCourant) == 0);
 
 
             // Prochain plateau
-            System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
             Plateau.TypePlateau prochainPlateau;
+            boolean breakloop = true;
             // A AJOUTER: IL FAUT LE JOUEUR CHOISIR UN AREA DIFFERENT QUE CELUI COURANT
             do {
                 try {
+                    if (gameOver(joueurCourant) != 0)
+                        break;
+                    System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
                     String input = sc.next().toUpperCase();
-                    prochainPlateau = Plateau.TypePlateau.valueOf(input);
-                    joueurCourant.setProchainPlateau(prochainPlateau);
-                    break;
+                    //Verifie si on change de plateau
+                    if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
+                        prochainPlateau = Plateau.TypePlateau.valueOf(input);
+                        //Verifie si il y a des pions dans le nouveau plateau choisi
+                        switch(prochainPlateau){
+                            case PAST:
+                                if (joueurCourant.existePion(past)){
+                                    joueurCourant.setProchainPlateau(prochainPlateau);
+                                    breakloop = false;
+                                }
+                                else {
+                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
+                                }
+                                break;
+                            case PRESENT:
+                                if (joueurCourant.existePion(present)){
+                                    joueurCourant.setProchainPlateau(prochainPlateau);
+                                    breakloop = false;
+                                }
+                                else {
+                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
+                                }
+                                break;
+                            case FUTURE:
+                                if (joueurCourant.existePion(future)){
+                                    joueurCourant.setProchainPlateau(prochainPlateau);
+                                    breakloop = false;
+                                }
+                                else {
+                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
+                                }
+                                break;
+                        }
+
+
+                    }
+                    else {
+                        System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");
+                    }
                 } catch (IllegalArgumentException e) {
                     System.out.println("Entrée invalide. Veuillez entrer PAST, PRESENT ou FUTURE : ");
                 }
-            } while (true);
+            } while (breakloop && gameOver(joueurCourant) == 0);
 
             printGamePlay();
-        } while (!gameOver(joueurCourant));
-        
+        } while (gameOver(joueurCourant) == 0);
+        if (gameOver(joueurCourant) == 2)
+            System.out.println("Joueur 2 a gagné !");
+        else if (gameOver(joueurCourant) == 1)
+            System.out.println("Joueur 1 a gagné !");
 
     }
 
     public void appliquerCoup(Coup coup) {
         // A COMPLETER
-        System.err.println("Bien appliquer le coup");
+        System.err.println("Le coup a bien été appliqué.");
 
         Plateau plateau = coup.getPltCourant();
         Point src;
         Point dir;
         switch (coup.getTypeCoup()) {
             case MOVE:
+
                 src = pieceCourante.getPosition();
                 dir = coup.getDirection();
                 int ligDes = src.x + dir.x;
                 int colDes = src.y + dir.y;
-                plateau.setPiece(pieceCourante, ligDes, colDes);
-                pieceCourante.setPosition(new Point(ligDes, colDes));
-                plateau.setPiece(null, src.x, src.y);
+                Piece newPiecePlace = plateau.getPiece(ligDes,colDes);
+                if (newPiecePlace == null) { //cas ou il n'y a pas de piece à la destination
+                    plateau.setPiece(pieceCourante, ligDes, colDes);
+                    pieceCourante.setPosition(new Point(ligDes, colDes));
+                    plateau.removePiece(src.x, src.y);
+                }
+                else {
+                    if (!plateau.estPareilPion(newPiecePlace,pieceCourante)) {
+                        plateau.setPiece(pieceCourante, ligDes, colDes);
+                        pieceCourante.setPosition(new Point(ligDes, colDes));
+                        if ((ligDes + dir.x) >= 0 && (ligDes + dir.x) < plateau.getSize() && (colDes + dir.y) >= 0 && (colDes + dir.y) < plateau.getSize()) {
+                            Piece lastPiece = plateau.getPiece(ligDes + dir.x, colDes + dir.y);
+                            if (lastPiece == null) {
+                                plateau.setPiece(newPiecePlace, (ligDes + dir.x), (colDes + dir.y));
+                                newPiecePlace.setPosition(new Point((ligDes + dir.x), (colDes + dir.y)));
+                            } else {
+                                if (plateau.estPareilPion(newPiecePlace, lastPiece)) {
+                                    plateau.removePiece(ligDes + dir.x, colDes + dir.y);
+                                    if (joueurCourant.equals(joueur1)) {
+                                        plateau.decNoirs();
+                                        plateau.decNoirs();
+                                    } else if (joueurCourant.equals(joueur2)) {
+                                        plateau.decBlancs();
+                                        plateau.decBlancs();
+                                    }
+                                } else {
+                                    plateau.setPiece(newPiecePlace, (ligDes + dir.x), (colDes + dir.y));
+                                    newPiecePlace.setPosition(new Point((ligDes + dir.x), (colDes + dir.y)));
+                                    if (joueurCourant.equals(joueur1)) {
+                                        plateau.decBlancs();
+                                    } else if (joueurCourant.equals(joueur2)) {
+                                        plateau.decNoirs();
+                                    }
+                                }
+                            }
+
+                        } else {
+                            if (joueurCourant.equals(joueur1)) {
+                                plateau.decNoirs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                plateau.decBlancs();
+                            }
+                        }
+                        plateau.removePiece(src.x, src.y);
+                    }
+                    if (plateau.estPareilPion(newPiecePlace,pieceCourante)) {
+                        plateau.removePiece(ligDes, colDes);
+                        plateau.removePiece(src.x, src.y);
+                        if (joueurCourant.equals(joueur1)) {
+                            plateau.decBlancs();
+                            plateau.decBlancs();
+                        } else if (joueurCourant.equals(joueur2)) {
+                            plateau.decNoirs();
+                            plateau.decNoirs();
+                        }
+                    }
+                }
+
+
 
                 // AJOUTER LE PUSH (A VERIFIER COMMENT DEC nbBlancs et nbNoirs
                 break;
             case CLONE:
                 src = pieceCourante.getPosition();
                 Piece clone = new Piece(joueurCourant, src);
+                //decremente le nb de pion dans l'inventaire
+                boolean sortPion = joueurCourant.declone();
                 switch (plateau.getType()) {
                     case PRESENT:
-                        // VERIFIER LE PASSE POUR PARADOX
                         joueurCourant.setProchainPlateau(Plateau.TypePlateau.PAST);
-                        past.setPiece(pieceCourante, src.x, src.y);
-                        present.setPiece(clone, src.x, src.y);
-                        if (joueurCourant.equals(joueur1)) {
-                            past.incBlancs();
-                        } else if (joueurCourant.equals(joueur2)) {
-                            past.incNoirs();
+                        if (past.paradoxe(past.getPiece(src.x,src.y),present.getPiece(src.x,src.y),0,0)){
+                            System.out.println("Paradoxe !");
+                            past.removePiece(src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                past.decBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                past.decNoirs();
+                            }
+                            joueurCourant.setProchainPlateau(Plateau.TypePlateau.PRESENT);
                         }
+                        else {
+                            if (past.getPiece(src.x,src.y) != null){
+                                if (joueurCourant.equals(joueur1)) {
+                                    present.decNoirs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    present.decBlancs();
+                                }
+                            }
+                            past.setPiece(pieceCourante, src.x, src.y);
+                            //laisse une copie ou non du pion cloné en fonction de ce qu'il reste dans l'inventaire
+                            if (sortPion) {
+                                present.setPiece(clone, src.x, src.y);
+                            } else {
+                                present.removePiece(src.x, src.y);
+                                if (joueurCourant.equals(joueur1)) {
+                                    present.decBlancs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    present.decNoirs();
+                                }
+                            }
+                            if (joueurCourant.equals(joueur1)) {
+                                past.incBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                past.incNoirs();
+                            }
+                        }
+
                         break;
 
                     case FUTURE:
-                        // VERIFIER LE PRESENT POUR PARADOX
                         joueurCourant.setProchainPlateau(Plateau.TypePlateau.PRESENT);
-                        future.setPiece(clone, src.x, src.y);
-                        present.setPiece(pieceCourante, src.x, src.y);
-                        if (joueurCourant.equals(joueur1)) {
-                            present.incBlancs();
-                        } else if (joueurCourant.equals(joueur2)) {
-                            present.incNoirs();
+                        if (present.paradoxe(present.getPiece(src.x,src.y),future.getPiece(src.x,src.y),0,0)){
+                            System.out.println("Paradoxe !");
+                            present.removePiece(src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                present.decBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                present.decNoirs();
+                            }
+                            joueurCourant.setProchainPlateau(Plateau.TypePlateau.FUTURE);
+                        }
+                        else {
+                            if (present.getPiece(src.x,src.y) != null){
+                                if (joueurCourant.equals(joueur1)) {
+                                    present.decNoirs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    present.decBlancs();
+                                }
+                            }
+                            present.setPiece(pieceCourante, src.x, src.y);
+                            //laisse une copie ou non du pion cloné en fonction de ce qu'il reste dans l'inventaire
+                            if (sortPion) {
+                                future.setPiece(clone, src.x, src.y);
+                            } else {
+                                future.removePiece(src.x, src.y);
+                                if (joueurCourant.equals(joueur1)) {
+                                    future.decBlancs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    future.decNoirs();
+                                }
+                            }
+                            if (joueurCourant.equals(joueur1)) {
+                                present.incBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                present.incNoirs();
+                            }
                         }
                         break;
                     default:
@@ -182,28 +349,70 @@ public class Jeu {
                     case PRESENT:
                         // VERIFIER LE PASSE POUR PARADOX
                         joueurCourant.setProchainPlateau(Plateau.TypePlateau.FUTURE);
-                        future.setPiece(pieceCourante, src.x, src.y);
-                        present.setPiece(null, src.x, src.y);
-                        if (joueurCourant.equals(joueur1)) {
-                            present.decBlancs();
-                            future.incBlancs();
-                        } else if (joueurCourant.equals(joueur2)) {
-                            present.decBlancs();
-                            future.incBlancs();
+                        if (present.paradoxe(present.getPiece(src.x,src.y),future.getPiece(src.x,src.y),0,0)){
+                            System.out.println("Paradoxe !");
+                            present.removePiece(src.x, src.y);
+                            future.removePiece(src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                present.decBlancs();
+                                future.decBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                present.decNoirs();
+                                future.decNoirs();
+                            }
+                        } else {
+                            if (future.getPiece(src.x,src.y) != null){
+                                if (joueurCourant.equals(joueur1)) {
+                                    present.decNoirs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    present.decBlancs();
+                                }
+                            }
+                            future.setPiece(pieceCourante, src.x, src.y);
+                            present.removePiece(src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                present.decBlancs();
+                                future.incBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                present.decBlancs();
+                                future.incBlancs();
+                            }
+                            break;
                         }
-                        break;
+
 
                     case PAST:
                         // VERIFIER LE PRESENT POUR PARADOX
                         joueurCourant.setProchainPlateau(Plateau.TypePlateau.PRESENT);
-                        present.setPiece(pieceCourante, src.x, src.y);
-                        past.setPiece(null, src.x, src.y);
-                        if (joueurCourant.equals(joueur1)) {
-                            past.decBlancs();
-                            present.incBlancs();
-                        } else if (joueurCourant.equals(joueur2)) {
-                            past.decNoirs();
-                            present.incNoirs();
+                        if (past.paradoxe(past.getPiece(src.x,src.y),present.getPiece(src.x,src.y),0,0)){
+                            System.out.println("Paradoxe !");
+                            past.removePiece(src.x, src.y);
+                            present.removePiece(src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                past.decBlancs();
+                                present.decBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                past.decNoirs();
+                                present.decNoirs();
+                            }
+                        }
+                        else {
+                            if (present.getPiece(src.x,src.y) != null){
+                                if (joueurCourant.equals(joueur1)) {
+                                    present.decNoirs();
+                                } else if (joueurCourant.equals(joueur2)) {
+                                    present.decBlancs();
+                                }
+                            }
+                            present.setPiece(pieceCourante, src.x, src.y);
+                            past.setPiece(null, src.x, src.y);
+                            if (joueurCourant.equals(joueur1)) {
+                                past.decBlancs();
+                                present.incBlancs();
+                            } else if (joueurCourant.equals(joueur2)) {
+                                past.decNoirs();
+                                present.incNoirs();
+                            }
                         }
                         break;
                     default:
@@ -238,15 +447,31 @@ public class Jeu {
         return true;
     }
     
-    public boolean gameOver(Joueur j) {
-        if (j.equals(joueur1)) {
-            return (past.getNbNoirs() == 0 ? (present.getNbNoirs() == 0 ? true : future.getNbNoirs() == 0) : present.getNbNoirs() == future.getNbBlancs() && future.getNbNoirs() == 0);
-        } else if (j.equals(joueur2)) {
-            return (past.getNbBlancs() == 0 ? (present.getNbBlancs() == 0 ? true : future.getNbBlancs() == 0) : present.getNbBlancs() == future.getNbNoirs() && future.getNbBlancs() == 0);
-        } else {
-            return false;
+    public int gameOver(Joueur j) {
+        //System.out.println("Nombre de blancs: passe "+past.getNbBlancs()+", present "+present.getNbBlancs()+", future "+future.getNbBlancs());
+        //System.out.println("Nombre de Noirs: passe "+past.getNbNoirs()+", present "+present.getNbNoirs()+", future "+future.getNbNoirs());
+        if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0){
+            return 1; //joueur 1 a gagne
         }
+        if (past.getNbNoirs() == 0 && present.getNbNoirs() > 0 && future.getNbNoirs() == 0){
+            return 1;
+        }
+        if (past.getNbNoirs() == 0 && present.getNbNoirs() == 0 && future.getNbNoirs() > 0){
+            return 1;
+        }
+        if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0){
+            return 2;
+        }
+        if (past.getNbBlancs() == 0 && present.getNbBlancs() > 0 && future.getNbBlancs() == 0){
+            return 2;
+        }
+        if (past.getNbBlancs() == 0 && present.getNbBlancs() == 0 && future.getNbBlancs() > 0){
+            return 2;
+        }
+        return 0;
     }
+
+
 
     public void printGamePlay() {
         System.out.println("Next Area J1 : " + joueur1.getProchainPlateau().toString());

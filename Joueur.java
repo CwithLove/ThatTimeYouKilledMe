@@ -8,7 +8,6 @@ public class Joueur {
     private int nbClones;
     private Plateau.TypePlateau prochainPlateau;
     private Scanner scanner;
-
     public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau) {
         this.nom = nom;
         this.id = id;
@@ -40,14 +39,25 @@ public class Joueur {
         this.id = id;
     }
 
-    public void declone(){
+    public boolean declone(){
         if (this.nbClones > 0) {
             this.nbClones -= 1;
+            return true;
         }
+        return false;
 	}
 
     public void setProchainPlateau(Plateau.TypePlateau prochainPlateau) {
         this.prochainPlateau = prochainPlateau;
+    }
+
+    public boolean existePion(Plateau plateau){
+        if (plateau.getType() != null){
+            if ((this.nom == "Noir" && plateau.getNbNoirs() > 0) || (this.nom == "Blanc" && plateau.getNbBlancs() > 0)){
+                return true;
+            }
+        }
+        return false;
     }
 
 	public Coup choisirCoup(Plateau plateau, Piece piece) {
@@ -93,23 +103,34 @@ public class Joueur {
 
                         switch (direction) {
                             case "UP":
-                                dir = new Point(-1, 0);
-                                validDirection = true;
+                                if (piece.getPosition().x > 0) {
+                                    dir = new Point(-1, 0);
+                                    validDirection = true;
+                                }
                                 break;
                             case "DOWN":
-                                dir = new Point(1, 0);
-                                validDirection = true;
+                                if (piece.getPosition().x < plateau.getSize()-1) {
+                                    dir = new Point(1, 0);
+                                    validDirection = true;
+                                }
                                 break;
                             case "LEFT":
-                                dir = new Point(0, -1);
-                                validDirection = true;
+                                if (piece.getPosition().y > 0) {
+                                    dir = new Point(0, -1);
+                                    validDirection = true;
+                                }
                                 break;
                             case "RIGHT":
-                                dir = new Point(0, 1);
-                                validDirection = true;
+                                if (piece.getPosition().y < plateau.getSize()-1) {
+                                    dir = new Point(0, 1);
+                                    validDirection = true;
+                                }
                                 break;
                             default:
                                 throw new IllegalArgumentException("Invalid direction. Please try again.");
+                        }
+                        if (!validDirection) {
+                            System.out.println("Direction invalide, veuillez réessayer :");
                         }
                     } catch (IllegalArgumentException e) {
                         System.out.println(e.getMessage());

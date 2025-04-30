@@ -9,11 +9,12 @@ public class Plateau {
 
     private TypePlateau type;
     private Piece[][] grille;
-    private int nbBlacns;
+    private int nbBlancs;
     private int nbNoirs;
+    private int size;
 
     public Plateau(TypePlateau type, Joueur joueur1, Joueur joueur2) {
-        this.nbBlacns = 1;
+        this.nbBlancs = 1;
         this.nbNoirs = 1;
         this.type = type;
         this.grille = new Piece[4][4];
@@ -25,12 +26,17 @@ public class Plateau {
 
         // Initialisation des pièces sur le plateau
         this.grille[0][0] = new Piece(joueur1, new Point(0, 0));
-        this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
+        this.grille[0][3] = new Piece(joueur2, new Point(0, 3));
+        this.size = 4;
     }
+
+    public int getSize() { return size; }
 
     public void setPiece(Piece p, int lig, int col) {
         grille[lig][col] = p;
     }
+
+    public void removePiece(int lig, int col) { grille[lig][col] = null; }
 
     public Piece getPiece(int lig, int col) {
         return grille[lig][col];
@@ -41,7 +47,7 @@ public class Plateau {
     }
 
     public int getNbBlancs() {
-        return nbBlacns;
+        return nbBlancs;
     }
 
     public int getNbNoirs() {
@@ -49,14 +55,16 @@ public class Plateau {
     }
 
     public void decBlancs() {
-        this.nbBlacns -= 1;
+        if (this.nbBlancs > 0)
+            this.nbBlancs -= 1;
     }
 
     public void decNoirs() {
-        this.nbNoirs -= 1;
+        if (this.nbNoirs > 0)
+            this.nbNoirs -= 1;
     }
 
-    public void incBlancs() { this.nbBlacns+=1; }
+    public void incBlancs() { this.nbBlancs+=1; }
 
     public void incNoirs() { this.nbNoirs+=1; }
 
@@ -70,5 +78,18 @@ public class Plateau {
         }
         
         return true;
+    }
+
+    public boolean paradoxe(Piece piece1, Piece piece2, int ecartx, int ecarty){
+        if (piece1 != null && piece2 != null) {
+            if (estPareilPion(piece1,piece2) && (piece1.getPosition().x == (piece2.getPosition().x + ecartx)) && (piece1.getPosition().y == (piece2.getPosition().y + ecarty))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean estPareilPion(Piece piece1, Piece piece2){
+        return piece1.getOwner() == piece2.getOwner();
     }
 }   

@@ -26,19 +26,30 @@ public class Plateau {
 
         // Initialisation des pièces sur le plateau
         this.grille[0][0] = new Piece(joueur1, new Point(0, 0));
-        this.grille[0][3] = new Piece(joueur2, new Point(0, 3));
+        this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
         this.size = 4;
     }
 
     public int getSize() { return size; }
 
     public void setPiece(Piece p, int lig, int col) {
+        if (lig < 0 || lig >= this.size || col < 0 || col >= this.size) {
+            return;
+        }
         grille[lig][col] = p;
     }
 
-    public void removePiece(int lig, int col) { grille[lig][col] = null; }
+    public void removePiece(int lig, int col) {
+        if (lig < 0 || lig >= this.size || col < 0 || col >= this.size) {
+            return;
+        }
+        grille[lig][col] = null;
+    }
 
     public Piece getPiece(int lig, int col) {
+        if (lig < 0 || lig >= this.size || col < 0 || col >= this.size) {
+            return null;
+        }
         return grille[lig][col];
     }
 
@@ -91,5 +102,22 @@ public class Plateau {
 
     public boolean estPareilPion(Piece piece1, Piece piece2){
         return piece1.getOwner() == piece2.getOwner();
+    }
+
+    public String plateauToString() {
+        if (this.getType() == TypePlateau.PAST) {
+            return "PAST";
+        }
+        else if (this.getType() == TypePlateau.PRESENT) {
+            return "PRESENT";
+        }
+        else if (this.getType() == TypePlateau.FUTURE) {
+            return "FUTURE";
+        }
+        else {
+            System.out.println("Erreur de type de plateau");
+            return null;
+        }
+
     }
 }   

@@ -1,18 +1,30 @@
 import java.awt.Point;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.BlockingQueue;
 
 public class Joueur {
-
+    private BlockingQueue<Message> fileEntrante;
+    private Map<Integer, BlockingQueue<String>> filesSortantes;
     private String nom;
     private int id;
     private int nbClones;
     private Plateau.TypePlateau prochainPlateau;
     private Scanner scanner;
-    public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau) {
+    public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau, 
+    BlockingQueue<Message> fileEntrante, Map<Integer, BlockingQueue<String>> filesSortantes) {
         this.nom = nom;
         this.id = id;
         this.nbClones = nbClones;
         this.prochainPlateau = prochainPlateau;
+        this.fileEntrante = fileEntrante;
+        this.filesSortantes = filesSortantes;
+    }
+
+    private void envoyer(int id, String msg) {
+        try {
+            filesSortantes.get(id).put(msg);
+        } catch (InterruptedException ignored) {}
     }
 
     public String getNom() {
@@ -66,24 +78,40 @@ public class Joueur {
         boolean validChoice = false;
 
         while (!validChoice) {
-            System.out.println("Choose your action: JUMP, CLONE, MOVE");
-            String choice = scanner.nextLine().toUpperCase();
+            try {
+                System.out.println("Choose your action: JUMP, CLONE, MOVE");
+                envoyer(id, "Choisis l'action: JUMP, CLONE, MOVE");
 
-            switch (choice) {
-            case "JUMP":
-                type = Coup.TypeCoup.JUMP;
-                validChoice = true;
-                break;
-            case "CLONE":
-                type = Coup.TypeCoup.CLONE;
-                validChoice = true;
-                break;
-            case "MOVE":
-                type = Coup.TypeCoup.MOVE;
-                validChoice = true;
-                break;
-            default:
-                System.out.println("Invalid choice. Please try again.");
+                Message msg = fileEntrante.take();
+
+                while (id != msg.clientId) {
+                    envoyer(id, "Ce n'est pas votre tour.");
+                    msg = fileEntrante.take();
+                }
+
+                String choice = msg.contenu.toUpperCase();
+
+                //String choice = scanner.nextLine().toUpperCase();
+
+                switch (choice) {
+                case "JUMP":
+                    type = Coup.TypeCoup.JUMP;
+                    validChoice = true;
+                    break;
+                case "CLONE":
+                    type = Coup.TypeCoup.CLONE;
+                    validChoice = true;
+                    break;
+                case "MOVE":
+                    type = Coup.TypeCoup.MOVE;
+                    validChoice = true;
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+                }
+            }
+            catch (Exception e) {
+                System.out.println(e.getMessage());
             }
         }
         
@@ -99,7 +127,16 @@ public class Joueur {
                 while (!validDirection) {
                     try {
                         System.out.println("Choose the direction: UP, DOWN, LEFT, RIGHT");
-                        String direction = scanner.nextLine().toUpperCase();
+                        envoyer(id, "Choisis la direction: UP, DOWN, LEFT, RIGHT");
+
+                        Message msg = fileEntrante.take();
+
+                        while (id != msg.clientId) {
+                            envoyer(id, "Ce n'est pas votre tour.");
+                            msg = fileEntrante.take();
+                        }
+                        String direction = msg.contenu;
+                        //String direction = scanner.nextLine().toUpperCase();
 
                         switch (direction) {
                             case "UP":
@@ -132,7 +169,7 @@ public class Joueur {
                         if (!validDirection) {
                             System.out.println("Direction invalide, veuillez réessayer :");
                         }
-                    } catch (IllegalArgumentException e) {
+                    } catch (Exception e) {
                         System.out.println(e.getMessage());
                     }
                 }

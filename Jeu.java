@@ -1,7 +1,11 @@
 import java.awt.Point;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.BlockingQueue;
 
-public class Jeu {
+public class Jeu implements Runnable {
+    private BlockingQueue<Message> fileEntrante;
+    private Map<Integer, BlockingQueue<String>> filesSortantes;
     final static int TAILLE = 4;
     private Plateau past; // plateau past
     private Plateau present; // plateau present
@@ -13,11 +17,35 @@ public class Jeu {
     Scanner sc = new Scanner(System.in);
     // les methodes a completer
 
+    public Jeu(BlockingQueue<Message> fileEntrante, Map<Integer, BlockingQueue<String>> filesSortantes) {
+        this.fileEntrante = fileEntrante;
+        this.filesSortantes = filesSortantes;
+    }
+
     public void demarrer() {
+        run();
+    }
+
+    private void envoyer(int id, String msg) {
+        try {
+            filesSortantes.get(id).put(msg);
+        } catch (InterruptedException ignored) {}
+    }
+
+    private void envoyerATous(String msg) {
+        for (BlockingQueue<String> q : filesSortantes.values()) {
+            try {
+                q.put(msg);
+            } catch (InterruptedException ignored) {}
+        }
+    }
+
+    public void run() {
+        envoyerATous("Jeu démarré !");
         // Initialiser les joueurs
 
-        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
-        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST, fileEntrante, filesSortantes);
+        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE, fileEntrante, filesSortantes);
 
         // Initialiser les plateaux
         past = new Plateau(Plateau.TypePlateau.PAST, joueur1, joueur2); 
@@ -27,6 +55,7 @@ public class Jeu {
         // Afficher le plateau initial
         System.out.println("Plateau initial :");
         printGamePlay();
+        envoyerATous(getGamePlayString());
 
         // Boucle de jeu
         Plateau plateauCourant = null;
@@ -34,13 +63,20 @@ public class Jeu {
         pieceCourante = null;
         joueurCourant = joueur2;
         do {
+            envoyerATous("-------------------------------");
+
             if (joueurCourant.equals(joueur1)) {
                 joueurCourant = joueur2;
+                envoyer(joueur1.getId(), "tour Joueur: " + joueurCourant.getId());
             } else if (joueurCourant.equals(joueur2)) {
                 joueurCourant = joueur1;
+                envoyer(joueur2.getId(), "tour Joueur: " + joueurCourant.getId());
             }
+            envoyer(joueurCourant.getId(), "A ton tour !");
+
             System.out.println("-------------------------------");
             System.out.println("tour Joueur: " + joueurCourant.getId());
+
 
             // Mettre a jour le plateau suivant
             switch (joueurCourant.getProchainPlateau()) {
@@ -62,12 +98,30 @@ public class Jeu {
             try {
                 int lig, col;
                 do {
-                    System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
-                    lig = sc.nextInt();
-                    col = sc.nextInt();
+                    System.out.print("Veuillez entrer la piece que vous voulez deplacer (ligne colonne) : ");
+                    envoyer(joueurCourant.getId(), "Veuillez entrer la piece que vous voulez deplacer (ligne colonne) : ");
+                    Message msg = fileEntrante.take();
+                    int id = msg.clientId;
+
+                    if (id != joueurCourant.getId()) {
+                        envoyer(id, "Ce n'est pas votre tour.");
+                        continue;
+                    }
+                    String[] parts = msg.contenu.split(" ");
+                    if (parts.length >= 2) {
+                        lig = Integer.parseInt(parts[0]);
+                        col = Integer.parseInt(parts[1]);
+                    }
+                    else {
+                        envoyer(id, "Format : [lig] [col]");
+                        continue;
+                    }
+                    System.out.println("choix du joueur : " + lig + " " + col);
+                    
                     //Verifie si les coordonnees sont dans le plateau
                     if ( lig < 0 || col < 0 || lig > (plateauCourant.getSize()-1) || col > (plateauCourant.getSize()-1)){
                         System.out.println("Coordonées incorrectes.");
+                        envoyer(id, "Coordonées incorrectes.");
                         continue;
                     }
                     else{
@@ -76,6 +130,7 @@ public class Jeu {
 
                     if (pieceCourante == null||!pieceCourante.getOwner().equals(joueurCourant) ) {
                         System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
+                        envoyer(id, "Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
                     }
 
                 } while (pieceCourante == null|| !pieceCourante.getOwner().equals(joueurCourant));
@@ -107,6 +162,7 @@ public class Jeu {
                 }
                 joueurCourant.setProchainPlateau(plateauCourant.getType());
                 printGamePlay();
+                envoyerATous(getGamePlayString());
                 i-=1;
             } while (i > 0 && gameOver(joueurCourant) == 0);
 
@@ -120,7 +176,18 @@ public class Jeu {
                     if (gameOver(joueurCourant) != 0)
                         break;
                     System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
-                    String input = sc.next().toUpperCase();
+                    envoyer(joueurCourant.getId(), "Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
+                    
+                    Message msg = fileEntrante.take();
+                    int id = msg.clientId;
+
+                    if (id != joueurCourant.getId()) {
+                        envoyer(id, "Ce n'est pas votre tour.");
+                        continue;
+                    }
+
+                    String input = msg.contenu;
+                    //String input = sc.next().toUpperCase();
                     //Verifie si on change de plateau
                     if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
                         prochainPlateau = Plateau.TypePlateau.valueOf(input);
@@ -160,18 +227,24 @@ public class Jeu {
                     else {
                         System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");
                     }
-                } catch (IllegalArgumentException e) {
-                    System.out.println("Entrée invalide. Veuillez entrer PAST, PRESENT ou FUTURE : ");
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
                 }
             } while (breakloop && gameOver(joueurCourant) == 0);
 
             printGamePlay();
+            envoyerATous(getGamePlayString());
         } while (gameOver(joueurCourant) == 0);
-        if (gameOver(joueurCourant) == 2)
+        if (gameOver(joueurCourant) == 2) {
             System.out.println("Joueur 2 a gagné !");
-        else if (gameOver(joueurCourant) == 1)
+            envoyer(joueur2.getId(), "Vous avez gagné !");
+            envoyer(joueur1.getId(), "Joueur 2 a gagné !");
+        }
+        else if (gameOver(joueurCourant) == 1) {
             System.out.println("Joueur 1 a gagné !");
-
+            envoyer(joueur1.getId(), "Vous avez gagné !");
+            envoyer(joueur2.getId(), "Joueur 1 a gagné !");
+        }
     }
 
     public void appliquerCoup(Coup coup) {
@@ -523,5 +596,61 @@ public class Jeu {
             System.out.println();
         }
     }
+
+    public String getGamePlayString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Next Area J1 : ").append(joueur1.getProchainPlateau().toString()).append("\n");
+        sb.append("Next Area J2 : ").append(joueur2.getProchainPlateau().toString()).append("\n");
+    
+        for (int i = 0; i < TAILLE; i++) {
+            for (int j = 0; j < TAILLE * 3 + 2; j++) {
+                if (j < TAILLE) {
+                    if (past.getPiece(i, j) != null) {
+                        if (past.getPiece(i, j).getOwner().equals(joueur1)) {
+                            sb.append("[B]");
+                        } else {
+                            sb.append("[N]");
+                        }
+                    } else {
+                        sb.append("[ ]");
+                    }
+                }
+    
+                if (j == TAILLE || j == TAILLE * 2 + 1) {
+                    sb.append("  ");
+                }
+    
+                if (j > TAILLE && j < TAILLE * 2 + 1) {
+                    Piece p = present.getPiece(i, j - TAILLE - 1);
+                    if (p != null) {
+                        if (p.getOwner().equals(joueur1)) {
+                            sb.append("[B]");
+                        } else {
+                            sb.append("[N]");
+                        }
+                    } else {
+                        sb.append("[ ]");
+                    }
+                }
+    
+                if (j > TAILLE * 2 + 1) {
+                    Piece p = future.getPiece(i, j - TAILLE * 2 - 2);
+                    if (p != null) {
+                        if (p.getOwner().equals(joueur1)) {
+                            sb.append("[B]");
+                        } else {
+                            sb.append("[N]");
+                        }
+                    } else {
+                        sb.append("[ ]");
+                    }
+                }
+            }
+            sb.append("\n");
+        }
+    
+        return sb.toString();
+    }
+    
 
 }   

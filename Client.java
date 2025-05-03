@@ -3,8 +3,16 @@ import java.net.*;
 import java.util.*;
 
 public class Client {
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
-        Socket socket = new Socket("localhost", 1234);
+    private String ip;
+
+    public Client() {
+        ip = "localhost";
+    }
+    public Client(String ip) {
+        this.ip = ip;
+    }
+    public void demarrer() throws IOException, ClassNotFoundException {
+        Socket socket = new Socket(ip, 1234);
 
         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
         out.flush();

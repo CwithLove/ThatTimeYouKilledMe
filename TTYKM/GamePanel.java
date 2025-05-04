@@ -2,14 +2,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
 import javax.imageio.ImageIO;
 
 public class GamePanel extends JPanel {
-    private BufferedImage lemielImage, zarekImage;
+    private BufferedImage lemielImage, zarekImage, lemielAvatar, zarekAvatar;
     private BufferedImage crackPresent, crackFuture;
+    private BufferedImage background;
 
     private final int tileWidth = 96;
     private final int tileHeight = 32;
@@ -18,6 +20,7 @@ public class GamePanel extends JPanel {
     private final int boardCols = 4;
     private final int boardRows = 4;
 
+    private boolean isPlayerTurn = true; // true = Your Turn, false = Opponent Turn
     private Point selectedCharacter = null;
     private Timer moveTimer;
     private Point currentPos, targetPos;
@@ -27,14 +30,17 @@ public class GamePanel extends JPanel {
 
     public GamePanel() {
         try {
-            lemielImage = ImageIO.read(new File("Lemiel_Avatar.png"));
-            zarekImage = ImageIO.read(new File("Zarek_Avatar.png"));
-            crackFuture = ImageIO.read(new File("Plateau/Crack_Future.png"));
-            crackPresent = ImageIO.read(new File("Plateau/Crack_Present.png"));
+            lemielImage = ImageIO.read(new File("res/Lemiel/Lemiel_Idle.png"));
+            zarekImage = ImageIO.read(new File("res/Zarek/Zarek_Idle_1.png"));
+            crackFuture = ImageIO.read(new File("res/Plateau/Crack_Future.png"));
+            crackPresent = ImageIO.read(new File("res/Plateau/Crack_Present.png"));
+            background = ImageIO.read(new File("res/Background.png"));
+            lemielAvatar = ImageIO.read(new File("res/Avatar/Lemiel_Avatar.png"));
+            zarekAvatar = ImageIO.read(new File("res/Avatar/Zarek_Avatar.png"));
         } catch (Exception e) {
             e.printStackTrace();
         }
-        setPreferredSize(new Dimension(1600, 600));
+        setPreferredSize(new Dimension(1600, 800));
         setBackground(Color.BLACK);
 
         addMouseListener(new MouseAdapter() {
@@ -69,6 +75,11 @@ public class GamePanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+        // Draw the background
+        // if (background != null) {
+            // g2d.drawImage(background, 0, 0, getWidth(), getHeight(), null)
+        // } 
+
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2;
 
@@ -80,20 +91,26 @@ public class GamePanel extends JPanel {
         int pastStartX = presentStartX - spacing - singleBoardWidth;
         int futureStartX = presentStartX + singleBoardWidth + spacing;
         int offsetY = centerY - mapHeight / 2;
-        
+    
+        // Draw number of clones
+        drawNbCloneP1(g2d);
+        drawNbCloneP2(g2d);
+
+        // Draw the area picker
+        drawPickerP1(g2d, pastStartX, presentStartX, futureStartX, offsetY, 0);
+        drawPickerP2(g2d, pastStartX, presentStartX, futureStartX, offsetY, 2);
         
         // Draw 3 boards
         drawBoard(g2d, pastStartX, offsetY, 0);
         drawBoard(g2d, presentStartX, offsetY, 1);
         drawBoard(g2d, futureStartX, offsetY, 2);
-
-
+        
         // Characters on past and future boards (fixe)
         drawCharacter(g2d, 0, 0, pastStartX, offsetY, lemielImage);
         drawCharacter(g2d, 3, 3, pastStartX, offsetY, zarekImage);
         drawCharacter(g2d, 0, 0, futureStartX, offsetY, lemielImage);
         drawCharacter(g2d, 3, 3, futureStartX, offsetY, zarekImage);
-
+        
         // Character on present board
         if (currentPos != null && targetPos != null && animationStep < totalSteps) {
             double t = animationStep / (double) totalSteps;
@@ -106,6 +123,103 @@ public class GamePanel extends JPanel {
                                 presentStartX, offsetY, lemielImage);
             drawCharacter(g2d, 3, 3, presentStartX, offsetY, zarekImage);
         }
+
+        // Draw your turn or opponent turn
+        Graphics2D g2 = (Graphics2D) g.create();
+        String turnText = isPlayerTurn ? "Your Turn" : "Opponent Turn";
+
+        g2.setFont(new Font("Arial Black", Font.BOLD, 36));
+        FontMetrics fm = g2.getFontMetrics();
+        int textWidth = fm.stringWidth(turnText);
+        int x = getWidth() / 2 - textWidth / 2;
+        int y = tileHeight * 2;
+
+        // Shadow
+        g2.setColor(Color.BLACK);
+        g2.drawString(turnText, x + 2, y + 2);
+
+        // Main text
+        g2.setColor(Color.WHITE);
+        g2.drawString(turnText, x, y);
+
+        g2.dispose();
+    }
+
+    private void drawNbCloneP1(Graphics2D g2d) {
+        int x = tileWidth;
+        int y = tileHeight * 3;
+        for (int i = 0; i < 4; i++) {
+            g2d.drawImage(lemielImage, x + i * (lemielImage.getWidth() + 10), y, null);
+        }
+    }
+
+    private void drawNbCloneP2(Graphics2D g2d) {
+        int x = getWidth() - zarekImage.getWidth() * 4 - 10 * 4;
+        int y = getHeight() - tileHeight * 4 ;
+        for (int i = 0; i < 4; i++) {
+            g2d.drawImage(zarekImage, x + i * (zarekImage.getWidth() + 10), y, null);
+        }
+    }
+
+    private void drawPickerP1(Graphics2D g2d, int past, int present, int future, int startY, int area) {
+        int size = 50;
+        int y0 = startY - tileHeight * 3;
+    
+        int[] xs = new int[3];
+        xs[0] = past + tileWidth * 2;
+        xs[1] = present + tileWidth * 2;
+        xs[2] = future + tileWidth * 2;
+    
+        // Lưu clip hiện tại để khôi phục sau
+        Shape oldClip = g2d.getClip();
+    
+        for (int i = 0; i < 3; i++) {
+            int x = xs[i];
+            
+            // Vẽ hình tròn đen cho các vùng không được chọn
+            g2d.setColor(Color.WHITE);
+            g2d.fillOval(x, y0, size, size);
+            if (i == area && lemielAvatar != null) {
+                // Vẽ hình ảnh trong hình tròn (được chọn)
+                Ellipse2D.Float circle = new Ellipse2D.Float(x, y0, size, size);
+                g2d.setClip(circle);
+                g2d.drawImage(lemielAvatar, x, y0, size, size, null);
+                g2d.setClip(oldClip); // KHÔNG quên reset clip sau mỗi ảnh
+            }
+        }
+    
+        // Khôi phục vùng vẽ ban đầu (phòng khi có sót)
+        g2d.setClip(oldClip);
+    }
+    private void drawPickerP2(Graphics2D g2d, int past, int present, int future, int startY, int area) {
+        int size = 50;
+        int y0 = startY + tileHeight * 6;
+    
+        int[] xs = new int[3];
+        xs[0] = past + tileWidth / 2;
+        xs[1] = present + tileWidth / 2;
+        xs[2] = future + tileWidth / 2;
+    
+        // Lưu clip hiện tại để khôi phục sau
+        Shape oldClip = g2d.getClip();
+    
+        for (int i = 0; i < 3; i++) {
+            int x = xs[i];
+    
+            // Vẽ hình tròn đen cho các vùng không được chọn
+            g2d.setColor(Color.WHITE);
+            g2d.fillOval(x, y0, size, size);
+            if (i == area && lemielAvatar != null) {
+                // Vẽ hình ảnh trong hình tròn (được chọn)
+                Ellipse2D.Float circle = new Ellipse2D.Float(x, y0, size, size);
+                g2d.setClip(circle);
+                g2d.drawImage(zarekAvatar, x, y0, size, size, null);
+                g2d.setClip(oldClip); // KHÔNG quên reset clip sau mỗi ảnh
+            }
+        }
+    
+        // Khôi phục vùng vẽ ban đầu (phòng khi có sót)
+        g2d.setClip(oldClip);
     }
 
     private void drawBoard(Graphics2D g2d, int startX, int startY, int time_flag) {        

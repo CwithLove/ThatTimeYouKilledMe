@@ -20,7 +20,7 @@ public class Jeu {
 
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
         joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
-        IAminmax ia = new IAminmax(1);
+        //IAminmax ia = new IAminmax(1);
 
         // Initialiser les plateaux
         past = new Plateau(Plateau.TypePlateau.PAST, joueur1, joueur2); 
@@ -66,6 +66,9 @@ public class Jeu {
             try {
                 int lig, col;
                 do {
+                    if ((joueurCourant.equals(joueur1) && plateauCourant.getNbBlancs() == 0) || (joueurCourant.equals(joueur2) && plateauCourant.getNbNoirs() == 0)){
+                        break;
+                    }
                     System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
                     lig = sc.nextInt();
                     col = sc.nextInt();
@@ -94,8 +97,11 @@ public class Jeu {
             do {
                 Coup coup;
                 do {
-                    coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante);
+                    coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante, past, present, future);
                 } while (estCoupValide(coup) == false);
+                if (coup == null) {
+                    break;
+                }
                 appliquerCoup(coup,joueurCourant,past,present,future);
                 // Mettre a jour le plateau suivant
                 switch (joueurCourant.getProchainPlateau()) {
@@ -112,7 +118,7 @@ public class Jeu {
                 joueurCourant.setProchainPlateau(plateauCourant.getType());
                 printGamePlay();
                 i-=1;
-            } while (i > 0 && gameOver() == 0);
+            } while (i > 0 && gameOver(joueurCourant) == 0);
 
 
             // Prochain plateau
@@ -121,7 +127,7 @@ public class Jeu {
             // A AJOUTER: IL FAUT LE JOUEUR CHOISIR UN AREA DIFFERENT QUE CELUI COURANT
             do {
                 try {
-                    if (gameOver() != 0)
+                    if (gameOver(joueurCourant) != 0)
                         break;
                     System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
                     String input = sc.next().toUpperCase();
@@ -167,13 +173,13 @@ public class Jeu {
                 } catch (IllegalArgumentException e) {
                     System.out.println("Entrée invalide. Veuillez entrer PAST, PRESENT ou FUTURE : ");
                 }
-            } while (breakloop && gameOver() == 0);
+            } while (breakloop && gameOver(joueurCourant) == 0);
 
             printGamePlay();
-        } while (gameOver() == 0);
-        if (gameOver() == 2)
+        } while (gameOver(joueurCourant) == 0);
+        if (gameOver(joueurCourant) == 2)
             System.out.println("Joueur 2 a gagné !");
-        else if (gameOver() == 1)
+        else if (gameOver(joueurCourant) == 1)
             System.out.println("Joueur 1 a gagné !");
 
     }
@@ -451,26 +457,29 @@ public class Jeu {
         return true;
     }
     
-    public int gameOver() {
+    private int gameOver(Joueur joueur) {
         //System.out.println("Nombre de blancs: passe "+past.getNbBlancs()+", present "+present.getNbBlancs()+", future "+future.getNbBlancs());
         //System.out.println("Nombre de Noirs: passe "+past.getNbNoirs()+", present "+present.getNbNoirs()+", future "+future.getNbNoirs());
-        if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0){
-            return 1; //joueur 1 a gagne
-        }
-        if (past.getNbNoirs() == 0 && present.getNbNoirs() > 0 && future.getNbNoirs() == 0){
-            return 1;
-        }
-        if (past.getNbNoirs() == 0 && present.getNbNoirs() == 0 && future.getNbNoirs() > 0){
-            return 1;
-        }
-        if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0){
-            return 2;
-        }
-        if (past.getNbBlancs() == 0 && present.getNbBlancs() > 0 && future.getNbBlancs() == 0){
-            return 2;
-        }
-        if (past.getNbBlancs() == 0 && present.getNbBlancs() == 0 && future.getNbBlancs() > 0){
-            return 2;
+        if (joueur.equals(joueur1)){
+            if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0){
+                return 1; //joueur 1 a gagne
+            }
+            if (past.getNbNoirs() == 0 && present.getNbNoirs() > 0 && future.getNbNoirs() == 0){
+                return 1;
+            }
+            if (past.getNbNoirs() == 0 && present.getNbNoirs() == 0 && future.getNbNoirs() > 0){
+                return 1;
+            }
+        } else if (joueur.equals(joueur2)){
+            if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0){
+                return 2;
+            }
+            if (past.getNbBlancs() == 0 && present.getNbBlancs() > 0 && future.getNbBlancs() == 0){
+                return 2;
+            }
+            if (past.getNbBlancs() == 0 && present.getNbBlancs() == 0 && future.getNbBlancs() > 0){
+                return 2;
+            }
         }
         return 0;
     }

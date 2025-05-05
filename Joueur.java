@@ -61,7 +61,10 @@ public class Joueur {
         return false;
     }
 
-	public Coup choisirCoup(Plateau plateau, Piece piece) {
+	public Coup choisirCoup(Plateau plateau, Piece piece, Plateau past, Plateau present, Plateau future) {
+        if ((this.nom == "Blanc" && plateau.getNbBlancs() == 0) || (this.nom == "Noir" && plateau.getNbNoirs() == 0)){
+            return null;
+        }
         scanner = new Scanner(System.in);
         Coup.TypeCoup type = null;
         boolean validChoice = false;
@@ -72,19 +75,67 @@ public class Joueur {
 
             switch (choice) {
             case "JUMP":
-                if (plateau.getType() != Plateau.TypePlateau.FUTURE){
-                    type = Coup.TypeCoup.JUMP;
-                    validChoice = true;
-                } else {
-                    System.out.println("Vous ne pouvez pas faire de jump dans le futur");
+                switch(plateau.getType()) {
+                    case FUTURE:
+                        System.out.println("Vous ne pouvez pas jump dans le futur");
+                        break;
+                    case PAST:
+                        System.out.println("PLAT: "+piece.getPosition()+", "+(int)piece.getPosition().getY()+", "+(int)piece.getPosition().getX());
+                        Piece targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                            type = Coup.TypeCoup.JUMP;
+                            validChoice = true;
+                        }
+                        else {
+                            System.out.println("Vous ne pouvez pas vous jump sur vous meme");
+                        }
+                        break;
+                    case PRESENT:
+                       targetPiece = future.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                            type = Coup.TypeCoup.JUMP;
+                            validChoice = true;
+                        }
+                        else {
+                            System.out.println("Vous ne pouvez pas vous jump sur vous meme");
+                        }
+                        break;
+                    default:
+                        System.out.println("Erreur dans choisir coup");
+                        break;
                 }
                 break;
             case "CLONE":
-                if (plateau.getType() != Plateau.TypePlateau.PAST){
-                    type = Coup.TypeCoup.CLONE;
-                    validChoice = true;
-                } else {
-                    System.out.println("Vous ne pouvez pas vous cloner dans le passé");
+                if (this.nbClones <= 0){
+                    System.out.println("Vous n'avez plus de pions dans la réserve.");
+                }
+                switch(plateau.getType()) {
+                    case PAST:
+                        System.out.println("Vous ne pouvez pas vous cloner dans le passé");
+                        break;
+                    case PRESENT:
+                        Piece targetPiece = past.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                            type = Coup.TypeCoup.CLONE;
+                            validChoice = true;
+                        }
+                        else {
+                            System.out.println("Vous ne pouvez pas vous cloner sur vous meme");
+                        }
+                        break;
+                    case FUTURE:
+                        targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                            type = Coup.TypeCoup.CLONE;
+                            validChoice = true;
+                        }
+                        else {
+                            System.out.println("Vous ne pouvez pas vous cloner sur vous meme");
+                        }
+                        break;
+                    default:
+                        System.out.println("Erreur dans choisir coup");
+                        break;
                 }
                 break;
             case "MOVE":
@@ -95,7 +146,7 @@ public class Joueur {
                 System.out.println("Invalid choice. Please try again.");
             }
         }
-        
+
         Point dir = null;
         switch (type) {
             case JUMP:
@@ -111,42 +162,77 @@ public class Joueur {
                         String direction = scanner.nextLine().toUpperCase();
 
                         switch (direction) {
-                            case "UP":
-                                if (piece.getPosition().x > 0) {
-                                    dir = new Point(-1, 0);
-                                    validDirection = true;
+                            case "UP": {
+                                int newX = piece.getPosition().x - 1;
+                                int y = piece.getPosition().y;
+                                if (newX >= 0) {
+                                    Piece sidePiece = plateau.getPiece(newX, y);
+                                    if (sidePiece == null || !sidePiece.getOwner().equals(piece.getOwner())) {
+                                        dir = new Point(-1, 0);
+                                        validDirection = true;
+                                    } else {
+                                        System.out.println("On ne peut pas rentrer dans son propre pion");
+                                    }
                                 }
                                 break;
-                            case "DOWN":
-                                if (piece.getPosition().x < plateau.getSize()-1) {
-                                    dir = new Point(1, 0);
-                                    validDirection = true;
+                            }
+                            case "DOWN": {
+                                int newX = piece.getPosition().x + 1;
+                                int y = piece.getPosition().y;
+                                if (newX < plateau.getSize()) {
+                                    Piece sidePiece = plateau.getPiece(newX, y);
+                                    if (sidePiece == null || !sidePiece.getOwner().equals(piece.getOwner())) {
+                                        dir = new Point(1, 0);
+                                        validDirection = true;
+                                    } else {
+                                        System.out.println("On ne peut pas rentrer dans son propre pion");
+                                    }
                                 }
                                 break;
-                            case "LEFT":
-                                if (piece.getPosition().y > 0) {
-                                    dir = new Point(0, -1);
-                                    validDirection = true;
+                            }
+                            case "LEFT": {
+                                int x = piece.getPosition().x;
+                                int newY = piece.getPosition().y - 1;
+                                if (newY >= 0) {
+                                    Piece sidePiece = plateau.getPiece(x, newY);
+                                    if (sidePiece == null || !sidePiece.getOwner().equals(piece.getOwner())) {
+                                        dir = new Point(0, -1);
+                                        validDirection = true;
+                                    } else {
+                                        System.out.println("On ne peut pas rentrer dans son propre pion");
+                                    }
                                 }
                                 break;
-                            case "RIGHT":
-                                if (piece.getPosition().y < plateau.getSize()-1) {
-                                    dir = new Point(0, 1);
-                                    validDirection = true;
+                            }
+                            case "RIGHT": {
+                                int x = piece.getPosition().x;
+                                int newY = piece.getPosition().y + 1;
+                                if (newY < plateau.getSize()) {
+                                    Piece sidePiece = plateau.getPiece(x, newY);
+                                    if (sidePiece == null || !sidePiece.getOwner().equals(piece.getOwner())) {
+                                        dir = new Point(0, 1);
+                                        validDirection = true;
+                                    } else {
+                                        System.out.println("On ne peut pas rentrer dans son propre pion");
+                                    }
                                 }
                                 break;
+                            }
                             default:
                                 throw new IllegalArgumentException("Invalid direction. Please try again.");
                         }
+
                         if (!validDirection) {
                             System.out.println("Direction invalide, veuillez réessayer :");
                         }
+
                     } catch (IllegalArgumentException e) {
                         System.out.println(e.getMessage());
                     }
                 }
-
+                break; // <= important : termine le case MOVE correctement
         }
+
 
 
         return new Coup(piece, dir, plateau, type);

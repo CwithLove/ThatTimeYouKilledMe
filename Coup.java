@@ -48,9 +48,9 @@ public class Coup {
             case "LEFT":
                 return new Coup(piece,new Point(0,-1),plateau,TypeCoup.MOVE);
             case "CLONE":
-                return new Coup(piece,null,plateau,TypeCoup.CLONE);
+                return new Coup(piece,new Point(0,0),plateau,TypeCoup.CLONE);
             case "JUMP":
-                return new Coup(piece,null,plateau,TypeCoup.JUMP);
+                return new Coup(piece,new Point(0,0),plateau,TypeCoup.JUMP);
             default:
                 System.out.println("BUG: erreur dans la méthode stringToCoup.");
                 break;

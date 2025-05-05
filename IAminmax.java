@@ -1,4 +1,4 @@
-import java.util.*;
+/*import java.util.*;
 import java.awt.Point;
 
 public class IAminmax {
@@ -310,6 +310,78 @@ public class IAminmax {
         return victoire;
     }
 
+    private IAFields<Couple<Integer,Integer>,String,String,String> joueCoup(Joueur joueur, Plateau plateau, Plateau passe, Plateau present, Plateau futur){
+        Plateau.TypePlateau precedent = IAjoueur.getProchainPlateau();
+        plateauTraitant = choisirPlateauValide(IAjoueur, precedent, pastIA, presentIA, futureIA);
+        if (plateauTraitant == null) {
+            System.out.println("Aucun plateau valide pour l'IA.");
+            if (gameOverIA(pastIA,presentIA,futureIA) != 0){
+                System.out.println("Joueur a gagné.");
+            }
+            break;
+        }
+        coupActuel = coup(IAjoueur, plateauTraitant,pastIA,presentIA,futureIA);
+        //System.out.println("Plateau Actuel: "+plateauTraitant.getType()+", coup actuel :" + coupActuel);
+        pieceCourante = plateauTraitant.getPiece(coupActuel.getPosPiece().getPremier(),coupActuel.getPosPiece().getSecond());
+        if (pieceCourante == null) {
+            System.out.println("Erreur: la pièce à la position " + coupActuel.getPosPiece() + " est null.");
+            break; // ou return ou break, selon le contexte
+        }
+
+        partie.add(coupActuel);
+        //Etape 2: Joue les 2 coups
+        for (int i = 0; i < 2; i++){
+            if (i == 0){
+                coupstr = coupActuel.getAction1();
+            } else if (i == 1){
+                coupstr = coupActuel.getAction2();
+            }
+
+            Coup couptmp = null;
+            if (!coupstr.equals("JUMP") && !coupstr.equals("CLONE")) {
+                String tmpstr = "MOVE";
+                couptmp = new Coup(pieceCourante, new Point(0, 0), plateauTraitant, Coup.TypeCoup.valueOf(tmpstr));
+            } else {
+                couptmp = new Coup(pieceCourante, new Point(0, 0), plateauTraitant, Coup.TypeCoup.valueOf(coupstr));
+            }
+            //System.out.println("Avant: "+couptmp.getPltCourant().getType()+", ou "+plateauTraitant.getType());
+            coup = couptmp.stringToCoup(pieceCourante,plateauTraitant,coupstr);
+            //System.out.println("Apres: "+coup.getPltCourant().getType()+", "+coup.getTypeCoup());
+
+            jeu.appliquerCoup(coup,IAjoueur,pastIA,presentIA,futureIA);
+            if (gameOverIA(pastIA,presentIA,futureIA) != 0){
+                break;
+            }
+
+            switch (IAjoueur.getProchainPlateau()) {
+                case PAST:
+                    plateauTraitant = pastIA;
+                    break;
+                case PRESENT:
+                    plateauTraitant = presentIA;
+                    break;
+                case FUTURE:
+                    plateauTraitant = futureIA;
+                    break;
+            }
+            IAjoueur.setProchainPlateau(plateauTraitant.getType());
+        }
+        //"retour" dans le while
+
+
+        if (gameOverIA(pastIA,presentIA,futureIA) != 0){
+            break;
+        }
+
+
+
+        //Etape 3: Change de plateau
+
+        Plateau.TypePlateau prochainPlateau = Plateau.TypePlateau.valueOf(coupActuel.getPlateau());
+        IAjoueur.setProchainPlateau(prochainPlateau);
+
+        return coupActuel;
+    }
 
 
 
@@ -373,4 +445,4 @@ public class IAminmax {
 
 
 
-}
+}*/

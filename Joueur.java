@@ -82,7 +82,7 @@ public class Joueur {
                     case PAST:
                         System.out.println("PLAT: "+piece.getPosition()+", "+(int)piece.getPosition().getY()+", "+(int)piece.getPosition().getX());
                         Piece targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
-                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
                         }
@@ -92,7 +92,7 @@ public class Joueur {
                         break;
                     case PRESENT:
                        targetPiece = future.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
-                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
                         }
@@ -115,7 +115,7 @@ public class Joueur {
                         break;
                     case PRESENT:
                         Piece targetPiece = past.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
-                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;
                         }
@@ -125,7 +125,7 @@ public class Joueur {
                         break;
                     case FUTURE:
                         targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
-                        if (targetPiece == null || !piece.getPosition().equals(targetPiece.getPosition())) {
+                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;
                         }

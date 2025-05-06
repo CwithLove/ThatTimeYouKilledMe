@@ -4,10 +4,17 @@ import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 import javax.imageio.ImageIO;
 
-public class GamePanel extends JPanel {
+public class GamePanel extends JPanel implements ActionListener {
+    private static final int WIDTH = 800;
+    private static final int HEIGHT = 600;
+    private static final int FPS = 60;
+    private Timer timer;
+    private SceneManager sceneManager;
     private BufferedImage lemielImage, zarekImage;
     private BufferedImage crackPresent, crackFuture;
 
@@ -19,7 +26,6 @@ public class GamePanel extends JPanel {
     private final int boardRows = 4;
 
     private Point selectedCharacter = null;
-    private Timer moveTimer;
     private Point currentPos, targetPos;
     private BufferedImage movingImage;
     private int animationStep = 0;
@@ -34,8 +40,20 @@ public class GamePanel extends JPanel {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        setPreferredSize(new Dimension(1600, 600));
+        setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(Color.BLACK);
+        setFocusable(true);
+        requestFocus();
+        
+        // 创建场景管理器
+        sceneManager = new SceneManager(this);
+        
+        // 设置初始场景
+        sceneManager.setScene(new MenuScene(sceneManager));
+        
+        // 启动游戏循环
+        timer = new Timer(1000 / FPS, this);
+        timer.start();
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -67,45 +85,16 @@ public class GamePanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        Graphics2D g2d = (Graphics2D) g;
+        sceneManager.render(g);
+    }
 
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
-
-        int singleBoardWidth = boardCols * tileWidth + (boardRows - 1) * Math.abs(deltaX);
-        int boardCenterShift = (tileWidth + deltaX) / 2;
-        int mapHeight = boardRows * tileHeight;
-
-        int presentStartX = centerX - tileWidth - boardCenterShift;
-        int pastStartX = presentStartX - spacing - singleBoardWidth;
-        int futureStartX = presentStartX + singleBoardWidth + spacing;
-        int offsetY = centerY - mapHeight / 2;
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // 更新游戏逻辑
+        sceneManager.update();
         
-        
-        // Draw 3 boards
-        drawBoard(g2d, pastStartX, offsetY, 0);
-        drawBoard(g2d, presentStartX, offsetY, 1);
-        drawBoard(g2d, futureStartX, offsetY, 2);
-
-
-        // Characters on past and future boards (fixe)
-        drawCharacter(g2d, 0, 0, pastStartX, offsetY, lemielImage);
-        drawCharacter(g2d, 3, 3, pastStartX, offsetY, zarekImage);
-        drawCharacter(g2d, 0, 0, futureStartX, offsetY, lemielImage);
-        drawCharacter(g2d, 3, 3, futureStartX, offsetY, zarekImage);
-
-        // Character on present board
-        if (currentPos != null && targetPos != null && animationStep < totalSteps) {
-            double t = animationStep / (double) totalSteps;
-            double row = currentPos.x + t * (targetPos.x - currentPos.x);
-            double col = currentPos.y + t * (targetPos.y - currentPos.y);
-            drawCharacter(g2d, row, col, presentStartX, offsetY, movingImage);
-        } else {
-            drawCharacter(g2d, currentPos != null ? currentPos.x : 0,
-                                currentPos != null ? currentPos.y : 0,
-                                presentStartX, offsetY, lemielImage);
-            drawCharacter(g2d, 3, 3, presentStartX, offsetY, zarekImage);
-        }
+        // 重绘界面
+        repaint();
     }
 
     private void drawBoard(Graphics2D g2d, int startX, int startY, int time_flag) {        

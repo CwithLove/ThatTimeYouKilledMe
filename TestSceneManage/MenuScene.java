@@ -1,3 +1,11 @@
+/*
+ * @Author: ThearchyHelios work@thearchyhelios.com
+ * @Date: 2025-05-05 23:41:00
+ * @LastEditors: ThearchyHelios work@thearchyhelios.com
+ * @LastEditTime: 2025-05-06 01:08:30
+ * @FilePath: /ThatTimeYouKilledMe/TestSceneManage/MenuScene.java
+ * @Description: 
+ */
 import java.awt.*;
 
 public class MenuScene implements Scene {

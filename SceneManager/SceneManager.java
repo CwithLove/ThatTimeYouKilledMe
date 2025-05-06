@@ -30,8 +30,16 @@ public class SceneManager {
             currentScene.render(g, width, height);
         }
     }
+
+
     
     public JPanel getPanel() {
         return gamePanel;
     }
+
+    public Scene getCurrentScene() {
+        return currentScene;
+    }
+
+
 }

@@ -46,7 +46,7 @@ public class LobbyScene implements Scene {
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
                     if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
-                        Scene gameScene = new GameScene(sceneManager);
+                        GameScene gameScene = new GameScene(sceneManager, true);
                         gameScene.updateLastLogin(1); // 1 pour le mode multi
                         sceneManager.setScene(gameScene);
                         // Normallement envoyer un message de demarrage a J2
@@ -179,7 +179,9 @@ public class LobbyScene implements Scene {
 
     public void startGame() {
         if (!isHost) {
-            sceneManager.setScene(new GameScene(sceneManager));
+            GameScene gameScene = new GameScene(sceneManager, false);
+            gameScene.updateLastLogin(1);
+            sceneManager.setScene(gameScene);
         }
     }
 }

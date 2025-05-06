@@ -1,4 +1,3 @@
-
 package SceneManager;
 
 import java.awt.*;
@@ -8,6 +7,7 @@ import java.awt.event.MouseListener;
 
 public class GameScene implements Scene {
     private static int lastLogin = 0; // 0: single, 1: multi
+    private static boolean isHost = true; // 默认为主机
     private SceneManager sceneManager;
     private long startTime;
     private float alpha = 0f;
@@ -30,11 +30,16 @@ public class GameScene implements Scene {
                     if (lastLogin == 0) {
                         sceneManager.setScene(new MenuScene(sceneManager));
                     } else if (lastLogin == 1) {
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                        sceneManager.setScene(new LobbyScene(sceneManager, isHost)); // 使用isHost参数
                     }
                 }
             }
         });
+    }
+    
+    public GameScene(SceneManager sceneManager, boolean isHost) {
+        this(sceneManager); // 调用基本构造函数
+        GameScene.isHost = isHost; // 设置静态变量
     }
     
     @Override

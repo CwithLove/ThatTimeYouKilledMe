@@ -36,7 +36,9 @@ public class MultiHostScene implements Scene {
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
                     if (playerTwoConnected && startButton.contains(e.getPoint())) {
-                        sceneManager.setScene(new GameScene(sceneManager)); // 假设多人游戏场景是GameScene
+                        GameScene gameScene = new GameScene(sceneManager, true); // 主机玩家传递isHost=true
+                        gameScene.updateLastLogin(1); // 1 pour le mode multi
+                        sceneManager.setScene(gameScene);
                     } else if (backButton.contains(e.getPoint())) {
                         sceneManager.setScene(new HostOrConnectScene(sceneManager));
                     }

@@ -35,4 +35,26 @@ public class Coup {
     public TypeCoup getTypeCoup() {
         return typeCoup;
     }
+
+    public Coup stringToCoup(Piece piece, Plateau plateau, String coupstr) {
+        //System.out.println("pendant: " + plateau.getType());
+        switch(coupstr){
+            case "UP":
+                return new Coup(piece,new Point(-1, 0),plateau,TypeCoup.MOVE);
+            case "DOWN":
+                return new Coup(piece,new Point(1, 0),plateau,TypeCoup.MOVE);
+            case "RIGHT":
+                return new Coup(piece,new Point(0, 1),plateau,TypeCoup.MOVE);
+            case "LEFT":
+                return new Coup(piece,new Point(0,-1),plateau,TypeCoup.MOVE);
+            case "CLONE":
+                return new Coup(piece,null,plateau,TypeCoup.CLONE);
+            case "JUMP":
+                return new Coup(piece,null,plateau,TypeCoup.JUMP);
+            default:
+                System.out.println("BUG: erreur dans la méthode stringToCoup.");
+                break;
+        }
+        return null;
+    }
 }

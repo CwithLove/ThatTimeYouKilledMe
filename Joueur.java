@@ -1,6 +1,7 @@
 import java.awt.Point;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
 
 public class Joueur {
@@ -93,6 +94,29 @@ public class Joueur {
 
                 //String choice = scanner.nextLine().toUpperCase();
 
+            switch (choice) {
+            case "JUMP":
+                if (plateau.getType() != Plateau.TypePlateau.FUTURE){
+                    type = Coup.TypeCoup.JUMP;
+                    validChoice = true;
+                } else {
+                    System.out.println("Vous ne pouvez pas faire de jump dans le futur");
+                }
+                break;
+            case "CLONE":
+                if (plateau.getType() != Plateau.TypePlateau.PAST){
+                    type = Coup.TypeCoup.CLONE;
+                    validChoice = true;
+                } else {
+                    System.out.println("Vous ne pouvez pas vous cloner dans le passé");
+                }
+                break;
+            case "MOVE":
+                type = Coup.TypeCoup.MOVE;
+                validChoice = true;
+                break;
+            default:
+                System.out.println("Invalid choice. Please try again.");
                 switch (choice) {
                 case "JUMP":
                     type = Coup.TypeCoup.JUMP;
@@ -186,4 +210,20 @@ public class Joueur {
         return null;
 	}
 
+    public ArrayList<Couple<Integer,Integer>> listePiecesJoueur(Plateau plateau){
+        //Renvoie la liste des pions du joueur actuel, dans le plateau actuel
+        ArrayList<Couple<Integer,Integer>> coordonnesPions = new ArrayList<>();
+        Piece pion;
+        if (plateau.getType() != null){
+            for (int i = 0; i < plateau.getSize(); i++){
+                for (int j = 0; j < plateau.getSize(); j++){
+                    pion = plateau.getPiece(i,j);
+                    if (pion != null && this == pion.getOwner()) {
+                        coordonnesPions.add(new Couple<>(i, j));
+                    }
+                }
+            }
+        }
+        return coordonnesPions;
+    }
 }

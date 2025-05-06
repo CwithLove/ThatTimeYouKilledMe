@@ -94,37 +94,22 @@ public class Joueur {
 
                 //String choice = scanner.nextLine().toUpperCase();
 
-            switch (choice) {
-            case "JUMP":
-                if (plateau.getType() != Plateau.TypePlateau.FUTURE){
-                    type = Coup.TypeCoup.JUMP;
-                    validChoice = true;
-                } else {
-                    System.out.println("Vous ne pouvez pas faire de jump dans le futur");
-                }
-                break;
-            case "CLONE":
-                if (plateau.getType() != Plateau.TypePlateau.PAST){
-                    type = Coup.TypeCoup.CLONE;
-                    validChoice = true;
-                } else {
-                    System.out.println("Vous ne pouvez pas vous cloner dans le passé");
-                }
-                break;
-            case "MOVE":
-                type = Coup.TypeCoup.MOVE;
-                validChoice = true;
-                break;
-            default:
-                System.out.println("Invalid choice. Please try again.");
                 switch (choice) {
                 case "JUMP":
-                    type = Coup.TypeCoup.JUMP;
-                    validChoice = true;
+                    if (plateau.getType() != Plateau.TypePlateau.FUTURE){
+                        type = Coup.TypeCoup.JUMP;
+                        validChoice = true;
+                    } else {
+                        System.out.println("Vous ne pouvez pas faire de jump dans le futur");
+                    }
                     break;
                 case "CLONE":
-                    type = Coup.TypeCoup.CLONE;
-                    validChoice = true;
+                    if (plateau.getType() != Plateau.TypePlateau.PAST){
+                        type = Coup.TypeCoup.CLONE;
+                        validChoice = true;
+                    } else {
+                        System.out.println("Vous ne pouvez pas vous cloner dans le passé");
+                    }
                     break;
                 case "MOVE":
                     type = Coup.TypeCoup.MOVE;
@@ -132,6 +117,22 @@ public class Joueur {
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again.");
+                    switch (choice) {
+                    case "JUMP":
+                        type = Coup.TypeCoup.JUMP;
+                        validChoice = true;
+                        break;
+                    case "CLONE":
+                        type = Coup.TypeCoup.CLONE;
+                        validChoice = true;
+                        break;
+                    case "MOVE":
+                        type = Coup.TypeCoup.MOVE;
+                        validChoice = true;
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                    }
                 }
             }
             catch (Exception e) {

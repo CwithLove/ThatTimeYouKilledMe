@@ -46,9 +46,7 @@ public class Jeu implements Runnable {
         envoyerATous("Jeu démarré !");
         // Initialiser les joueurs
 
-        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
-        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
-        IAminmax ia = new IAminmax(1);
+        //IAminmax ia = new IAminmax(1);
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST, fileEntrante, filesSortantes);
         joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE, fileEntrante, filesSortantes);
 
@@ -240,13 +238,13 @@ public class Jeu implements Runnable {
 
             printGamePlay();
             envoyerATous(getGamePlayString());
-        } while (gameOver(joueurCourant) == 0);
-        if (gameOver(joueurCourant) == 2) {
+        } while (gameOver() == 0);
+        if (gameOver() == 2) {
             System.out.println("Joueur 2 a gagné !");
             envoyer(joueur2.getId(), "Vous avez gagné !");
             envoyer(joueur1.getId(), "Joueur 2 a gagné !");
         }
-        else if (gameOver(joueurCourant) == 1) {
+        else if (gameOver() == 1) {
             System.out.println("Joueur 1 a gagné !");
             envoyer(joueur1.getId(), "Vous avez gagné !");
             envoyer(joueur2.getId(), "Joueur 1 a gagné !");

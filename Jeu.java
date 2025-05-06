@@ -134,38 +134,8 @@ public class Jeu {
                     //Verifie si on change de plateau
                     if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
                         prochainPlateau = Plateau.TypePlateau.valueOf(input);
-                        //Verifie si il y a des pions dans le nouveau plateau choisi
-                        switch(prochainPlateau){
-                            case PAST:
-                                if (joueurCourant.existePion(past)){
-                                    joueurCourant.setProchainPlateau(prochainPlateau);
-                                    breakloop = false;
-                                }
-                                else {
-                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
-                                }
-                                break;
-                            case PRESENT:
-                                if (joueurCourant.existePion(present)){
-                                    joueurCourant.setProchainPlateau(prochainPlateau);
-                                    breakloop = false;
-                                }
-                                else {
-                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
-                                }
-                                break;
-                            case FUTURE:
-                                if (joueurCourant.existePion(future)){
-                                    joueurCourant.setProchainPlateau(prochainPlateau);
-                                    breakloop = false;
-                                }
-                                else {
-                                    System.out.println("Le plateau choisi ne contient pas de pion de votre couleur. Réessayez: ");
-                                }
-                                break;
-                        }
-
-
+                        joueurCourant.setProchainPlateau(prochainPlateau);
+                        breakloop = false;
                     }
                     else {
                         System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");

@@ -46,7 +46,6 @@ public class Jeu implements Runnable {
         envoyerATous("Jeu démarré !");
         // Initialiser les joueurs
 
-        //IAminmax ia = new IAminmax(1);
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST, fileEntrante, filesSortantes);
         joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE, fileEntrante, filesSortantes);
 

@@ -22,6 +22,7 @@ public class Client {
             try {
                 while (true) {
                     Object obj = in.readObject();
+                    //majAffichage();
                     if (obj instanceof String) {
                         System.out.println("Serveur: " + obj);
                     }

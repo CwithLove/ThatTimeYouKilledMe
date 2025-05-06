@@ -26,9 +26,8 @@ public class Plateau {
 
         // Initialisation des pièces sur le plateau
         this.grille[0][0] = new Piece(joueur1, new Point(0, 0));
-        this.grille[1][0] = new Piece(joueur2, new Point(1, 0));
-        this.grille[2][0] = new Piece(joueur2, new Point(2, 0));
-        this.grille[3][0] = new Piece(joueur2, new Point(3, 0));
+        this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
+        
         this.size = 4;
     }
 

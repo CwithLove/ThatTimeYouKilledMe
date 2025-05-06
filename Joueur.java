@@ -80,8 +80,8 @@ public class Joueur {
                         System.out.println("Vous ne pouvez pas jump dans le futur");
                         break;
                     case PAST:
-                        System.out.println("PLAT: "+piece.getPosition()+", "+(int)piece.getPosition().getY()+", "+(int)piece.getPosition().getX());
-                        Piece targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        System.out.println("PLAT: "+piece.getPosition()+", "+(int)piece.getPosition().getX()+", "+(int)piece.getPosition().getY());
+                        Piece targetPiece = present.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
                         if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
@@ -91,7 +91,7 @@ public class Joueur {
                         }
                         break;
                     case PRESENT:
-                       targetPiece = future.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                       targetPiece = future.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
                         if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
@@ -114,7 +114,7 @@ public class Joueur {
                         System.out.println("Vous ne pouvez pas vous cloner dans le passé");
                         break;
                     case PRESENT:
-                        Piece targetPiece = past.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        Piece targetPiece = past.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
                         if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;
@@ -124,7 +124,7 @@ public class Joueur {
                         }
                         break;
                     case FUTURE:
-                        targetPiece = present.getPiece((int) piece.getPosition().getY(), (int) piece.getPosition().getX());
+                        targetPiece = present.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
                         if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;

@@ -19,6 +19,11 @@ public class LobbyScene implements Scene {
     private String hostIP;
     private int animationDots = 0;
     private long lastDotTime = 0;
+    
+    // 添加鼠标悬停和点击效果的变量
+    private Rectangle hoverButton = null;
+    private Rectangle clickButton = null;
+    private long clickTime = 0;
 
     public LobbyScene(SceneManager sceneManager, boolean isHost) {
         this.sceneManager = sceneManager;
@@ -46,16 +51,53 @@ public class LobbyScene implements Scene {
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
                     if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
+                        clickButton = startButton;
+                        clickTime = System.currentTimeMillis();
+                        
                         GameScene gameScene = new GameScene(sceneManager, true);
                         gameScene.updateLastLogin(1); // 1 pour le mode multi
                         sceneManager.setScene(gameScene);
                         // Normallement envoyer un message de demarrage a J2
                     } else if (backButton.contains(e.getPoint())) {
+                        clickButton = backButton;
+                        clickTime = System.currentTimeMillis();
+                        
                         if (isHost) {
                             sceneManager.setScene(new MultiHostScene(sceneManager));
                         } else {
                             sceneManager.setScene(new MultiConnectScene(sceneManager));
                         }
+                    }
+                }
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (fadeComplete) {
+                    if ((isHost && playerTwoConnected && startButton.contains(e.getPoint())) || 
+                        backButton.contains(e.getPoint())) {
+                        clickButton = startButton.contains(e.getPoint()) ? startButton : backButton;
+                        clickTime = System.currentTimeMillis();
+                    }
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                clickButton = null;
+            }
+        });
+        
+        // ajouter le listener de la souris pour le hover
+        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (fadeComplete) {
+                    hoverButton = null;
+                    if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
+                        hoverButton = startButton;
+                    } else if (backButton.contains(e.getPoint())) {
+                        hoverButton = backButton;
                     }
                 }
             }
@@ -140,11 +182,24 @@ public class LobbyScene implements Scene {
 
             // Dessiner le bouton de demarrage
             if (playerTwoConnected) {
-                g2d.setColor(new Color(0, 180, 0));
+                if (clickButton == startButton) {
+                    g2d.setColor(new Color(0, 120, 0));
+                } else if (hoverButton == startButton) {
+                    g2d.setColor(new Color(0, 220, 0));
+                } else {
+                    g2d.setColor(new Color(0, 180, 0));
+                }
             } else {
                 g2d.setColor(Color.GRAY);
             }
             g2d.fill(startButton);
+            
+            // si le bouton est clique, dessiner un effet de shadow
+            if (clickButton == startButton) {
+                g2d.setColor(new Color(0, 0, 0, 50));
+                g2d.fillRect(startButton.x + 2, startButton.y + 2, startButton.width - 4, startButton.height - 4);
+            }
+            
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, 18));
             g2d.drawString("Commencer", startButton.x + 25, startButton.y + 30);
@@ -156,8 +211,21 @@ public class LobbyScene implements Scene {
         }
 
         // Dessiner le bouton de retour
-        g2d.setColor(new Color(100, 100, 200));
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(70, 70, 150));
+        } else if (hoverButton == backButton) {
+            g2d.setColor(new Color(130, 130, 230));
+        } else {
+            g2d.setColor(new Color(100, 100, 200));
+        }
         g2d.fill(backButton);
+        
+        // si le bouton est clique, dessiner un effet de shadow
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(0, 0, 0, 50));
+            g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
+        }
+        
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
         g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
@@ -169,6 +237,7 @@ public class LobbyScene implements Scene {
     public void dispose() {
         // Supprimer le listener de la souris
         sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
+        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
 
         // TODO: Nettoyer les ressources de la connexion reseau
     }

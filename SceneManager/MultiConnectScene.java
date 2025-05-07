@@ -17,6 +17,11 @@ public class MultiConnectScene implements Scene {
     private boolean cursorVisible = true;
     private long lastCursorBlinkTime = 0;
     
+    // 添加鼠标悬停和点击效果的变量
+    private Rectangle hoverButton = null;
+    private Rectangle clickButton = null;
+    private long clickTime = 0;
+    
     public MultiConnectScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
         connectButton = new Rectangle(350, 300, 100, 40);
@@ -29,7 +34,7 @@ public class MultiConnectScene implements Scene {
                 if (fadeComplete) {
                     char c = e.getKeyChar();
                     if (Character.isDigit(c) || c == '.') {
-                        if (ipAddress.length() < 15) {  // 防止IP地址太长
+                        if (ipAddress.length() < 15) {  // Limite de la longueur de l'IP
                             ipAddress += c;
                             cursorPosition = ipAddress.length();
                         }
@@ -47,9 +52,46 @@ public class MultiConnectScene implements Scene {
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
                     if (connectButton.contains(e.getPoint()) && !ipAddress.isEmpty()) {
+                        clickButton = connectButton;
+                        clickTime = System.currentTimeMillis();
                         connectToHost(ipAddress);
                     } else if (backButton.contains(e.getPoint())) {
+                        clickButton = backButton;
+                        clickTime = System.currentTimeMillis();
                         sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    }
+                }
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (fadeComplete) {
+                    if (connectButton.contains(e.getPoint()) && !ipAddress.isEmpty()) {
+                        clickButton = connectButton;
+                        clickTime = System.currentTimeMillis();
+                    } else if (backButton.contains(e.getPoint())) {
+                        clickButton = backButton;
+                        clickTime = System.currentTimeMillis();
+                    }
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                clickButton = null;
+            }
+        });
+        
+        // 添加鼠标移动监听器用于悬停效果
+        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (fadeComplete) {
+                    hoverButton = null;
+                    if (connectButton.contains(e.getPoint()) && !ipAddress.isEmpty() && !isConnected) {
+                        hoverButton = connectButton;
+                    } else if (backButton.contains(e.getPoint())) {
+                        hoverButton = backButton;
                     }
                 }
             }
@@ -120,17 +162,44 @@ public class MultiConnectScene implements Scene {
         
         // 绘制连接按钮
         if (!ipAddress.isEmpty() && !isConnected) {
-            g2d.setColor(new Color(0, 150, 0));
+            // 根据按钮状态设置颜色
+            if (clickButton == connectButton) {
+                g2d.setColor(new Color(0, 100, 0)); // 点击颜色
+            } else if (hoverButton == connectButton) {
+                g2d.setColor(new Color(0, 180, 0)); // 悬停颜色
+            } else {
+                g2d.setColor(new Color(0, 150, 0)); // 正常颜色
+            }
         } else {
             g2d.setColor(Color.GRAY);
         }
         g2d.fill(connectButton);
+        
+        // 如果是点击状态，绘制一个轻微的阴影效果
+        if (clickButton == connectButton && !isConnected) {
+            g2d.setColor(new Color(0, 0, 0, 50));
+            g2d.fillRect(connectButton.x + 2, connectButton.y + 2, connectButton.width - 4, connectButton.height - 4);
+        }
+        
         g2d.setColor(Color.WHITE);
         g2d.drawString("Connecter", connectButton.x + 5, connectButton.y + 25);
         
         // 绘制返回按钮
-        g2d.setColor(new Color(100, 100, 200));
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
+        } else if (hoverButton == backButton) {
+            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
+        } else {
+            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
+        }
         g2d.fill(backButton);
+        
+        // 如果是点击状态，绘制一个轻微的阴影效果
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(0, 0, 0, 50));
+            g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
+        }
+        
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
         g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
@@ -156,6 +225,12 @@ public class MultiConnectScene implements Scene {
         MouseListener[] mouseListeners = sceneManager.getPanel().getMouseListeners();
         if (mouseListeners.length > 0) {
             sceneManager.getPanel().removeMouseListener(mouseListeners[0]);
+        }
+        
+        // 移除鼠标移动监听器
+        MouseMotionListener[] motionListeners = sceneManager.getPanel().getMouseMotionListeners();
+        if (motionListeners.length > 0) {
+            sceneManager.getPanel().removeMouseMotionListener(motionListeners[0]);
         }
     }
 } 

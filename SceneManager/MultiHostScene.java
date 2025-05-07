@@ -18,6 +18,11 @@ public class MultiHostScene implements Scene {
     private int animationDots = 0;
     private long lastDotTime = 0;
     
+    // 添加鼠标悬停和点击效果的变量
+    private Rectangle hoverButton = null;
+    private Rectangle clickButton = null;
+    private long clickTime = 0;
+    
     public MultiHostScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
         startButton = new Rectangle(600, 500, 150, 50);
@@ -36,11 +41,48 @@ public class MultiHostScene implements Scene {
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
                     if (playerTwoConnected && startButton.contains(e.getPoint())) {
-                        GameScene gameScene = new GameScene(sceneManager, true); // 主机玩家传递isHost=true
+                        clickButton = startButton;
+                        clickTime = System.currentTimeMillis();
+                        GameScene gameScene = new GameScene(sceneManager, true);
                         gameScene.updateLastLogin(1); // 1 pour le mode multi
                         sceneManager.setScene(gameScene);
                     } else if (backButton.contains(e.getPoint())) {
+                        clickButton = backButton;
+                        clickTime = System.currentTimeMillis();
                         sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    }
+                }
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (fadeComplete) {
+                    if (playerTwoConnected && startButton.contains(e.getPoint())) {
+                        clickButton = startButton;
+                        clickTime = System.currentTimeMillis();
+                    } else if (backButton.contains(e.getPoint())) {
+                        clickButton = backButton;
+                        clickTime = System.currentTimeMillis();
+                    }
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                clickButton = null;
+            }
+        });
+        
+        // 添加鼠标移动监听器用于悬停效果
+        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (fadeComplete) {
+                    hoverButton = null;
+                    if (playerTwoConnected && startButton.contains(e.getPoint())) {
+                        hoverButton = startButton;
+                    } else if (backButton.contains(e.getPoint())) {
+                        hoverButton = backButton;
                     }
                 }
             }
@@ -118,18 +160,44 @@ public class MultiHostScene implements Scene {
         
         // Dessiner le bouton de démarrage de la partie
         if (playerTwoConnected) {
-            g2d.setColor(new Color(0, 180, 0));
+            if (clickButton == startButton) {
+                g2d.setColor(new Color(0, 120, 0));
+            } else if (hoverButton == startButton) {
+                g2d.setColor(new Color(0, 220, 0));
+            } else {
+                g2d.setColor(new Color(0, 180, 0));
+            }
         } else {
             g2d.setColor(Color.GRAY);
         }
         g2d.fill(startButton);
+        
+        // 如果是点击状态，绘制一个轻微的阴影效果
+        if (clickButton == startButton && playerTwoConnected) {
+            g2d.setColor(new Color(0, 0, 0, 50));
+            g2d.fillRect(startButton.x + 2, startButton.y + 2, startButton.width - 4, startButton.height - 4);
+        }
+        
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 18));
         g2d.drawString("Commencer", startButton.x + 25, startButton.y + 30);
         
         // Dessiner le bouton de retour
-        g2d.setColor(new Color(100, 100, 200));
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(70, 70, 150));
+        } else if (hoverButton == backButton) {
+            g2d.setColor(new Color(130, 130, 230));
+        } else {
+            g2d.setColor(new Color(100, 100, 200));
+        }
         g2d.fill(backButton);
+        
+        // 如果是点击状态，绘制一个轻微的阴影效果
+        if (clickButton == backButton) {
+            g2d.setColor(new Color(0, 0, 0, 50));
+            g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
+        }
+        
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
         g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
@@ -141,6 +209,8 @@ public class MultiHostScene implements Scene {
     public void dispose() {
         // Remove Mouse Listener
         sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
+        // 移除鼠标移动监听器
+        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
     }
     
     // Method va appele quand le joueur 2 est connecte

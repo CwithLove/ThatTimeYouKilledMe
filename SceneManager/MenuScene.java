@@ -181,33 +181,65 @@ public class MenuScene implements Scene {
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
         
-        // 绘制标题
+        // Title
+        String title = "That Time You Killed Me";
+        int fontSize = Math.min(width, height) / 15; // Dynamically adjust font size based on screen dimensions
+        Font titleFont = new Font("Arial", Font.BOLD, fontSize);
+        g2d.setFont(titleFont);
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Menu", width/2, height/4);
+        int titleWidth = g2d.getFontMetrics(titleFont).stringWidth(title);
+        int titleX = (width - titleWidth) / 2;
+        int titleY = height / 5;
+        g2d.drawString(title, titleX, titleY);
 
-        // A CHANGER DYNAMIQUE
-
-        singleButton.setLocation(width/2, height/4 + 100);
-        multiButton.setLocation(width/2, height/4 + 200);
-        quitButton.setLocation(width/2, height/4 + 300);
-
+        // Dynamically reposition buttons using setLocation
+        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 4 );
+        multiButton.setLocation(width / 2 - multiButton.width / 2, height / 4 + (int) (height * 8 / 100));
+        quitButton.setLocation(width / 2 - quitButton.width / 2, height / 4 + (int) (height * 16 / 100));
         
-        // 绘制单人游戏按钮
-        if (clickButton == singleButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == singleButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
+        // Adjust button sizes dynamically based on screen dimensions
+        int buttonWidth = width / 4;
+        int buttonHeight = height / 12;
+
+        singleButton.setSize(buttonWidth, buttonHeight);
+        multiButton.setSize(buttonWidth, buttonHeight);
+        quitButton.setSize(buttonWidth, buttonHeight);
+
+        // Dynamically reposition buttons
+        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 3);
+        multiButton.setLocation(width / 2 - multiButton.width / 2, height / 3 + buttonHeight + height / 20);
+        quitButton.setLocation(width / 2 - quitButton.width / 2, height / 3 + 2 * (buttonHeight + height / 20));
+
+        // // Mouse Listener
+        // sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        //     @Override
+        //     public void mouseClicked(MouseEvent e) {
+        //         if (fadeComplete) {
+        //             if (singleButton.contains(e.getPoint())) {
+        //                 sceneManager.setScene(new GameScene(sceneManager));
+        //             } else if (multiButton.contains(e.getPoint())) {
+        //                 sceneManager.setScene(new HostOrConnectScene(sceneManager));
+        //             } else if (quitButton.contains(e.getPoint())) {
+        //                 System.exit(0); // Normallement retourner le main menu
+        //             }
+        //         }
+        //     }
+        // });
+        
+        // Button
+        g2d.setColor(new Color(100, 100, 200));
         g2d.fill(singleButton);
         
         // 如果是点击状态，绘制一个轻微的阴影效果
         if (clickButton == singleButton) {
             g2d.setColor(new Color(0, 0, 0, 50));
             g2d.fillRect(singleButton.x + 2, singleButton.y + 2, singleButton.width - 4, singleButton.height - 4);
+        } else if (hoverButton == singleButton) {
+            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
+        } else {
+            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
         }
+        g2d.fill(singleButton);
         
         // 绘制多人游戏按钮
         if (clickButton == multiButton) {
@@ -245,12 +277,22 @@ public class MenuScene implements Scene {
         
         // 绘制按钮文字
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 20));
-        g2d.drawString("Single Player", singleButton.x + 50, singleButton.y + 35);
-        g2d.drawString("Multi Player", multiButton.x + 50, multiButton.y + 35);
-        
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Quit", quitButton.x + 45, quitButton.y + 25);
+        Font buttonFont = new Font("Arial", Font.BOLD, Math.min(width, height) / 40); // Dynamically adjust font size
+        g2d.setFont(buttonFont);
+        int textYOffset = g2d.getFontMetrics(buttonFont).getHeight() / 2;
+
+        // Center text within buttons
+        String singleText = "Single Player";
+        int singleTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(singleText);
+        g2d.drawString(singleText, singleButton.x + (singleButton.width - singleTextWidth) / 2, singleButton.y + (singleButton.height + textYOffset) / 2);
+
+        String multiText = "Multi Player";
+        int multiTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(multiText);
+        g2d.drawString(multiText, multiButton.x + (multiButton.width - multiTextWidth) / 2, multiButton.y + (multiButton.height + textYOffset) / 2);
+
+        String quitText = "Quit";
+        int quitTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(quitText);
+        g2d.drawString(quitText, quitButton.x + (quitButton.width - quitTextWidth) / 2, quitButton.y + (quitButton.height + textYOffset) / 2);
         
         g2d.dispose();
     }

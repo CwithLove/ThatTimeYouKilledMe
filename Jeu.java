@@ -586,20 +586,30 @@ public class Jeu implements Runnable {
 
     public String getGamePlayString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Next Area J1 : ").append(joueur1.getProchainPlateau().toString()).append("\n");
-        sb.append("Next Area J2 : ").append(joueur2.getProchainPlateau().toString()).append("\n");
+        sb.append(joueur1.getProchainPlateau().toString());
+        sb.append(" ");
+        for(int i = 0; i < joueur1.getNbClones(); i++) {
+            sb.append("*");
+        }
+        sb.append("\n");
+        sb.append(joueur2.getProchainPlateau().toString());
+        sb.append(" ");
+        for(int i = 0; i < joueur2.getNbClones(); i++) {
+            sb.append("*");
+        }
+        sb.append("\n");
     
         for (int i = 0; i < TAILLE; i++) {
             for (int j = 0; j < TAILLE * 3 + 2; j++) {
                 if (j < TAILLE) {
                     if (past.getPiece(i, j) != null) {
                         if (past.getPiece(i, j).getOwner().equals(joueur1)) {
-                            sb.append("[B]");
+                            sb.append("B");
                         } else {
-                            sb.append("[N]");
+                            sb.append("N");
                         }
                     } else {
-                        sb.append("[ ]");
+                        sb.append(".");
                     }
                 }
     
@@ -611,12 +621,12 @@ public class Jeu implements Runnable {
                     Piece p = present.getPiece(i, j - TAILLE - 1);
                     if (p != null) {
                         if (p.getOwner().equals(joueur1)) {
-                            sb.append("[B]");
+                            sb.append("B");
                         } else {
-                            sb.append("[N]");
+                            sb.append("N");
                         }
                     } else {
-                        sb.append("[ ]");
+                        sb.append(".");
                     }
                 }
     
@@ -624,15 +634,32 @@ public class Jeu implements Runnable {
                     Piece p = future.getPiece(i, j - TAILLE * 2 - 2);
                     if (p != null) {
                         if (p.getOwner().equals(joueur1)) {
-                            sb.append("[B]");
+                            sb.append("B");
                         } else {
-                            sb.append("[N]");
+                            sb.append("N");
                         }
                     } else {
-                        sb.append("[ ]");
+                        sb.append(".");
                     }
                 }
             }
+            sb.append("\n");
+        }
+        if (joueurCourant != null) {
+            if (joueurCourant.equals(joueur1))
+                sb.append("1");
+            else
+                sb.append("2");
+            sb.append("\n");
+        }
+
+        if (pieceCourante != null) {
+            int x = (int) pieceCourante.getPosition().getX();
+            int y = (int) pieceCourante.getPosition().getY();
+
+            sb.append(Integer.toString(x));
+            sb.append("\n");
+            sb.append(Integer.toString(y));
             sb.append("\n");
         }
     

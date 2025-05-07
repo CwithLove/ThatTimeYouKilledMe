@@ -12,6 +12,13 @@ public class Joueur {
     private int nbClones;
     private Plateau.TypePlateau prochainPlateau;
     private Scanner scanner;
+
+    public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau) {
+        this.nom = nom;
+        this.id = id;
+        this.nbClones = nbClones;
+        this.prochainPlateau = prochainPlateau;
+    }
     public Joueur(String nom, int id, int nbClones, Plateau.TypePlateau prochainPlateau, 
     BlockingQueue<Message> fileEntrante, Map<Integer, BlockingQueue<String>> filesSortantes) {
         this.nom = nom;

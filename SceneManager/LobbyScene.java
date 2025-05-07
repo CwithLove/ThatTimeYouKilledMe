@@ -109,7 +109,7 @@ public class LobbyScene implements Scene {
             // Simuler
             new Thread(() -> {
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(1000);
                     playerTwoConnected = true;
                 } catch (InterruptedException e) {
                     e.printStackTrace();

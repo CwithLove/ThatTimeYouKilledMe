@@ -93,7 +93,7 @@ public class MultiHostScene implements Scene {
         // pour simplifier de tester, nous attendons 5s.
         new Thread(() -> {
             try {
-                Thread.sleep(5000);
+                Thread.sleep(1000);
                 playerTwoConnected = true;
             } catch (InterruptedException e) {
                 e.printStackTrace();

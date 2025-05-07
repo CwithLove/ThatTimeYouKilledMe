@@ -36,9 +36,17 @@ public class GameScene implements Scene {
                     clickTime = System.currentTimeMillis();
                     
                     if (lastLogin == 0) {
-                        sceneManager.setScene(new MenuScene(sceneManager));
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
                     } else if (lastLogin == 1) {
-                        sceneManager.setScene(new LobbyScene(sceneManager, isHost));
+                        System.out.println("lastLogin: " + lastLogin);
+                        System.out.println("isHost: " + isHost);
+                        if (isHost) {
+                            System.out.println("MultiHostScene");
+                            sceneManager.setScene(new MultiHostScene(sceneManager));
+                        } else {
+                            System.out.println("LobbyScene");
+                            sceneManager.setScene(new LobbyScene(sceneManager, isHost));
+                        }
                     }
                 }
             }
@@ -108,20 +116,6 @@ public class GameScene implements Scene {
 
         backButton = new Rectangle(width / 10, height * 9 / 10, 150, 40);
 
-        // 添加鼠标监听器
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete && backButton.contains(e.getPoint())) {
-                    if (lastLogin == 0) {
-                        sceneManager.setScene(new MenuScene(sceneManager));
-                    } else if (lastLogin == 1) {
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    }
-                }
-            }
-        });
-        
         // Dessiner le bouton de retour
         if (clickButton == backButton) {
             g2d.setColor(new Color(70, 70, 150));

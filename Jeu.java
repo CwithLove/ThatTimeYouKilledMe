@@ -250,6 +250,54 @@ public class Jeu implements Runnable {
         }
     }
 
+    private void deplacerPiece(Piece pieceactuelle, Plateau plateauAC, Coup coup) {
+        //4 cas si la piece arrive sur une case vide, 
+        //si elle arrive sur une case occupée par un pion de la meme couleur,
+        // si elle arrive sur une case occupée par un pion de l'autre couleur,
+        // si elle sort du plateau
+
+        Point src = pieceactuelle.getPosition();
+        Point dir = coup.getDirection();
+        int ligDes = src.x + dir.x;
+        int colDes = src.y + dir.y;
+        Piece newPiecePlace = plateauAC.getPiece(ligDes,colDes);
+        //case vide et sort du plateau
+        if (newPiecePlace == null) {
+            plateauAC.setPiece(pieceactuelle, ligDes, colDes);
+            pieceactuelle.setPosition(new Point(ligDes, colDes));
+            plateauAC.removePiece(src.x, src.y);
+            if (pieceactuelle.getPosition().x < 0 || pieceactuelle.getPosition().x > TAILLE-1 || pieceactuelle.getPosition().y < 0 || pieceactuelle.getPosition().y > TAILLE-1) {
+                if (pieceactuelle.getOwner().equals(joueur1)) {
+                    plateauAC.decBlancs();
+                } else if (pieceactuelle.getOwner().equals(joueur2)) {
+                    plateauAC.decNoirs();
+                }
+                
+            }
+        }
+        //case occupée par un pion de l'autre joueur
+        else if (!plateauAC.estPareilPion(newPiecePlace, pieceactuelle)) {
+                deplacerPiece(newPiecePlace,plateauAC,coup);
+                plateauAC.setPiece(pieceactuelle, ligDes, colDes);
+                pieceactuelle.setPosition(new Point(ligDes, colDes));
+                plateauAC.removePiece(src.x, src.y);
+                }
+        //case occupée par un pion de la meme couleur
+        else if (plateauAC.estPareilPion(newPiecePlace, pieceactuelle)) {
+            plateauAC.removePiece(ligDes, colDes);
+            plateauAC.removePiece(src.x, src.y);
+            //decremente le nbblanc noir du plateau
+            if (pieceactuelle.getOwner().equals(joueur1)) {
+                plateauAC.decBlancs();
+            } else if (pieceactuelle.getOwner().equals(joueur2)) {
+                plateauAC.decNoirs();
+            }
+
+        }
+            
+    
+    }
+
     public void appliquerCoup(Coup coup, Joueur player, Plateau pastAC, Plateau presentAC, Plateau futureAC) {
         // A COMPLETER
         //System.err.println("Le coup a bien été appliqué.");
@@ -260,71 +308,7 @@ public class Jeu implements Runnable {
         Point dir;
         switch (coup.getTypeCoup()) {
             case MOVE:
-                src = pieceactuelle.getPosition();
-                dir = coup.getDirection();
-                int ligDes = src.x + dir.x;
-                int colDes = src.y + dir.y;
-                Piece newPiecePlace = plateauAC.getPiece(ligDes,colDes);
-                if (newPiecePlace == null) { //cas ou il n'y a pas de piece à la destination
-                    plateauAC.setPiece(pieceactuelle, ligDes, colDes);
-                    pieceactuelle.setPosition(new Point(ligDes, colDes));
-                    plateauAC.removePiece(src.x, src.y);
-                }
-                else {
-                    if (!plateauAC.estPareilPion(newPiecePlace,pieceactuelle)) {
-                        plateauAC.setPiece(pieceactuelle, ligDes, colDes);
-                        pieceactuelle.setPosition(new Point(ligDes, colDes));
-                        if ((ligDes + dir.x) >= 0 && (ligDes + dir.x) < plateauAC.getSize() && (colDes + dir.y) >= 0 && (colDes + dir.y) < plateauAC.getSize()) {
-                            Piece lastPiece = plateauAC.getPiece(ligDes + dir.x, colDes + dir.y);
-                            if (lastPiece == null) {
-                                plateauAC.setPiece(newPiecePlace, (ligDes + dir.x), (colDes + dir.y));
-                                newPiecePlace.setPosition(new Point((ligDes + dir.x), (colDes + dir.y)));
-                            } else {
-                                if (plateauAC.estPareilPion(newPiecePlace, lastPiece)) {
-                                    plateauAC.removePiece(ligDes + dir.x, colDes + dir.y);
-                                    if (player.equals(joueur1)) {
-                                        plateauAC.decNoirs();
-                                        plateauAC.decNoirs();
-                                    } else if (player.equals(joueur2)) {
-                                        plateauAC.decBlancs();
-                                        plateauAC.decBlancs();
-                                    }
-                                } else {
-                                    plateauAC.setPiece(newPiecePlace, (ligDes + dir.x), (colDes + dir.y));
-                                    newPiecePlace.setPosition(new Point((ligDes + dir.x), (colDes + dir.y)));
-                                    if (player.equals(joueur1)) {
-                                        plateauAC.decBlancs();
-                                    } else if (player.equals(joueur2)) {
-                                        plateauAC.decNoirs();
-                                    }
-                                }
-                            }
-
-                        } else {
-                            if (player.equals(joueur1)) {
-                                plateauAC.decNoirs();
-                            } else if (player.equals(joueur2)) {
-                                plateauAC.decBlancs();
-                            }
-                        }
-                        plateauAC.removePiece(src.x, src.y);
-                    }
-                    if (plateauAC.estPareilPion(newPiecePlace,pieceactuelle)) {
-                        plateauAC.removePiece(ligDes, colDes);
-                        plateauAC.removePiece(src.x, src.y);
-                        if (player.equals(joueur1)) {
-                            plateauAC.decBlancs();
-                            plateauAC.decBlancs();
-                        } else if (player.equals(joueur2)) {
-                            plateauAC.decNoirs();
-                            plateauAC.decNoirs();
-                        }
-                    }
-                }
-
-
-
-                // AJOUTER LE PUSH (A VERIFIER COMMENT DEC nbBlancs et nbNoirs
+                deplacerPiece(pieceactuelle, plateauAC, coup);
                 break;
             case CLONE:
                 src = pieceactuelle.getPosition();

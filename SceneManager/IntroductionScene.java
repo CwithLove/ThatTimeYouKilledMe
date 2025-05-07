@@ -7,6 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 public class IntroductionScene implements Scene {
+
     private SceneManager sceneManager;
     private long startTime;
     private float alpha = 0.0f;
@@ -19,7 +20,6 @@ public class IntroductionScene implements Scene {
     }
 
     private Phase phase = Phase.FADE_IN;
-
 
     public IntroductionScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;

@@ -19,7 +19,7 @@ public class LobbyScene implements Scene {
     private String hostIP;
     private int animationDots = 0;
     private long lastDotTime = 0;
-    
+
     // 添加鼠标悬停和点击效果的变量
     private Rectangle hoverButton = null;
     private Rectangle clickButton = null;
@@ -30,7 +30,6 @@ public class LobbyScene implements Scene {
         this.isHost = isHost;
         startButton = new Rectangle(600, 500, 150, 50);
         backButton = new Rectangle(50, 500, 150, 40);
-
 
         // Host gagne l'IP, J2 recoit l'IP
         if (isHost) {
@@ -54,7 +53,7 @@ public class LobbyScene implements Scene {
                     if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
                         clickButton = startButton;
                         clickTime = System.currentTimeMillis();
-                        
+
                         GameScene gameScene = new GameScene(sceneManager, true);
                         gameScene.updateLastLogin(1); // 1 pour le mode multi
                         sceneManager.setScene(gameScene);
@@ -62,7 +61,7 @@ public class LobbyScene implements Scene {
                     } else if (backButton.contains(e.getPoint())) {
                         clickButton = backButton;
                         clickTime = System.currentTimeMillis();
-                        
+
                         if (isHost) {
                             sceneManager.setScene(new MultiHostScene(sceneManager));
                         } else {
@@ -71,24 +70,24 @@ public class LobbyScene implements Scene {
                     }
                 }
             }
-            
+
             @Override
             public void mousePressed(MouseEvent e) {
                 if (fadeComplete) {
-                    if ((isHost && playerTwoConnected && startButton.contains(e.getPoint())) || 
-                        backButton.contains(e.getPoint())) {
+                    if ((isHost && playerTwoConnected && startButton.contains(e.getPoint()))
+                            || backButton.contains(e.getPoint())) {
                         clickButton = startButton.contains(e.getPoint()) ? startButton : backButton;
                         clickTime = System.currentTimeMillis();
                     }
                 }
             }
-            
+
             @Override
             public void mouseReleased(MouseEvent e) {
                 clickButton = null;
             }
         });
-        
+
         // ajouter le listener de la souris pour le hover
         sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
             @Override
@@ -159,12 +158,12 @@ public class LobbyScene implements Scene {
         String title = "Salle d'attente";
         FontMetrics titleMetrics = g2d.getFontMetrics();
         int titleWidth = titleMetrics.stringWidth(title);
-        g2d.drawString(title, (width - titleWidth) / 2, height/6);
+        g2d.drawString(title, (width - titleWidth) / 2, height / 6);
 
         // Dessiner les informations du joueur 1
         int infoFontSize = Math.min(width, height) / 30;
         g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
-        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", width/5, height/6 + height/10);
+        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", width / 5, height / 6 + height / 10);
 
         // Dessiner les informations du joueur 2 et de l'animation de waiting
         g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
@@ -174,30 +173,30 @@ public class LobbyScene implements Scene {
                 for (int i = 0; i < animationDots; i++) {
                     dots += ".";
                 }
-                g2d.drawString("Joueur 2: En attente de connexion" + dots, width/5, height/6 + height/5);
+                g2d.drawString("Joueur 2: En attente de connexion" + dots, width / 5, height / 6 + height / 5);
             } else {
-                g2d.drawString("Joueur 2: Connecté", width/5, height/6 + height/5);
+                g2d.drawString("Joueur 2: Connecté", width / 5, height / 6 + height / 5);
             }
         } else {
-            g2d.drawString("Joueur 2 (Vous): Connecté", width/5, height/6 + height/5);
+            g2d.drawString("Joueur 2 (Vous): Connecté", width / 5, height / 6 + height / 5);
         }
 
         // 动态调整按钮大小
         int buttonWidth = width / 6;
         int buttonHeight = height / 16;
-        
+
         // 设置按钮位置和大小
         startButton.setSize(buttonWidth, buttonHeight);
-        startButton.setLocation(width * 3/4 - buttonWidth/2, height * 5/6);
-        
+        startButton.setLocation(width * 3 / 4 - buttonWidth / 2, height * 5 / 6);
+
         backButton.setSize(buttonWidth, buttonHeight);
-        backButton.setLocation(width/6 - buttonWidth/2, height * 5/6);
+        backButton.setLocation(width / 6 - buttonWidth / 2, height * 5 / 6);
 
         // Si vous etes le host, afficher l'IP et le bouton de demarrage
         if (isHost) {
             int ipFontSize = Math.min(width, height) / 40;
             g2d.setFont(new Font("Arial", Font.PLAIN, ipFontSize));
-            g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 55/60);
+            g2d.drawString("IP de l'hôte: " + hostIP, width / 10, height * 55 / 60);
 
             // Dessiner le bouton de demarrage
             if (playerTwoConnected) {
@@ -212,13 +211,13 @@ public class LobbyScene implements Scene {
                 g2d.setColor(Color.GRAY);
             }
             g2d.fill(startButton);
-            
+
             // si le bouton est clique, dessiner un effet de shadow
             if (clickButton == startButton) {
                 g2d.setColor(new Color(0, 0, 0, 50));
                 g2d.fillRect(startButton.x + 2, startButton.y + 2, startButton.width - 4, startButton.height - 4);
             }
-            
+
             g2d.setColor(Color.WHITE);
             int buttonFontSize = Math.min(width, height) / 40;
             g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
@@ -226,9 +225,9 @@ public class LobbyScene implements Scene {
             FontMetrics startMetrics = g2d.getFontMetrics();
             int startTextWidth = startMetrics.stringWidth(startText);
             int startTextHeight = startMetrics.getHeight();
-            g2d.drawString(startText, 
-                         startButton.x + (startButton.width - startTextWidth) / 2,
-                         startButton.y + (startButton.height + startTextHeight / 2) / 2);
+            g2d.drawString(startText,
+                    startButton.x + (startButton.width - startTextWidth) / 2,
+                    startButton.y + (startButton.height + startTextHeight / 2) / 2);
         } else {
             // Si vous etes le client, afficher le message de waiting
             int waitFontSize = Math.min(width, height) / 35;
@@ -249,13 +248,13 @@ public class LobbyScene implements Scene {
             g2d.setColor(new Color(100, 100, 200));
         }
         g2d.fill(backButton);
-        
+
         // si le bouton est clique, dessiner un effet de shadow
         if (clickButton == backButton) {
             g2d.setColor(new Color(0, 0, 0, 50));
             g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
         }
-        
+
         g2d.setColor(Color.WHITE);
         int buttonFontSize = Math.min(width, height) / 40;
         g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
@@ -263,9 +262,9 @@ public class LobbyScene implements Scene {
         FontMetrics backMetrics = g2d.getFontMetrics();
         int backTextWidth = backMetrics.stringWidth(backText);
         int backTextHeight = backMetrics.getHeight();
-        g2d.drawString(backText, 
-                     backButton.x + (backButton.width - backTextWidth) / 2,
-                     backButton.y + (backButton.height + backTextHeight / 2) / 2);
+        g2d.drawString(backText,
+                backButton.x + (backButton.width - backTextWidth) / 2,
+                backButton.y + (backButton.height + backTextHeight / 2) / 2);
 
         g2d.dispose();
     }

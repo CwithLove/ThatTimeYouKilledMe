@@ -10,8 +10,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 // A CHANGER DYNAMIQUE LA RESOLUTION
-
 public class MenuScene implements Scene {
+
     private SceneManager sceneManager;
     private Rectangle singleButton;
     private Rectangle multiButton;
@@ -21,7 +21,7 @@ public class MenuScene implements Scene {
     private boolean fadeComplete = false;
     private int WIDTHOFSCREEN;
     private int HEIGHTOFSCREEN;
-    
+
     // 添加鼠标悬停和点击效果的变量
     private Rectangle hoverButton = null;
     private Rectangle clickButton = null;
@@ -34,28 +34,27 @@ public class MenuScene implements Scene {
         multiButton = new Rectangle(300, 350, 200, 50);
         quitButton = new Rectangle(300, 450, 200, 50);
 
+        // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (singleButton.contains(e.getPoint())) {
+                        clickButton = singleButton;
+                        clickTime = System.currentTimeMillis();
+                        sceneManager.setScene(new GameScene(sceneManager));
+                    } else if (multiButton.contains(e.getPoint())) {
+                        clickButton = multiButton;
+                        clickTime = System.currentTimeMillis();
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    } else if (quitButton.contains(e.getPoint())) {
+                        clickButton = quitButton;
+                        clickTime = System.currentTimeMillis();
+                        System.exit(0); // Normallement retourner le main menu
+                    }
+                }
+            }
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        clickButton = singleButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new GameScene(sceneManager));
-                    } else if (multiButton.contains(e.getPoint())) {
-                        clickButton = multiButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    } else if (quitButton.contains(e.getPoint())) {
-                        clickButton = quitButton;
-                        clickTime = System.currentTimeMillis();
-                        System.exit(0); // Normallement retourner le main menu
-                    }
-                }
-            }
-            
             @Override
             public void mousePressed(MouseEvent e) {
                 if (fadeComplete) {
@@ -71,74 +70,13 @@ public class MenuScene implements Scene {
                     }
                 }
             }
-            
+
             @Override
             public void mouseReleased(MouseEvent e) {
                 clickButton = null;
             }
         });
-        
-        // 添加鼠标移动监听器用于悬停效果
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                if (fadeComplete) {
-                    hoverButton = null;
-                    if (singleButton.contains(e.getPoint())) {
-                        hoverButton = singleButton;
-                    } else if (multiButton.contains(e.getPoint())) {
-                        hoverButton = multiButton;
-                    } else if (quitButton.contains(e.getPoint())) {
-                        hoverButton = quitButton;
-                    }
-                }
-            }
-        });
-        
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        clickButton = singleButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new GameScene(sceneManager));
-                    } else if (multiButton.contains(e.getPoint())) {
-                        clickButton = multiButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    } else if (quitButton.contains(e.getPoint())) {
-                        clickButton = quitButton;
-                        clickTime = System.currentTimeMillis();
-                        System.exit(0); // Normallement retourner le main menu
-                    }
-                }
-            }
-            
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        clickButton = singleButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (multiButton.contains(e.getPoint())) {
-                        clickButton = multiButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (quitButton.contains(e.getPoint())) {
-                        clickButton = quitButton;
-                        clickTime = System.currentTimeMillis();
-                    }
-                }
-            }
-            
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                clickButton = null;
-            }
-        });
-        
-        // 添加鼠标移动监听器用于悬停效果
+
         sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -165,7 +103,7 @@ public class MenuScene implements Scene {
     public void update() {
         if (!fadeComplete) {
             long elapsed = System.currentTimeMillis() - startTime;
-            alpha = Math.min(1f, elapsed / 1000f); 
+            alpha = Math.min(1f, elapsed / 1000f);
             if (alpha >= 1f) {
                 fadeComplete = true;
             }
@@ -180,7 +118,7 @@ public class MenuScene implements Scene {
 
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
-        
+
         // Title
         String title = "That Time You Killed Me";
         int fontSize = Math.min(width, height) / 15; // Dynamically adjust font size based on screen dimensions
@@ -193,10 +131,10 @@ public class MenuScene implements Scene {
         g2d.drawString(title, titleX, titleY);
 
         // Dynamically reposition buttons using setLocation
-        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 4 );
+        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 4);
         multiButton.setLocation(width / 2 - multiButton.width / 2, height / 4 + (int) (height * 8 / 100));
         quitButton.setLocation(width / 2 - quitButton.width / 2, height / 4 + (int) (height * 16 / 100));
-        
+
         // Adjust button sizes dynamically based on screen dimensions
         int buttonWidth = width / 4;
         int buttonHeight = height / 12;
@@ -210,26 +148,10 @@ public class MenuScene implements Scene {
         multiButton.setLocation(width / 2 - multiButton.width / 2, height / 3 + buttonHeight + height / 20);
         quitButton.setLocation(width / 2 - quitButton.width / 2, height / 3 + 2 * (buttonHeight + height / 20));
 
-        // // Mouse Listener
-        // sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-        //     @Override
-        //     public void mouseClicked(MouseEvent e) {
-        //         if (fadeComplete) {
-        //             if (singleButton.contains(e.getPoint())) {
-        //                 sceneManager.setScene(new GameScene(sceneManager));
-        //             } else if (multiButton.contains(e.getPoint())) {
-        //                 sceneManager.setScene(new HostOrConnectScene(sceneManager));
-        //             } else if (quitButton.contains(e.getPoint())) {
-        //                 System.exit(0); // Normallement retourner le main menu
-        //             }
-        //         }
-        //     }
-        // });
-        
         // Button
         g2d.setColor(new Color(100, 100, 200));
         g2d.fill(singleButton);
-        
+
         // 如果是点击状态，绘制一个轻微的阴影效果
         if (clickButton == singleButton) {
             g2d.setColor(new Color(0, 0, 0, 50));
@@ -240,8 +162,7 @@ public class MenuScene implements Scene {
             g2d.setColor(new Color(100, 100, 200)); // 正常颜色
         }
         g2d.fill(singleButton);
-        
-        // 绘制多人游戏按钮
+
         if (clickButton == multiButton) {
             g2d.setColor(new Color(70, 70, 150)); // 点击颜色
         } else if (hoverButton == multiButton) {
@@ -250,14 +171,12 @@ public class MenuScene implements Scene {
             g2d.setColor(new Color(100, 100, 200)); // 正常颜色
         }
         g2d.fill(multiButton);
-        
-        // 如果是点击状态，绘制一个轻微的阴影效果
+
         if (clickButton == multiButton) {
             g2d.setColor(new Color(0, 0, 0, 50));
             g2d.fillRect(multiButton.x + 2, multiButton.y + 2, multiButton.width - 4, multiButton.height - 4);
         }
-        
-        // 绘制退出按钮
+
         if (clickButton == quitButton) {
             g2d.setColor(new Color(70, 70, 150)); // 点击颜色
         } else if (hoverButton == quitButton) {
@@ -267,15 +186,11 @@ public class MenuScene implements Scene {
         }
         g2d.fill(quitButton);
 
-
-        
-        // 如果是点击状态，绘制一个轻微的阴影效果
         if (clickButton == quitButton) {
             g2d.setColor(new Color(0, 0, 0, 50));
             g2d.fillRect(quitButton.x + 2, quitButton.y + 2, quitButton.width - 4, quitButton.height - 4);
         }
-        
-        // 绘制按钮文字
+
         g2d.setColor(Color.WHITE);
         Font buttonFont = new Font("Arial", Font.BOLD, Math.min(width, height) / 40); // Dynamically adjust font size
         g2d.setFont(buttonFont);
@@ -293,7 +208,7 @@ public class MenuScene implements Scene {
         String quitText = "Quit";
         int quitTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(quitText);
         g2d.drawString(quitText, quitButton.x + (quitButton.width - quitTextWidth) / 2, quitButton.y + (quitButton.height + textYOffset) / 2);
-        
+
         g2d.dispose();
     }
 

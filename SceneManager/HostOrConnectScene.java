@@ -113,15 +113,33 @@ public class HostOrConnectScene implements Scene {
         
         // 绘制标题
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Mode Multijoueur", width/2 - 40, height/4 - 100);
+        int titleFontSize = Math.min(width, height) / 20;
+        g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
+        String title = "Mode Multijoueur";
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        int titleWidth = titleMetrics.stringWidth(title);
+        g2d.drawString(title, (width - titleWidth) / 2, height/6);
         
+        // 动态调整按钮大小
+        int buttonWidth = width / 3;
+        int buttonHeight = height / 12;
+        int buttonSpacing = height / 10;
+        
+        // 设置主机按钮大小和位置
+        hostButton.setSize(buttonWidth, buttonHeight);
+        hostButton.setLocation(width/2 - buttonWidth/2, height/3);
+        
+        // 设置连接按钮大小和位置
+        connectButton.setSize(buttonWidth, buttonHeight);
+        connectButton.setLocation(width/2 - buttonWidth/2, height/3 + buttonHeight + buttonSpacing);
+        
+        // 设置返回按钮大小和位置
+        int backButtonWidth = width / 6;
+        int backButtonHeight = height / 16;
+        backButton.setSize(backButtonWidth, backButtonHeight);
+        backButton.setLocation(width/6 - backButtonWidth/2, height * 4/5);
+
         // 绘制主机按钮
-
-        hostButton.setLocation(width/2 - 50, height/4);
-        connectButton.setLocation(width/2 - 50, height/4 + 100);
-        backButton.setLocation(width/9, height * 4 / 5);
-
         if (clickButton == hostButton) {
             g2d.setColor(new Color(70, 70, 150)); // 点击颜色
         } else if (hoverButton == hostButton) {
@@ -171,13 +189,35 @@ public class HostOrConnectScene implements Scene {
         
         // 绘制按钮文字
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 20));
-        g2d.drawString("Devenir host", hostButton.x + 100, hostButton.y + 35);
-        g2d.drawString("Connecter a un host", connectButton.x + 60, connectButton.y + 35);
+        int buttonFontSize = Math.min(width, height) / 35;
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
         
-        // 绘制返回按钮
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
+        // 在主机按钮中居中显示文本
+        String hostText = "Devenir host";
+        FontMetrics hostMetrics = g2d.getFontMetrics();
+        int hostTextWidth = hostMetrics.stringWidth(hostText);
+        int hostTextHeight = hostMetrics.getHeight();
+        g2d.drawString(hostText, 
+                      hostButton.x + (hostButton.width - hostTextWidth) / 2,
+                      hostButton.y + (hostButton.height + hostTextHeight / 2) / 2);
+        
+        // 在连接按钮中居中显示文本
+        String connectText = "Connecter a un host";
+        FontMetrics connectMetrics = g2d.getFontMetrics();
+        int connectTextWidth = connectMetrics.stringWidth(connectText);
+        int connectTextHeight = connectMetrics.getHeight();
+        g2d.drawString(connectText, 
+                      connectButton.x + (connectButton.width - connectTextWidth) / 2,
+                      connectButton.y + (connectButton.height + connectTextHeight / 2) / 2);
+        
+        // 在返回按钮中居中显示文本
+        String backText = "Retour";
+        FontMetrics backMetrics = g2d.getFontMetrics();
+        int backTextWidth = backMetrics.stringWidth(backText);
+        int backTextHeight = backMetrics.getHeight();
+        g2d.drawString(backText, 
+                      backButton.x + (backButton.width - backTextWidth) / 2,
+                      backButton.y + (backButton.height + backTextHeight / 2) / 2);
         
         g2d.dispose();
     }

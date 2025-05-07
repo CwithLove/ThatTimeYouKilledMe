@@ -136,28 +136,46 @@ public class MultiHostScene implements Scene {
         
         // Dessiner le titre
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Salle d'attente", width/2 - 50, height/7);
+        int titleFontSize = Math.min(width, height) / 20;
+        g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
+        String title = "Salle d'attente";
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        int titleWidth = titleMetrics.stringWidth(title);
+        g2d.drawString(title, (width - titleWidth) / 2, height/7);
         
         // Dessiner les informations du joueur 1
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        int infoFontSize = Math.min(width, height) / 30;
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
         g2d.drawString("Joueur 1 (Hôte): Connecté", width/6, height/5);
         
         // Dessiner les informations du joueur 2 et l'animation d'attente
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
         if (!playerTwoConnected) {
             String dots = "";
             for (int i = 0; i < animationDots; i++) {
                 dots += ".";
             }
-            g2d.drawString("Joueur 2: En attente de connexion" + dots, width/6, height/5 + 100);
+            g2d.drawString("Joueur 2: En attente de connexion" + dots, width/6, height/5 + height/10);
         } else {
-            g2d.drawString("Joueur 2: Connecté", width/6, height/5+100);
+            g2d.drawString("Joueur 2: Connecté", width/6, height/5 + height/10);
         }
         
         // Afficher l'adresse IP du host en bas
-        g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+        int ipFontSize = Math.min(width, height) / 40;
+        g2d.setFont(new Font("Arial", Font.PLAIN, ipFontSize));
         g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 55 /60);
+        
+        // 动态调整按钮大小
+        int buttonWidth = width / 6;
+        int buttonHeight = height / 16;
+        
+        // 设置开始按钮的大小和位置
+        startButton.setSize(buttonWidth, buttonHeight);
+        startButton.setLocation(width * 3/4 - buttonWidth/2, height * 5/6);
+        
+        // 设置返回按钮的大小和位置
+        backButton.setSize(buttonWidth, buttonHeight);
+        backButton.setLocation(width/6 - buttonWidth/2, height * 5/6);
         
         // Dessiner le bouton de démarrage de la partie
         if (playerTwoConnected) {
@@ -171,10 +189,6 @@ public class MultiHostScene implements Scene {
         } else {
             g2d.setColor(Color.GRAY);
         }
-
-        startButton.setLocation(width*6 /8 , height * 5 / 6);
-        backButton.setLocation(width/10, height * 5 / 6);
-
         g2d.fill(startButton);
         
         // 如果是点击状态，绘制一个轻微的阴影效果
@@ -184,8 +198,15 @@ public class MultiHostScene implements Scene {
         }
         
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 18));
-        g2d.drawString("Commencer", startButton.x + 25, startButton.y + 30);
+        int buttonFontSize = Math.min(width, height) / 40;
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+        String startText = "Commencer";
+        FontMetrics startMetrics = g2d.getFontMetrics();
+        int startTextWidth = startMetrics.stringWidth(startText);
+        int startTextHeight = startMetrics.getHeight();
+        g2d.drawString(startText, 
+                      startButton.x + (startButton.width - startTextWidth) / 2,
+                      startButton.y + (startButton.height + startTextHeight / 2) / 2);
         
         // Dessiner le bouton de retour
         if (clickButton == backButton) {
@@ -193,8 +214,7 @@ public class MultiHostScene implements Scene {
         } else if (hoverButton == backButton) {
             g2d.setColor(new Color(130, 130, 230));
         } else {
-    
-        g2d.setColor(new Color(100, 100, 200));
+            g2d.setColor(new Color(100, 100, 200));
         }
         g2d.fill(backButton);
         
@@ -205,8 +225,14 @@ public class MultiHostScene implements Scene {
         }
         
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+        String backText = "Retour";
+        FontMetrics backMetrics = g2d.getFontMetrics();
+        int backTextWidth = backMetrics.stringWidth(backText);
+        int backTextHeight = backMetrics.getHeight();
+        g2d.drawString(backText, 
+                      backButton.x + (backButton.width - backTextWidth) / 2,
+                      backButton.y + (backButton.height + backTextHeight / 2) / 2);
         
         g2d.dispose();
     }

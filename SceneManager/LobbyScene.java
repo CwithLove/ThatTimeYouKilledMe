@@ -154,33 +154,50 @@ public class LobbyScene implements Scene {
 
         // Dessiner le titre
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Salle d'attente", width/2, height/6);
+        int titleFontSize = Math.min(width, height) / 20;
+        g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
+        String title = "Salle d'attente";
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        int titleWidth = titleMetrics.stringWidth(title);
+        g2d.drawString(title, (width - titleWidth) / 2, height/6);
 
         // Dessiner les informations du joueur 1
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
-        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", width/5, height/6 + 100);
+        int infoFontSize = Math.min(width, height) / 30;
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
+        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", width/5, height/6 + height/10);
 
         // Dessiner les informations du joueur 2 et de l'animation de waiting
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
         if (isHost) {
             if (!playerTwoConnected) {
                 String dots = "";
                 for (int i = 0; i < animationDots; i++) {
                     dots += ".";
                 }
-                g2d.drawString("Joueur 2: En attente de connexion" + dots, width/5, height/6 + 200);
+                g2d.drawString("Joueur 2: En attente de connexion" + dots, width/5, height/6 + height/5);
             } else {
-                g2d.drawString("Joueur 2: Connecté", width/5, height/6 + 200);
+                g2d.drawString("Joueur 2: Connecté", width/5, height/6 + height/5);
             }
         } else {
-            g2d.drawString("Joueur 2 (Vous): Connecté", width/5, height/6+200);
+            g2d.drawString("Joueur 2 (Vous): Connecté", width/5, height/6 + height/5);
         }
+
+        // 动态调整按钮大小
+        int buttonWidth = width / 6;
+        int buttonHeight = height / 16;
+        
+        // 设置按钮位置和大小
+        startButton.setSize(buttonWidth, buttonHeight);
+        startButton.setLocation(width * 3/4 - buttonWidth/2, height * 5/6);
+        
+        backButton.setSize(buttonWidth, buttonHeight);
+        backButton.setLocation(width/6 - buttonWidth/2, height * 5/6);
 
         // Si vous etes le host, afficher l'IP et le bouton de demarrage
         if (isHost) {
-            g2d.setFont(new Font("Arial", Font.PLAIN, 18));
-            g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 5 / 6);
+            int ipFontSize = Math.min(width, height) / 40;
+            g2d.setFont(new Font("Arial", Font.PLAIN, ipFontSize));
+            g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 55/60);
 
             // Dessiner le bouton de demarrage
             if (playerTwoConnected) {
@@ -203,19 +220,27 @@ public class LobbyScene implements Scene {
             }
             
             g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Arial", Font.BOLD, 18));
-            g2d.drawString("Commencer", startButton.x + 25, startButton.y + 30);
+            int buttonFontSize = Math.min(width, height) / 40;
+            g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+            String startText = "Commencer";
+            FontMetrics startMetrics = g2d.getFontMetrics();
+            int startTextWidth = startMetrics.stringWidth(startText);
+            int startTextHeight = startMetrics.getHeight();
+            g2d.drawString(startText, 
+                         startButton.x + (startButton.width - startTextWidth) / 2,
+                         startButton.y + (startButton.height + startTextHeight / 2) / 2);
         } else {
             // Si vous etes le client, afficher le message de waiting
-            g2d.setFont(new Font("Arial", Font.BOLD, 20));
+            int waitFontSize = Math.min(width, height) / 35;
+            g2d.setFont(new Font("Arial", Font.BOLD, waitFontSize));
             g2d.setColor(Color.YELLOW);
-            g2d.drawString("Prêt, en attente du démarrage de la partie...", width/4, height * 2 / 3);
+            String waitText = "Prêt, en attente du démarrage de la partie...";
+            FontMetrics waitMetrics = g2d.getFontMetrics();
+            int waitTextWidth = waitMetrics.stringWidth(waitText);
+            g2d.drawString(waitText, (width - waitTextWidth) / 2, height * 2 / 3);
         }
 
         // Dessiner le bouton de retour
-        startButton.setLocation(width * 2 /3, height * 5 / 6);
-        backButton.setLocation(width/10, height * 5 /6);
-
         if (clickButton == backButton) {
             g2d.setColor(new Color(70, 70, 150));
         } else if (hoverButton == backButton) {
@@ -232,8 +257,15 @@ public class LobbyScene implements Scene {
         }
         
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
+        int buttonFontSize = Math.min(width, height) / 40;
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+        String backText = "Retour";
+        FontMetrics backMetrics = g2d.getFontMetrics();
+        int backTextWidth = backMetrics.stringWidth(backText);
+        int backTextHeight = backMetrics.getHeight();
+        g2d.drawString(backText, 
+                     backButton.x + (backButton.width - backTextWidth) / 2,
+                     backButton.y + (backButton.height + backTextHeight / 2) / 2);
 
         g2d.dispose();
     }

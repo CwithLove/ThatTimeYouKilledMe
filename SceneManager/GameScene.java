@@ -114,7 +114,13 @@ public class GameScene implements Scene {
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
         g2d.drawString("Partie en cours...", width/4, height/2);
 
-        backButton = new Rectangle(width / 10, height * 9 / 10, 150, 40);
+        // 动态调整返回按钮大小和位置
+        int buttonWidth = width / 6;  // 按钮宽度为窗口宽度的1/6
+        int buttonHeight = height / 16;  // 按钮高度为窗口高度的1/16
+        
+        // 设置返回按钮的大小和位置
+        backButton.setSize(buttonWidth, buttonHeight);
+        backButton.setLocation(width / 12, height * 9 / 10);
 
         // Dessiner le bouton de retour
         if (clickButton == backButton) {
@@ -134,7 +140,14 @@ public class GameScene implements Scene {
         
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + width/20, backButton.y + height/30);
+        // 确保文本在按钮中居中
+        FontMetrics metrics = g2d.getFontMetrics();
+        String returnText = "Retour";
+        int textWidth = metrics.stringWidth(returnText);
+        int textHeight = metrics.getHeight();
+        g2d.drawString(returnText, 
+                       backButton.x + (backButton.width - textWidth) / 2, 
+                       backButton.y + (backButton.height + textHeight / 2) / 2);
         
         g2d.dispose();
     }

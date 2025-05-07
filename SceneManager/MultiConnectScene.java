@@ -150,20 +150,46 @@ public class MultiConnectScene implements Scene {
         
         // 绘制标题
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Connexion à l'hôte", width / 4, height/6);
+        int titleFontSize = Math.min(width, height) / 20;
+        g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
+        String title = "Connexion à l'hôte";
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        int titleWidth = titleMetrics.stringWidth(title);
+        g2d.drawString(title, (width - titleWidth) / 2, height/6);
+        
+        // 绘制输入框说明文本
+        int textFontSize = Math.min(width, height) / 30;
+        g2d.setFont(new Font("Arial", Font.PLAIN, textFontSize));
+        String inputPrompt = "Entrez l'adresse IP de l'hôte:";
+        FontMetrics promptMetrics = g2d.getFontMetrics();
+        int promptWidth = promptMetrics.stringWidth(inputPrompt);
+        g2d.drawString(inputPrompt, (width - promptWidth) / 2, height/5);
         
         // 绘制输入框
+        int inputWidth = width / 3;
+        int inputHeight = height / 20;
+        int inputX = (width - inputWidth) / 2;
+        int inputY = height/3;
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(width/3 + 50, height/3, 300, 40);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-        g2d.drawString("Entrez l'adresse IP de l'hôte:", width /4 + 100, height/5);
-        g2d.drawString(ipAddress + (cursorVisible ? "|" : ""), width/3 + 51, height/3 + 25);
+        g2d.drawRect(inputX, inputY, inputWidth, inputHeight);
+        
+        // 绘制输入的IP地址
+        g2d.setFont(new Font("Arial", Font.PLAIN, textFontSize));
+        g2d.drawString(ipAddress + (cursorVisible ? "|" : ""), inputX + 10, inputY + inputHeight - 10);
+        
+        // 动态调整按钮大小
+        int buttonWidth = width / 6;
+        int buttonHeight = height / 16;
+        
+        // 设置连接按钮的大小和位置
+        connectButton.setSize(buttonWidth, buttonHeight);
+        connectButton.setLocation((width - buttonWidth) / 2, height/2);
+        
+        // 设置返回按钮的大小和位置
+        backButton.setSize(buttonWidth, buttonHeight);
+        backButton.setLocation(width/6 - buttonWidth/2, height * 5/6);
 
-        connectButton.setLocation(width/3 + 100, height/2);
-        backButton.setLocation(width/10, height * 5 / 6);
-
-
+        // 绘制连接按钮
         if (!ipAddress.isEmpty() && !isConnected) {
             // 根据按钮状态设置颜色
             if (clickButton == connectButton) {
@@ -184,8 +210,17 @@ public class MultiConnectScene implements Scene {
             g2d.fillRect(connectButton.x + 2, connectButton.y + 2, connectButton.width - 4, connectButton.height - 4);
         }
         
+        // 在按钮中居中显示文本
         g2d.setColor(Color.WHITE);
-        g2d.drawString("Connecter", connectButton.x + 5, connectButton.y + 25);
+        int buttonFontSize = Math.min(width, height) / 40;
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+        String connectText = "Connecter";
+        FontMetrics connectMetrics = g2d.getFontMetrics();
+        int connectTextWidth = connectMetrics.stringWidth(connectText);
+        int connectTextHeight = connectMetrics.getHeight();
+        g2d.drawString(connectText, 
+                     connectButton.x + (connectButton.width - connectTextWidth) / 2,
+                     connectButton.y + (connectButton.height + connectTextHeight / 2) / 2);
         
         // 绘制返回按钮
         if (clickButton == backButton) {
@@ -203,15 +238,26 @@ public class MultiConnectScene implements Scene {
             g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
         }
         
+        // 在按钮中居中显示文本
         g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
+        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
+        String backText = "Retour";
+        FontMetrics backMetrics = g2d.getFontMetrics();
+        int backTextWidth = backMetrics.stringWidth(backText);
+        int backTextHeight = backMetrics.getHeight();
+        g2d.drawString(backText, 
+                     backButton.x + (backButton.width - backTextWidth) / 2,
+                     backButton.y + (backButton.height + backTextHeight / 2) / 2);
         
         // 如果正在连接，显示状态
         if (isConnected) {
             g2d.setColor(Color.GREEN);
-            g2d.setFont(new Font("Arial", Font.BOLD, 20));
-            g2d.drawString("Connexion en cours...", width/2, height * 4 /6);
+            int statusFontSize = Math.min(width, height) / 35;
+            g2d.setFont(new Font("Arial", Font.BOLD, statusFontSize));
+            String statusText = "Connexion en cours...";
+            FontMetrics statusMetrics = g2d.getFontMetrics();
+            int statusWidth = statusMetrics.stringWidth(statusText);
+            g2d.drawString(statusText, (width - statusWidth) / 2, height * 4 /6);
         }
         
         g2d.dispose();

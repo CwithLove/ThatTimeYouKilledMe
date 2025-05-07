@@ -34,6 +34,67 @@ public class MenuScene implements Scene {
         multiButton = new Rectangle(300, 350, 200, 50);
         quitButton = new Rectangle(300, 450, 200, 50);
 
+
+        // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (singleButton.contains(e.getPoint())) {
+                        clickButton = singleButton;
+                        clickTime = System.currentTimeMillis();
+                        sceneManager.setScene(new GameScene(sceneManager));
+                    } else if (multiButton.contains(e.getPoint())) {
+                        clickButton = multiButton;
+                        clickTime = System.currentTimeMillis();
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    } else if (quitButton.contains(e.getPoint())) {
+                        clickButton = quitButton;
+                        clickTime = System.currentTimeMillis();
+                        System.exit(0); // Normallement retourner le main menu
+                    }
+                }
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (fadeComplete) {
+                    if (singleButton.contains(e.getPoint())) {
+                        clickButton = singleButton;
+                        clickTime = System.currentTimeMillis();
+                    } else if (multiButton.contains(e.getPoint())) {
+                        clickButton = multiButton;
+                        clickTime = System.currentTimeMillis();
+                    } else if (quitButton.contains(e.getPoint())) {
+                        clickButton = quitButton;
+                        clickTime = System.currentTimeMillis();
+                    }
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                clickButton = null;
+            }
+        });
+        
+        // 添加鼠标移动监听器用于悬停效果
+        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (fadeComplete) {
+                    hoverButton = null;
+                    if (singleButton.contains(e.getPoint())) {
+                        hoverButton = singleButton;
+                    } else if (multiButton.contains(e.getPoint())) {
+                        hoverButton = multiButton;
+                    } else if (quitButton.contains(e.getPoint())) {
+                        hoverButton = quitButton;
+                    }
+                }
+            }
+        });
+        
         // Mouse Listener
         sceneManager.getPanel().addMouseListener(new MouseAdapter() {
             @Override
@@ -126,25 +187,11 @@ public class MenuScene implements Scene {
         g2d.drawString("Menu", width/2, height/4);
 
         // A CHANGER DYNAMIQUE
-        singleButton = new Rectangle(width/2, height/4 + 100, 200, 50);
-        multiButton = new Rectangle(width/2, height/4 + 200, 200, 50);
-        quitButton = new Rectangle(width/2, height/4 + 300, 200, 50);
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        sceneManager.setScene(new GameScene(sceneManager));
-                    } else if (multiButton.contains(e.getPoint())) {
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    } else if (quitButton.contains(e.getPoint())) {
-                        System.exit(0); // Normallement retourner le main menu
-                    }
-                }
-            }
-        });
+        singleButton.setLocation(width/2, height/4 + 100);
+        multiButton.setLocation(width/2, height/4 + 200);
+        quitButton.setLocation(width/2, height/4 + 300);
+
         
         // 绘制单人游戏按钮
         if (clickButton == singleButton) {

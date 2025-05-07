@@ -25,6 +25,8 @@ public class MultiHostScene implements Scene {
     
     public MultiHostScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
+        startButton = new Rectangle(600, 500, 150, 50);
+        backButton = new Rectangle(50, 500, 150, 40);
 
         
         // Obtenir l'adresse IP du host
@@ -169,22 +171,10 @@ public class MultiHostScene implements Scene {
         } else {
             g2d.setColor(Color.GRAY);
         }
-        //2 buttons
-        startButton = new Rectangle(width*6 /8 , height * 5 / 6, 150, 50);
-        backButton = new Rectangle(width/10, height * 5 / 6, 150, 40);
-         // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) {
-                    if (playerTwoConnected && startButton.contains(e.getPoint())) {
-                        sceneManager.setScene(new GameScene(sceneManager)); // 假设多人游戏场景是GameScene
-                    } else if (backButton.contains(e.getPoint())) {
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    }
-                }
-            }
-        });
+
+        startButton.setLocation(width*6 /8 , height * 5 / 6);
+        backButton.setLocation(width/10, height * 5 / 6);
+
         g2d.fill(startButton);
         
         // 如果是点击状态，绘制一个轻微的阴影效果

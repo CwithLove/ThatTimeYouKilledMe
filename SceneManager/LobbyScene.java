@@ -28,6 +28,8 @@ public class LobbyScene implements Scene {
     public LobbyScene(SceneManager sceneManager, boolean isHost) {
         this.sceneManager = sceneManager;
         this.isHost = isHost;
+        startButton = new Rectangle(600, 500, 150, 50);
+        backButton = new Rectangle(50, 500, 150, 40);
 
 
         // Host gagne l'IP, J2 recoit l'IP
@@ -211,28 +213,8 @@ public class LobbyScene implements Scene {
         }
 
         // Dessiner le bouton de retour
-        startButton = new Rectangle(width * 2 /3, height * 5 / 6, 150, 50);
-        backButton = new Rectangle(width/10, height * 5 /6, 150, 40);
-         // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) {
-                    if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
-                        Scene gameScene = new GameScene(sceneManager);
-                        //gameScene.updateLastLogin(1); // 1 pour le mode multi
-                        sceneManager.setScene(gameScene);
-                        // Normallement envoyer un message de demarrage a J2
-                    } else if (backButton.contains(e.getPoint())) {
-                        if (isHost) {
-                            sceneManager.setScene(new MultiHostScene(sceneManager));
-                        } else {
-                            sceneManager.setScene(new MultiConnectScene(sceneManager));
-                        }
-                    }
-                }
-            }
-        });
+        startButton.setLocation(width * 2 /3, height * 5 / 6);
+        backButton.setLocation(width/10, height * 5 /6);
 
         if (clickButton == backButton) {
             g2d.setColor(new Color(70, 70, 150));

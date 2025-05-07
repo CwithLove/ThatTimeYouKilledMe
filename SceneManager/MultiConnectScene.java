@@ -25,7 +25,8 @@ public class MultiConnectScene implements Scene {
     public MultiConnectScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
 
-
+        connectButton = new Rectangle(350, 300, 100, 40);
+        backButton = new Rectangle(50, 500, 150, 40);
 
         sceneManager.getPanel().addKeyListener(new KeyAdapter() {
             @Override
@@ -158,10 +159,11 @@ public class MultiConnectScene implements Scene {
         g2d.setFont(new Font("Arial", Font.PLAIN, 20));
         g2d.drawString("Entrez l'adresse IP de l'hôte:", width /4 + 100, height/5);
         g2d.drawString(ipAddress + (cursorVisible ? "|" : ""), width/3 + 51, height/3 + 25);
-        
-        // 绘制连接按钮
-        connectButton = new Rectangle(width/3 + 100, height/2, 100, 40);
-        backButton = new Rectangle(width/10, height * 5 / 6, 150, 40);
+
+        connectButton.setLocation(width/3 + 100, height/2);
+        backButton.setLocation(width/10, height * 5 / 6);
+
+
         if (!ipAddress.isEmpty() && !isConnected) {
             // 根据按钮状态设置颜色
             if (clickButton == connectButton) {

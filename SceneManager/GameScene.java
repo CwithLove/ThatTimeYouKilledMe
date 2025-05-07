@@ -37,7 +37,7 @@ public class GameScene implements Scene {
                     clickTime = System.currentTimeMillis();
 
                     if (lastLogin == 0) {
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                        sceneManager.setScene(new MenuScene(sceneManager));
                     } else if (lastLogin == 1) {
                         System.out.println("lastLogin: " + lastLogin);
                         System.out.println("isHost: " + isHost);

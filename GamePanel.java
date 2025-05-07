@@ -9,6 +9,7 @@ public class GamePanel extends JPanel implements ActionListener {
     private int WIDTH;
     private int HEIGHT;
     private static final int FPS = 60;
+    private static final double ASPECT_RATIO = 16.0 / 9.0;
     private Timer timer;
     private SceneManager sceneManager;
     private JFrame frame;
@@ -32,66 +33,47 @@ public class GamePanel extends JPanel implements ActionListener {
     }
 
     public void onResizeStarted() {
-        //System.out.println("GamePanel : début du redimensionnement");
+        
     }
 
-    // Appelée pendant le redimensionnement
     public void onResizing(int newWidth, int newHeight) {
-        // Mise à jour progressive de l'interface pendant le redimensionnement
-        // Attention à ne pas faire des calculs trop lourds ici, car cette
-        // méthode est appelée très fréquemment pendant le redimensionnement
-        //System.out.println("GamePanel : redimensionnement en cours");
-
-
-
-        // Vous pouvez ajuster certains éléments d'interface ici
-        // Par exemple :
         setPreferredSize(new Dimension(newWidth, newHeight));
-
-
-        revalidate(); // Recalculer la disposition
-
-
+        WIDTH = newWidth;
+        HEIGHT = newHeight;
+        
+        revalidate();
     }
 
-    // Appelée à la fin du redimensionnement
     public void onResizeCompleted(int finalWidth, int finalHeight) {
-        // Faire des ajustements finaux une fois le redimensionnement terminé
-        //System.out.println("GamePanel : redimensionnement terminé");
-
-        // Adapter complètement l'interface à la nouvelle taille
+        
+        WIDTH = finalWidth;
+        HEIGHT = finalHeight;
+        
         adjustLayout(finalWidth, finalHeight);
-        repaint(); // Redessiner le panneau
-
-
-
+        repaint();
     }
 
     private void adjustLayout(int width, int height) {
-        // Méthode d'exemple pour ajuster la disposition en fonction de la nouvelle taille
-        // Implémentez votre logique spécifique ici
+        WIDTH = width;
+        HEIGHT = height;
     }
 
     @Override
     public Dimension getPreferredSize() {
-        // Définir une taille par défaut pour le panneau
-        //Dimension par default
-        return new Dimension(800, 600); // Taille initiale
+        int preferredWidth = 1280;
+        int preferredHeight = (int)(preferredWidth / ASPECT_RATIO);
+        return new Dimension(preferredWidth, preferredHeight);
     }
-
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        sceneManager.render(g, frame.getWidth(), frame.getHeight());
+        sceneManager.render(g, getWidth(), getHeight());
     }
     
     @Override
     public void actionPerformed(ActionEvent e) {
         sceneManager.update();
-        
         repaint();
     }
-
-
 }

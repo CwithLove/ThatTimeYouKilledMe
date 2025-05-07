@@ -39,13 +39,9 @@ public class GameScene implements Scene {
                     if (lastLogin == 0) {
                         sceneManager.setScene(new MenuScene(sceneManager));
                     } else if (lastLogin == 1) {
-                        System.out.println("lastLogin: " + lastLogin);
-                        System.out.println("isHost: " + isHost);
                         if (isHost) {
-                            System.out.println("MultiHostScene");
                             sceneManager.setScene(new MultiHostScene(sceneManager));
                         } else {
-                            System.out.println("LobbyScene");
                             sceneManager.setScene(new LobbyScene(sceneManager, isHost));
                         }
                     }

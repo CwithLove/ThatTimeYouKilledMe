@@ -143,7 +143,6 @@ public class LobbyScene implements Scene {
 
     @Override
     public void render(Graphics g, int width, int height) {
-        System.out.println("LobbyScene render");
         // Dessiner le fond
         g.setColor(new Color(40, 40, 80));
         g.fillRect(0, 0, width, height);

@@ -5,7 +5,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
+import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -13,46 +13,44 @@ import java.awt.event.MouseEvent;
 public class MenuScene implements Scene {
 
     private SceneManager sceneManager;
-    private Rectangle singleButton;
-    private Rectangle multiButton;
-    private Rectangle quitButton;
+    private Button singleButton;
+    private Button multiButton;
+    private Button quitButton;
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
     private int WIDTHOFSCREEN;
     private int HEIGHTOFSCREEN;
 
-    // 添加鼠标悬停和点击效果的变量
-    private Rectangle hoverButton = null;
-    private Rectangle clickButton = null;
-    private long clickTime = 0;
-
     public MenuScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
-        // A CHANGER DYNAMIQUE
-        singleButton = new Rectangle(300, 250, 200, 50);
-        multiButton = new Rectangle(300, 350, 200, 50);
-        quitButton = new Rectangle(300, 450, 200, 50);
+        // 创建按钮并设置点击事件
+        singleButton = new Button(300, 250, 200, 50, "Single Player", () -> {
+            GameScene gameScene = new GameScene(sceneManager);
+            gameScene.updateLastLogin(0);
+            sceneManager.setScene(gameScene);
+        });
+        
+        multiButton = new Button(300, 350, 200, 50, "Multi Player", () -> {
+            sceneManager.setScene(new HostOrConnectScene(sceneManager));
+        });
+        
+        quitButton = new Button(300, 450, 200, 50, "Quit", () -> {
+            System.exit(0); // Normallement retourner le main menu
+        });
 
         // Mouse Listener
         sceneManager.getPanel().addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        clickButton = singleButton;
-                        clickTime = System.currentTimeMillis();
-                        GameScene gameScene = new GameScene(sceneManager);
-                        gameScene.updateLastLogin(0);
-                        sceneManager.setScene(gameScene);
-                    } else if (multiButton.contains(e.getPoint())) {
-                        clickButton = multiButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
-                    } else if (quitButton.contains(e.getPoint())) {
-                        clickButton = quitButton;
-                        clickTime = System.currentTimeMillis();
-                        System.exit(0); // Normallement retourner le main menu
+                    Point mousePoint = e.getPoint();
+                    if (singleButton.contains(mousePoint)) {
+                        singleButton.onClick();
+                    } else if (multiButton.contains(mousePoint)) {
+                        multiButton.onClick();
+                    } else if (quitButton.contains(mousePoint)) {
+                        quitButton.onClick();
                     }
                 }
             }
@@ -60,22 +58,22 @@ public class MenuScene implements Scene {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (fadeComplete) {
-                    if (singleButton.contains(e.getPoint())) {
-                        clickButton = singleButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (multiButton.contains(e.getPoint())) {
-                        clickButton = multiButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (quitButton.contains(e.getPoint())) {
-                        clickButton = quitButton;
-                        clickTime = System.currentTimeMillis();
+                    Point mousePoint = e.getPoint();
+                    if (singleButton.contains(mousePoint)) {
+                        singleButton.setClicked(true);
+                    } else if (multiButton.contains(mousePoint)) {
+                        multiButton.setClicked(true);
+                    } else if (quitButton.contains(mousePoint)) {
+                        quitButton.setClicked(true);
                     }
                 }
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                clickButton = null;
+                singleButton.setClicked(false);
+                multiButton.setClicked(false);
+                quitButton.setClicked(false);
             }
         });
 
@@ -83,14 +81,10 @@ public class MenuScene implements Scene {
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
-                    hoverButton = null;
-                    if (singleButton.contains(e.getPoint())) {
-                        hoverButton = singleButton;
-                    } else if (multiButton.contains(e.getPoint())) {
-                        hoverButton = multiButton;
-                    } else if (quitButton.contains(e.getPoint())) {
-                        hoverButton = quitButton;
-                    }
+                    Point mousePoint = e.getPoint();
+                    singleButton.update(mousePoint);
+                    multiButton.update(mousePoint);
+                    quitButton.update(mousePoint);
                 }
             }
         });
@@ -132,84 +126,27 @@ public class MenuScene implements Scene {
         int titleY = height / 5;
         g2d.drawString(title, titleX, titleY);
 
-        // Dynamically reposition buttons using setLocation
-        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 4);
-        multiButton.setLocation(width / 2 - multiButton.width / 2, height / 4 + (int) (height * 8 / 100));
-        quitButton.setLocation(width / 2 - quitButton.width / 2, height / 4 + (int) (height * 16 / 100));
-
-        // Adjust button sizes dynamically based on screen dimensions
+        // 调整按钮大小和位置
         int buttonWidth = width / 4;
         int buttonHeight = height / 12;
+        Font buttonFont = new Font("Arial", Font.BOLD, Math.min(width, height) / 40);
 
         singleButton.setSize(buttonWidth, buttonHeight);
+        singleButton.setLocation(width / 2 - buttonWidth / 2, height / 3);
+        singleButton.setFont(buttonFont);
+
         multiButton.setSize(buttonWidth, buttonHeight);
+        multiButton.setLocation(width / 2 - buttonWidth / 2, height / 3 + buttonHeight + height / 20);
+        multiButton.setFont(buttonFont);
+
         quitButton.setSize(buttonWidth, buttonHeight);
+        quitButton.setLocation(width / 2 - buttonWidth / 2, height / 3 + 2 * (buttonHeight + height / 20));
+        quitButton.setFont(buttonFont);
 
-        // Dynamically reposition buttons
-        singleButton.setLocation(width / 2 - singleButton.width / 2, height / 3);
-        multiButton.setLocation(width / 2 - multiButton.width / 2, height / 3 + buttonHeight + height / 20);
-        quitButton.setLocation(width / 2 - quitButton.width / 2, height / 3 + 2 * (buttonHeight + height / 20));
-
-        // Button
-        g2d.setColor(new Color(100, 100, 200));
-        g2d.fill(singleButton);
-
-        // 如果是点击状态，绘制一个轻微的阴影效果
-        if (clickButton == singleButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(singleButton.x + 2, singleButton.y + 2, singleButton.width - 4, singleButton.height - 4);
-        } else if (hoverButton == singleButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(singleButton);
-
-        if (clickButton == multiButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == multiButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(multiButton);
-
-        if (clickButton == multiButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(multiButton.x + 2, multiButton.y + 2, multiButton.width - 4, multiButton.height - 4);
-        }
-
-        if (clickButton == quitButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == quitButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(quitButton);
-
-        if (clickButton == quitButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(quitButton.x + 2, quitButton.y + 2, quitButton.width - 4, quitButton.height - 4);
-        }
-
-        g2d.setColor(Color.WHITE);
-        Font buttonFont = new Font("Arial", Font.BOLD, Math.min(width, height) / 40); // Dynamically adjust font size
-        g2d.setFont(buttonFont);
-        int textYOffset = g2d.getFontMetrics(buttonFont).getHeight() / 2;
-
-        // Center text within buttons
-        String singleText = "Single Player";
-        int singleTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(singleText);
-        g2d.drawString(singleText, singleButton.x + (singleButton.width - singleTextWidth) / 2, singleButton.y + (singleButton.height + textYOffset) / 2);
-
-        String multiText = "Multi Player";
-        int multiTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(multiText);
-        g2d.drawString(multiText, multiButton.x + (multiButton.width - multiTextWidth) / 2, multiButton.y + (multiButton.height + textYOffset) / 2);
-
-        String quitText = "Quit";
-        int quitTextWidth = g2d.getFontMetrics(buttonFont).stringWidth(quitText);
-        g2d.drawString(quitText, quitButton.x + (quitButton.width - quitTextWidth) / 2, quitButton.y + (quitButton.height + textYOffset) / 2);
+        // 渲染按钮
+        singleButton.render(g2d);
+        multiButton.render(g2d);
+        quitButton.render(g2d);
 
         g2d.dispose();
     }

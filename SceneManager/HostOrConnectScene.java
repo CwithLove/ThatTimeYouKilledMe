@@ -7,40 +7,41 @@ import java.awt.event.MouseEvent;
 public class HostOrConnectScene implements Scene {
 
     private SceneManager sceneManager;
-    private Rectangle hostButton;
-    private Rectangle connectButton;
-    private Rectangle backButton;
+    private Button hostButton;
+    private Button connectButton;
+    private Button backButton;
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
 
-    private Rectangle hoverButton = null;
-    private Rectangle clickButton = null;
-    private long clickTime = 0;
-
     public HostOrConnectScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
-        hostButton = new Rectangle(300, 250, 300, 50);
-        connectButton = new Rectangle(300, 350, 300, 50);
-        backButton = new Rectangle(50, 500, 150, 40);
+        
+        // 创建按钮并设置点击事件
+        hostButton = new Button(300, 250, 300, 50, "Devenir host", () -> {
+            sceneManager.setScene(new MultiHostScene(sceneManager));
+        });
+        
+        connectButton = new Button(300, 350, 300, 50, "Connecter a un host", () -> {
+            sceneManager.setScene(new MultiConnectScene(sceneManager));
+        });
+        
+        backButton = new Button(50, 500, 150, 40, "Retour", () -> {
+            sceneManager.setScene(new MenuScene(sceneManager));
+        });
 
         // Mouse Listener
         sceneManager.getPanel().addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
-                    if (hostButton.contains(e.getPoint())) {
-                        clickButton = hostButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new MultiHostScene(sceneManager));
-                    } else if (connectButton.contains(e.getPoint())) {
-                        clickButton = connectButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new MultiConnectScene(sceneManager));
-                    } else if (backButton.contains(e.getPoint())) {
-                        clickButton = backButton;
-                        clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new MenuScene(sceneManager));
+                    Point mousePoint = e.getPoint();
+                    if (hostButton.contains(mousePoint)) {
+                        hostButton.onClick();
+                    } else if (connectButton.contains(mousePoint)) {
+                        connectButton.onClick();
+                    } else if (backButton.contains(mousePoint)) {
+                        backButton.onClick();
                     }
                 }
             }
@@ -48,22 +49,22 @@ public class HostOrConnectScene implements Scene {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (fadeComplete) {
-                    if (hostButton.contains(e.getPoint())) {
-                        clickButton = hostButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (connectButton.contains(e.getPoint())) {
-                        clickButton = connectButton;
-                        clickTime = System.currentTimeMillis();
-                    } else if (backButton.contains(e.getPoint())) {
-                        clickButton = backButton;
-                        clickTime = System.currentTimeMillis();
+                    Point mousePoint = e.getPoint();
+                    if (hostButton.contains(mousePoint)) {
+                        hostButton.setClicked(true);
+                    } else if (connectButton.contains(mousePoint)) {
+                        connectButton.setClicked(true);
+                    } else if (backButton.contains(mousePoint)) {
+                        backButton.setClicked(true);
                     }
                 }
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                clickButton = null;
+                hostButton.setClicked(false);
+                connectButton.setClicked(false);
+                backButton.setClicked(false);
             }
         });
 
@@ -72,14 +73,10 @@ public class HostOrConnectScene implements Scene {
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
-                    hoverButton = null;
-                    if (hostButton.contains(e.getPoint())) {
-                        hoverButton = hostButton;
-                    } else if (connectButton.contains(e.getPoint())) {
-                        hoverButton = connectButton;
-                    } else if (backButton.contains(e.getPoint())) {
-                        hoverButton = backButton;
-                    }
+                    Point mousePoint = e.getPoint();
+                    hostButton.update(mousePoint);
+                    connectButton.update(mousePoint);
+                    backButton.update(mousePoint);
                 }
             }
         });
@@ -120,90 +117,31 @@ public class HostOrConnectScene implements Scene {
         int titleWidth = titleMetrics.stringWidth(title);
         g2d.drawString(title, (width - titleWidth) / 2, height / 6);
 
+        // 调整按钮大小和位置
         int buttonWidth = width / 3;
         int buttonHeight = height / 12;
         int buttonSpacing = height / 10;
+        int buttonFontSize = Math.min(width, height) / 35;
+        Font buttonFont = new Font("Arial", Font.BOLD, buttonFontSize);
 
         hostButton.setSize(buttonWidth, buttonHeight);
         hostButton.setLocation(width / 2 - buttonWidth / 2, height / 3);
+        hostButton.setFont(buttonFont);
 
         connectButton.setSize(buttonWidth, buttonHeight);
         connectButton.setLocation(width / 2 - buttonWidth / 2, height / 3 + buttonHeight + buttonSpacing);
+        connectButton.setFont(buttonFont);
 
         int backButtonWidth = width / 6;
         int backButtonHeight = height / 16;
         backButton.setSize(backButtonWidth, backButtonHeight);
         backButton.setLocation(width / 6 - backButtonWidth / 2, height * 4 / 5);
+        backButton.setFont(buttonFont);
 
-        if (clickButton == hostButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == hostButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(hostButton);
-
-        if (clickButton == hostButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(hostButton.x + 2, hostButton.y + 2, hostButton.width - 4, hostButton.height - 4);
-        }
-
-        if (clickButton == connectButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == connectButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(connectButton);
-
-        if (clickButton == connectButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(connectButton.x + 2, connectButton.y + 2, connectButton.width - 4, connectButton.height - 4);
-        }
-
-        if (clickButton == backButton) {
-            g2d.setColor(new Color(70, 70, 150)); // 点击颜色
-        } else if (hoverButton == backButton) {
-            g2d.setColor(new Color(130, 130, 230)); // 悬停颜色
-        } else {
-            g2d.setColor(new Color(100, 100, 200)); // 正常颜色
-        }
-        g2d.fill(backButton);
-
-        if (clickButton == backButton) {
-            g2d.setColor(new Color(0, 0, 0, 50));
-            g2d.fillRect(backButton.x + 2, backButton.y + 2, backButton.width - 4, backButton.height - 4);
-        }
-
-        g2d.setColor(Color.WHITE);
-        int buttonFontSize = Math.min(width, height) / 35;
-        g2d.setFont(new Font("Arial", Font.BOLD, buttonFontSize));
-
-        String hostText = "Devenir host";
-        FontMetrics hostMetrics = g2d.getFontMetrics();
-        int hostTextWidth = hostMetrics.stringWidth(hostText);
-        int hostTextHeight = hostMetrics.getHeight();
-        g2d.drawString(hostText,
-                hostButton.x + (hostButton.width - hostTextWidth) / 2,
-                hostButton.y + (hostButton.height + hostTextHeight / 2) / 2);
-
-        String connectText = "Connecter a un host";
-        FontMetrics connectMetrics = g2d.getFontMetrics();
-        int connectTextWidth = connectMetrics.stringWidth(connectText);
-        int connectTextHeight = connectMetrics.getHeight();
-        g2d.drawString(connectText,
-                connectButton.x + (connectButton.width - connectTextWidth) / 2,
-                connectButton.y + (connectButton.height + connectTextHeight / 2) / 2);
-
-        String backText = "Retour";
-        FontMetrics backMetrics = g2d.getFontMetrics();
-        int backTextWidth = backMetrics.stringWidth(backText);
-        int backTextHeight = backMetrics.getHeight();
-        g2d.drawString(backText,
-                backButton.x + (backButton.width - backTextWidth) / 2,
-                backButton.y + (backButton.height + backTextHeight / 2) / 2);
+        // 渲染按钮
+        hostButton.render(g2d);
+        connectButton.render(g2d);
+        backButton.render(g2d);
 
         g2d.dispose();
     }

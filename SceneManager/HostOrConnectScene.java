@@ -105,7 +105,7 @@ public class HostOrConnectScene implements Scene {
     public void render(Graphics g, int width, int height) {
         // 绘制背景
         g.setColor(new Color(50, 50, 100));
-        g.fillRect(0, 0, 800, 600);
+        g.fillRect(0, 0, width, height);
 
         // 使用alpha值创建Graphics2D
         Graphics2D g2d = (Graphics2D) g.create();
@@ -114,9 +114,28 @@ public class HostOrConnectScene implements Scene {
         // 绘制标题
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Mode Multijoueur", 280, 150);
+        g2d.drawString("Mode Multijoueur", width/2 - 40, height/4 - 100);
         
         // 绘制主机按钮
+        hostButton = new Rectangle(width/2 - 50, height/4, 300, 50);
+        connectButton = new Rectangle(width/2 - 50, height/4 + 100, 300, 50);
+        backButton = new Rectangle(width/9, height * 4 / 5, 150, 40);
+
+        // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (hostButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new MultiHostScene(sceneManager));
+                    } else if (connectButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new MultiConnectScene(sceneManager));
+                    } else if (backButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new MenuScene(sceneManager));
+                    }
+                }
+            }
+        });
         if (clickButton == hostButton) {
             g2d.setColor(new Color(70, 70, 150)); // 点击颜色
         } else if (hoverButton == hostButton) {

@@ -25,8 +25,7 @@ public class MultiHostScene implements Scene {
     
     public MultiHostScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
-        startButton = new Rectangle(600, 500, 150, 50);
-        backButton = new Rectangle(50, 500, 150, 40);
+
         
         // Obtenir l'adresse IP du host
         try {
@@ -136,11 +135,11 @@ public class MultiHostScene implements Scene {
         // Dessiner le titre
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Salle d'attente", 300, 100);
+        g2d.drawString("Salle d'attente", width/2 - 50, height/7);
         
         // Dessiner les informations du joueur 1
         g2d.setFont(new Font("Arial", Font.BOLD, 24));
-        g2d.drawString("Joueur 1 (Hôte): Connecté", 100, 200);
+        g2d.drawString("Joueur 1 (Hôte): Connecté", width/6, height/5);
         
         // Dessiner les informations du joueur 2 et l'animation d'attente
         g2d.setFont(new Font("Arial", Font.BOLD, 24));
@@ -149,14 +148,14 @@ public class MultiHostScene implements Scene {
             for (int i = 0; i < animationDots; i++) {
                 dots += ".";
             }
-            g2d.drawString("Joueur 2: En attente de connexion" + dots, 100, 250);
+            g2d.drawString("Joueur 2: En attente de connexion" + dots, width/6, height/5 + 100);
         } else {
-            g2d.drawString("Joueur 2: Connecté", 100, 250);
+            g2d.drawString("Joueur 2: Connecté", width/6, height/5+100);
         }
         
         // Afficher l'adresse IP du host en bas
         g2d.setFont(new Font("Arial", Font.PLAIN, 18));
-        g2d.drawString("IP de l'hôte: " + hostIP, 50, 550);
+        g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 55 /60);
         
         // Dessiner le bouton de démarrage de la partie
         if (playerTwoConnected) {
@@ -170,6 +169,22 @@ public class MultiHostScene implements Scene {
         } else {
             g2d.setColor(Color.GRAY);
         }
+        //2 buttons
+        startButton = new Rectangle(width*6 /8 , height * 5 / 6, 150, 50);
+        backButton = new Rectangle(width/10, height * 5 / 6, 150, 40);
+         // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (playerTwoConnected && startButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new GameScene(sceneManager)); // 假设多人游戏场景是GameScene
+                    } else if (backButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    }
+                }
+            }
+        });
         g2d.fill(startButton);
         
         // 如果是点击状态，绘制一个轻微的阴影效果
@@ -188,7 +203,8 @@ public class MultiHostScene implements Scene {
         } else if (hoverButton == backButton) {
             g2d.setColor(new Color(130, 130, 230));
         } else {
-            g2d.setColor(new Color(100, 100, 200));
+    
+        g2d.setColor(new Color(100, 100, 200));
         }
         g2d.fill(backButton);
         

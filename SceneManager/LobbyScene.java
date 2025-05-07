@@ -28,8 +28,7 @@ public class LobbyScene implements Scene {
     public LobbyScene(SceneManager sceneManager, boolean isHost) {
         this.sceneManager = sceneManager;
         this.isHost = isHost;
-        startButton = new Rectangle(600, 500, 150, 50);
-        backButton = new Rectangle(50, 500, 150, 40);
+
 
         // Host gagne l'IP, J2 recoit l'IP
         if (isHost) {
@@ -143,9 +142,10 @@ public class LobbyScene implements Scene {
 
     @Override
     public void render(Graphics g, int width, int height) {
+        System.out.println("LobbyScene render");
         // Dessiner le fond
         g.setColor(new Color(40, 40, 80));
-        g.fillRect(0, 0, 800, 600);
+        g.fillRect(0, 0, width, height);
 
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
@@ -153,11 +153,11 @@ public class LobbyScene implements Scene {
         // Dessiner le titre
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Salle d'attente", 300, 100);
+        g2d.drawString("Salle d'attente", width/2, height/6);
 
         // Dessiner les informations du joueur 1
         g2d.setFont(new Font("Arial", Font.BOLD, 24));
-        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", 100, 200);
+        g2d.drawString("Joueur 1 " + (isHost ? "(Hôte)" : "") + ": Connecté", width/5, height/6 + 100);
 
         // Dessiner les informations du joueur 2 et de l'animation de waiting
         g2d.setFont(new Font("Arial", Font.BOLD, 24));
@@ -167,18 +167,18 @@ public class LobbyScene implements Scene {
                 for (int i = 0; i < animationDots; i++) {
                     dots += ".";
                 }
-                g2d.drawString("Joueur 2: En attente de connexion" + dots, 100, 250);
+                g2d.drawString("Joueur 2: En attente de connexion" + dots, width/5, height/6 + 200);
             } else {
-                g2d.drawString("Joueur 2: Connecté", 100, 250);
+                g2d.drawString("Joueur 2: Connecté", width/5, height/6 + 200);
             }
         } else {
-            g2d.drawString("Joueur 2 (Vous): Connecté", 100, 250);
+            g2d.drawString("Joueur 2 (Vous): Connecté", width/5, height/6+200);
         }
 
         // Si vous etes le host, afficher l'IP et le bouton de demarrage
         if (isHost) {
             g2d.setFont(new Font("Arial", Font.PLAIN, 18));
-            g2d.drawString("IP de l'hôte: " + hostIP, 50, 550);
+            g2d.drawString("IP de l'hôte: " + hostIP, width/10, height * 5 / 6);
 
             // Dessiner le bouton de demarrage
             if (playerTwoConnected) {
@@ -207,10 +207,33 @@ public class LobbyScene implements Scene {
             // Si vous etes le client, afficher le message de waiting
             g2d.setFont(new Font("Arial", Font.BOLD, 20));
             g2d.setColor(Color.YELLOW);
-            g2d.drawString("Prêt, en attente du démarrage de la partie...", 200, 400);
+            g2d.drawString("Prêt, en attente du démarrage de la partie...", width/4, height * 2 / 3);
         }
 
         // Dessiner le bouton de retour
+        startButton = new Rectangle(width * 2 /3, height * 5 / 6, 150, 50);
+        backButton = new Rectangle(width/10, height * 5 /6, 150, 40);
+         // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (isHost && playerTwoConnected && startButton.contains(e.getPoint())) {
+                        Scene gameScene = new GameScene(sceneManager);
+                        //gameScene.updateLastLogin(1); // 1 pour le mode multi
+                        sceneManager.setScene(gameScene);
+                        // Normallement envoyer un message de demarrage a J2
+                    } else if (backButton.contains(e.getPoint())) {
+                        if (isHost) {
+                            sceneManager.setScene(new MultiHostScene(sceneManager));
+                        } else {
+                            sceneManager.setScene(new MultiConnectScene(sceneManager));
+                        }
+                    }
+                }
+            }
+        });
+
         if (clickButton == backButton) {
             g2d.setColor(new Color(70, 70, 150));
         } else if (hoverButton == backButton) {

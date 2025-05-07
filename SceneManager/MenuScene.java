@@ -19,6 +19,8 @@ public class MenuScene implements Scene {
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
+    private int WIDTHOFSCREEN;
+    private int HEIGHTOFSCREEN;
     
     // 添加鼠标悬停和点击效果的变量
     private Rectangle hoverButton = null;
@@ -121,7 +123,28 @@ public class MenuScene implements Scene {
         // 绘制标题
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Menu", 280, 150);
+        g2d.drawString("Menu", width/2, height/4);
+
+        // A CHANGER DYNAMIQUE
+        singleButton = new Rectangle(width/2, height/4 + 100, 200, 50);
+        multiButton = new Rectangle(width/2, height/4 + 200, 200, 50);
+        quitButton = new Rectangle(width/2, height/4 + 300, 200, 50);
+
+        // Mouse Listener
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete) {
+                    if (singleButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new GameScene(sceneManager));
+                    } else if (multiButton.contains(e.getPoint())) {
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    } else if (quitButton.contains(e.getPoint())) {
+                        System.exit(0); // Normallement retourner le main menu
+                    }
+                }
+            }
+        });
         
         // 绘制单人游戏按钮
         if (clickButton == singleButton) {
@@ -164,6 +187,8 @@ public class MenuScene implements Scene {
             g2d.setColor(new Color(100, 100, 200)); // 正常颜色
         }
         g2d.fill(quitButton);
+
+
         
         // 如果是点击状态，绘制一个轻微的阴影效果
         if (clickButton == quitButton) {

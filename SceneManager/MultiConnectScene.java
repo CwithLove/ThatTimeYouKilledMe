@@ -24,9 +24,8 @@ public class MultiConnectScene implements Scene {
     
     public MultiConnectScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
-        connectButton = new Rectangle(350, 300, 100, 40);
-        backButton = new Rectangle(50, 500, 150, 40);
-        
+
+
 
         sceneManager.getPanel().addKeyListener(new KeyAdapter() {
             @Override
@@ -45,7 +44,7 @@ public class MultiConnectScene implements Scene {
                 }
             }
         });
-        
+
         // Mouse Listener
         sceneManager.getPanel().addMouseListener(new MouseAdapter() {
             @Override
@@ -143,7 +142,7 @@ public class MultiConnectScene implements Scene {
     public void render(Graphics g, int width, int height) {
         // 绘制背景
         g.setColor(new Color(40, 40, 80));
-        g.fillRect(0, 0, 800, 600);
+        g.fillRect(0, 0, width, height);
 
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
@@ -151,16 +150,18 @@ public class MultiConnectScene implements Scene {
         // 绘制标题
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Connexion à l'hôte", 260, 100);
+        g2d.drawString("Connexion à l'hôte", width / 4, height/6);
         
         // 绘制输入框
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(250, 200, 300, 40);
+        g2d.drawRect(width/3 + 50, height/3, 300, 40);
         g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-        g2d.drawString("Entrez l'adresse IP de l'hôte:", 250, 180);
-        g2d.drawString(ipAddress + (cursorVisible ? "|" : ""), 260, 225);
+        g2d.drawString("Entrez l'adresse IP de l'hôte:", width /4 + 100, height/5);
+        g2d.drawString(ipAddress + (cursorVisible ? "|" : ""), width/3 + 51, height/3 + 25);
         
         // 绘制连接按钮
+        connectButton = new Rectangle(width/3 + 100, height/2, 100, 40);
+        backButton = new Rectangle(width/10, height * 5 / 6, 150, 40);
         if (!ipAddress.isEmpty() && !isConnected) {
             // 根据按钮状态设置颜色
             if (clickButton == connectButton) {
@@ -208,7 +209,7 @@ public class MultiConnectScene implements Scene {
         if (isConnected) {
             g2d.setColor(Color.GREEN);
             g2d.setFont(new Font("Arial", Font.BOLD, 20));
-            g2d.drawString("Connexion en cours...", 310, 400);
+            g2d.drawString("Connexion en cours...", width/2, height * 4 /6);
         }
         
         g2d.dispose();

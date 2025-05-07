@@ -96,7 +96,7 @@ public class GameScene implements Scene {
     public void render(Graphics g, int width, int height) {
         // Dessiner le fond
         g.setColor(new Color(20, 20, 20));
-        g.fillRect(0, 0, 800, 600);
+        g.fillRect(0, 0, width, height);
         
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
@@ -104,7 +104,23 @@ public class GameScene implements Scene {
         // Dessiner le contenu du jeu
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Partie en cours...", 280, 300);
+        g2d.drawString("Partie en cours...", width/4, height/2);
+
+        backButton = new Rectangle(width / 10, height * 9 / 10, 150, 40);
+
+        // 添加鼠标监听器
+        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (fadeComplete && backButton.contains(e.getPoint())) {
+                    if (lastLogin == 0) {
+                        sceneManager.setScene(new MenuScene(sceneManager));
+                    } else if (lastLogin == 1) {
+                        sceneManager.setScene(new HostOrConnectScene(sceneManager));
+                    }
+                }
+            }
+        });
         
         // Dessiner le bouton de retour
         if (clickButton == backButton) {
@@ -124,7 +140,7 @@ public class GameScene implements Scene {
         
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        g2d.drawString("Retour", backButton.x + 45, backButton.y + 25);
+        g2d.drawString("Retour", backButton.x + width/20, backButton.y + height/30);
         
         g2d.dispose();
     }

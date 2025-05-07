@@ -42,7 +42,9 @@ public class MenuScene implements Scene {
                     if (singleButton.contains(e.getPoint())) {
                         clickButton = singleButton;
                         clickTime = System.currentTimeMillis();
-                        sceneManager.setScene(new GameScene(sceneManager));
+                        GameScene gameScene = new GameScene(sceneManager);
+                        gameScene.updateLastLogin(0);
+                        sceneManager.setScene(gameScene);
                     } else if (multiButton.contains(e.getPoint())) {
                         clickButton = multiButton;
                         clickTime = System.currentTimeMillis();

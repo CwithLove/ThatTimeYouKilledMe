@@ -48,6 +48,12 @@ public class Joueur {
         return false;
 	}
 
+    public void addClone(int n){
+        if (n > 0) {
+            this.nbClones += n;
+        }
+    }
+
     public void setProchainPlateau(Plateau.TypePlateau prochainPlateau) {
         this.prochainPlateau = prochainPlateau;
     }

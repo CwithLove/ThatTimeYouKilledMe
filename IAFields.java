@@ -15,19 +15,19 @@ public class IAFields <T, U, V, W> {
     public IAFields(IAFields<Couple<Integer,Integer>,String,String,String> t) {
     }
 
-    public T getPosPiece() {
+    public T getPremier() {
         return positionPiece;
     }
 
-    public U getAction1() {
+    public U getSecond() {
         return action1;
     }
 
-    public V getAction2() {
+    public V getTroisieme() {
         return action2;
     }
 
-    public W getPlateau() {
+    public W getQuatrieme() {
         return nouveauPlateau;
     }
 

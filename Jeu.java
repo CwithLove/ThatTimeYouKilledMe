@@ -202,6 +202,44 @@ public class Jeu {
     
     }
 
+    public void clonage(Plateau passe, Plateau futur, Joueur player, Point src, Piece pieceactuelle, Piece clone, Boolean sortPion){
+        if (passe.getPiece(src.x, src.y) == null){
+            passe.setPiece(pieceactuelle, src.x, src.y);
+            //laisse une copie ou non du pion cloné en fonction de ce qu'il reste dans l'inventaire
+            if (sortPion) {
+                futur.setPiece(clone, src.x, src.y);
+            } else {
+                futur.removePiece(src.x, src.y);
+                if (player.equals(joueur1)) {
+                    futur.decBlancs();
+                } else if (player.equals(joueur2)) {
+                    futur.decNoirs();
+                }
+            }
+            if (player.equals(joueur1)) {
+                passe.incBlancs();
+            } else if (player.equals(joueur2)) {
+                passe.incNoirs();
+            }
+        } else {
+            System.out.println("Il y a quelque chose à l'endroit ou vous voulez vous déplacer");
+        }
+    }
+
+    public void jumping(Plateau passe, Plateau futur, Joueur player, Point src, Piece pieceactuelle) {
+        if (passe.getPiece(src.x,src.y) == null){
+            futur.setPiece(pieceactuelle, src.x, src.y);
+            passe.removePiece(src.x, src.y);
+            if (player.equals(joueur1)) {
+                passe.decBlancs();
+                futur.incBlancs();
+            } else if (player.equals(joueur2)) {
+                passe.decBlancs();
+                futur.incBlancs();
+            }
+        }
+    }
+
     public void appliquerCoup(Coup coup, Joueur player, Plateau pastAC, Plateau presentAC, Plateau futureAC) {
         // A COMPLETER
         //System.err.println("Le coup a bien été appliqué.");
@@ -225,83 +263,12 @@ public class Jeu {
                 switch (plateauAC.getType()) {
                     case PRESENT:
                         player.setProchainPlateau(Plateau.TypePlateau.PAST);
-                        if (pastAC.paradoxe(pastAC.getPiece(src.x,src.y),presentAC.getPiece(src.x,src.y),0,0)){
-                            System.out.println("Paradoxe !");
-                            pastAC.removePiece(src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                pastAC.decBlancs();
-                            } else if (player.equals(joueur2)) {
-                                pastAC.decNoirs();
-                            }
-                            player.setProchainPlateau(Plateau.TypePlateau.PRESENT);
-                        }
-                        else {
-                            if (pastAC.getPiece(src.x,src.y) != null){
-                                if (player.equals(joueur1)) {
-                                    presentAC.decNoirs();
-                                } else if (player.equals(joueur2)) {
-                                    presentAC.decBlancs();
-                                }
-                            }
-                            pastAC.setPiece(pieceactuelle, src.x, src.y);
-                            //laisse une copie ou non du pion cloné en fonction de ce qu'il reste dans l'inventaire
-                            if (sortPion) {
-                                presentAC.setPiece(clone, src.x, src.y);
-                            } else {
-                                presentAC.removePiece(src.x, src.y);
-                                if (player.equals(joueur1)) {
-                                    presentAC.decBlancs();
-                                } else if (player.equals(joueur2)) {
-                                    presentAC.decNoirs();
-                                }
-                            }
-                            if (player.equals(joueur1)) {
-                                pastAC.incBlancs();
-                            } else if (player.equals(joueur2)) {
-                                pastAC.incNoirs();
-                            }
-                        }
-
+                        clonage(pastAC,presentAC,player,src,pieceactuelle,clone,sortPion);
                         break;
 
                     case FUTURE:
                         player.setProchainPlateau(Plateau.TypePlateau.PRESENT);
-                        if (presentAC.paradoxe(presentAC.getPiece(src.x,src.y),futureAC.getPiece(src.x,src.y),0,0)){
-                            System.out.println("Paradoxe !");
-                            presentAC.removePiece(src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                presentAC.decBlancs();
-                            } else if (player.equals(joueur2)) {
-                                presentAC.decNoirs();
-                            }
-                            player.setProchainPlateau(Plateau.TypePlateau.FUTURE);
-                        }
-                        else {
-                            if (presentAC.getPiece(src.x,src.y) != null){
-                                if (player.equals(joueur1)) {
-                                    presentAC.decNoirs();
-                                } else if (player.equals(joueur2)) {
-                                    presentAC.decBlancs();
-                                }
-                            }
-                            presentAC.setPiece(pieceactuelle, src.x, src.y);
-                            //laisse une copie ou non du pion cloné en fonction de ce qu'il reste dans l'inventaire
-                            if (sortPion) {
-                                futureAC.setPiece(clone, src.x, src.y);
-                            } else {
-                                futureAC.removePiece(src.x, src.y);
-                                if (player.equals(joueur1)) {
-                                    futureAC.decBlancs();
-                                } else if (player.equals(joueur2)) {
-                                    futureAC.decNoirs();
-                                }
-                            }
-                            if (player.equals(joueur1)) {
-                                presentAC.incBlancs();
-                            } else if (player.equals(joueur2)) {
-                                presentAC.incNoirs();
-                            }
-                        }
+                        clonage(presentAC,futureAC,player,src,pieceactuelle,clone,sortPion);
                         break;
                     default:
                         // ON PEUT PAS ETRE DANS CET ETAT LA
@@ -316,71 +283,14 @@ public class Jeu {
                     case PRESENT:
                         // VERIFIER LE PASSE POUR PARADOX
                         player.setProchainPlateau(Plateau.TypePlateau.FUTURE);
-                        if (presentAC.paradoxe(presentAC.getPiece(src.x,src.y),futureAC.getPiece(src.x,src.y),0,0)){
-                            System.out.println("Paradoxe !");
-                            presentAC.removePiece(src.x, src.y);
-                            futureAC.removePiece(src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                presentAC.decBlancs();
-                                futureAC.decBlancs();
-                            } else if (player.equals(joueur2)) {
-                                presentAC.decNoirs();
-                                futureAC.decNoirs();
-                            }
-                        } else {
-                            if (futureAC.getPiece(src.x,src.y) != null){
-                                if (player.equals(joueur1)) {
-                                    presentAC.decNoirs();
-                                } else if (player.equals(joueur2)) {
-                                    presentAC.decBlancs();
-                                }
-                            }
-                            futureAC.setPiece(pieceactuelle, src.x, src.y);
-                            presentAC.removePiece(src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                presentAC.decBlancs();
-                                futureAC.incBlancs();
-                            } else if (player.equals(joueur2)) {
-                                presentAC.decBlancs();
-                                futureAC.incBlancs();
-                            }
-                            break;
-                        }
+                        jumping(presentAC,futureAC,player,src,pieceactuelle);
+                        break;
 
 
                     case PAST:
                         // VERIFIER LE PRESENT POUR PARADOX
                         player.setProchainPlateau(Plateau.TypePlateau.PRESENT);
-                        if (pastAC.paradoxe(pastAC.getPiece(src.x,src.y),presentAC.getPiece(src.x,src.y),0,0)){
-                            System.out.println("Paradoxe !");
-                            pastAC.removePiece(src.x, src.y);
-                            presentAC.removePiece(src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                pastAC.decBlancs();
-                                presentAC.decBlancs();
-                            } else if (player.equals(joueur2)) {
-                                pastAC.decNoirs();
-                                presentAC.decNoirs();
-                            }
-                        }
-                        else {
-                            if (presentAC.getPiece(src.x,src.y) != null){
-                                if (player.equals(joueur1)) {
-                                    presentAC.decNoirs();
-                                } else if (player.equals(joueur2)) {
-                                    presentAC.decBlancs();
-                                }
-                            }
-                            presentAC.setPiece(pieceactuelle, src.x, src.y);
-                            pastAC.setPiece(null, src.x, src.y);
-                            if (player.equals(joueur1)) {
-                                pastAC.decBlancs();
-                                presentAC.incBlancs();
-                            } else if (player.equals(joueur2)) {
-                                pastAC.decNoirs();
-                                presentAC.incNoirs();
-                            }
-                        }
+                        jumping(pastAC,presentAC,player,src,pieceactuelle);
                         break;
                     default:
                         // ON PEUT PAS ETRE DANS CET ETAT LA
@@ -389,7 +299,7 @@ public class Jeu {
                 }
                 break;
         }
-    
+
     }
 
     // A AJOUTER UNE REGLE, SI TU CHOIS UN PLATEAU OU IL N'Y A PAS DE TES PIONS

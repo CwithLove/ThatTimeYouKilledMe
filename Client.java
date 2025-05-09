@@ -28,9 +28,11 @@ public class Client {
                         String data = (String) obj;
                         String[] lines = data.split("\n");  // On a le message ligne par ligne
                         System.out.println("Serveur: " + obj);  // Affichage brut dans le terminal
-                        if (Code.valueOf(lines[0]) == Code.ETAT) {
+                        Code code = Code.valueOf(lines[0]); /* CODE CONTIENT TOUT POUR SAVOIR QUOI DEMANDER AU JOUEUR */
+                        if (code == Code.ETAT) {
                             etat = fromGamePlayString(lines); // On traduit le String en Etat
-                            etat.afficherEtat();    /* ETAT CONTIENT TOUTES LES INFORMATIONS POUR AFFICHER !!! */
+                            etat.afficherEtat(); 
+                            /* ETAT CONTIENT TOUTES LES INFORMATIONS POUR AFFICHER L'ETAT DU JEU !!! */
                         }
                     }
                 }

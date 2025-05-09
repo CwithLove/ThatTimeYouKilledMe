@@ -42,7 +42,7 @@ public class MultiHostScene implements Scene {
             hostIP = "Impossible d'obtenir l'adresse IP";
         }
 
-        // Mouse Listener
+        // 创建统一的MouseAdapter来处理所有鼠标事件
         mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -73,12 +73,7 @@ public class MultiHostScene implements Scene {
                 startButton.setClicked(false);
                 backButton.setClicked(false);
             }
-        };
-
-        sceneManager.getPanel().addMouseListener(mouseAdapter);
-
-        // 添加鼠标移动监听器用于悬停效果
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -87,7 +82,11 @@ public class MultiHostScene implements Scene {
                     backButton.update(mousePoint);
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
 
         // Ici normallement, nous devons ajouter le code de la connexion réseau
         // pour simplifier de tester, nous attendons 5s.
@@ -206,9 +205,11 @@ public class MultiHostScene implements Scene {
 
     @Override
     public void dispose() {
-        // Remove mouse listeners
-        sceneManager.getPanel().removeMouseListener(mouseAdapter);
-        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
+        // 安全移除鼠标监听器
+        if (mouseAdapter != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
+        }
     }
 
     public void setPlayerTwoConnected(boolean connected) {

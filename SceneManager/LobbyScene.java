@@ -9,6 +9,7 @@ import java.net.UnknownHostException;
 public class LobbyScene implements Scene {
 
     private SceneManager sceneManager;
+    private MouseAdapter mouseAdapter;
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
@@ -61,8 +62,8 @@ public class LobbyScene implements Scene {
             playerTwoConnected = true;
         }
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        // 创建统一的MouseAdapter来处理所有鼠标事件
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
@@ -92,10 +93,7 @@ public class LobbyScene implements Scene {
                 startButton.setClicked(false);
                 backButton.setClicked(false);
             }
-        });
-
-        // ajouter le listener de la souris pour le hover
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -104,7 +102,11 @@ public class LobbyScene implements Scene {
                     backButton.update(mousePoint);
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
 
         if (isHost) {
             // TODO: Ajouter le code de la connexion reseau
@@ -239,9 +241,11 @@ public class LobbyScene implements Scene {
 
     @Override
     public void dispose() {
-        // Supprimer le listener de la souris
-        sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
-        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
+        // 安全移除鼠标监听器
+        if (mouseAdapter != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
+        }
 
         // TODO: Nettoyer les ressources de la connexion reseau
     }

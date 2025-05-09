@@ -12,6 +12,7 @@ import java.awt.event.MouseEvent;
 public class MenuScene implements Scene {
 
     private SceneManager sceneManager;
+    private MouseAdapter mouseAdapter;
     private Button singleButton;
     private Button multiButton;
     private Button quitButton;
@@ -38,8 +39,8 @@ public class MenuScene implements Scene {
             System.exit(0); // Normallement retourner le main menu
         });
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        // 创建统一的MouseAdapter来处理所有鼠标事件
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
@@ -74,9 +75,7 @@ public class MenuScene implements Scene {
                 multiButton.setClicked(false);
                 quitButton.setClicked(false);
             }
-        });
-
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -86,7 +85,11 @@ public class MenuScene implements Scene {
                     quitButton.update(mousePoint);
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
     }
 
     @Override
@@ -152,7 +155,10 @@ public class MenuScene implements Scene {
 
     @Override
     public void dispose() {
-        sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
-        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
+        // 安全移除鼠标监听器
+        if (mouseAdapter != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
+        }
     }
 }

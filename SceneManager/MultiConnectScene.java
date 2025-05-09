@@ -7,6 +7,8 @@ import javax.swing.*;
 public class MultiConnectScene implements Scene {
 
     private SceneManager sceneManager;
+    private MouseAdapter mouseAdapter;
+    private KeyAdapter keyAdapter;
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
@@ -32,7 +34,8 @@ public class MultiConnectScene implements Scene {
             sceneManager.setScene(new HostOrConnectScene(sceneManager));
         });
 
-        sceneManager.getPanel().addKeyListener(new KeyAdapter() {
+        // 创建键盘事件监听器
+        keyAdapter = new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
                 if (fadeComplete) {
@@ -48,10 +51,11 @@ public class MultiConnectScene implements Scene {
                     }
                 }
             }
-        });
+        };
+        sceneManager.getPanel().addKeyListener(keyAdapter);
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        // 创建统一的MouseAdapter来处理所有鼠标事件
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
@@ -81,9 +85,7 @@ public class MultiConnectScene implements Scene {
                 connectButton.setClicked(false);
                 backButton.setClicked(false);
             }
-        });
-
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -92,7 +94,11 @@ public class MultiConnectScene implements Scene {
                     backButton.update(mousePoint);
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
     }
 
     private void connectToHost(String ip) {
@@ -215,8 +221,13 @@ public class MultiConnectScene implements Scene {
 
     @Override
     public void dispose() {
-        sceneManager.getPanel().removeKeyListener(sceneManager.getPanel().getKeyListeners()[0]);
-        sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
-        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
+        // 安全移除监听器
+        if (keyAdapter != null) {
+            sceneManager.getPanel().removeKeyListener(keyAdapter);
+        }
+        if (mouseAdapter != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
+        }
     }
 }

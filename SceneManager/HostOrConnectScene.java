@@ -6,6 +6,7 @@ import java.awt.event.MouseEvent;
 
 public class HostOrConnectScene implements Scene {
 
+    private MouseAdapter mouseAdapter;
     private SceneManager sceneManager;
     private Button hostButton;
     private Button connectButton;
@@ -30,8 +31,8 @@ public class HostOrConnectScene implements Scene {
             sceneManager.setScene(new MenuScene(sceneManager));
         });
 
-        // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        // 创建统一的MouseAdapter来处理所有鼠标事件
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
@@ -66,10 +67,7 @@ public class HostOrConnectScene implements Scene {
                 connectButton.setClicked(false);
                 backButton.setClicked(false);
             }
-        });
-
-        // 添加鼠标移动监听器用于悬停效果
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -79,7 +77,11 @@ public class HostOrConnectScene implements Scene {
                     backButton.update(mousePoint);
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
     }
 
     @Override
@@ -148,7 +150,10 @@ public class HostOrConnectScene implements Scene {
 
     @Override
     public void dispose() {
-        sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
-        sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
+        // 安全移除鼠标监听器
+        if (mouseAdapter != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
+        }
     }
 }

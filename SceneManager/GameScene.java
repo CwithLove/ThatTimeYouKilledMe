@@ -10,6 +10,7 @@ public class GameScene implements Scene {
     private static int lastLogin = 0; // 0: single, 1: multi
     private static boolean isHost = true; // 默认为主机
     private SceneManager sceneManager;
+    private MouseAdapter mouseAdapter;
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
@@ -28,8 +29,8 @@ public class GameScene implements Scene {
         this.sceneManager = sceneManager;
         backButton = new Rectangle(50, 500, 150, 40);
 
-        // Ajouter le listener de la souris
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        // 创建统一的MouseAdapter来处理所有鼠标事件
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete && backButton.contains(e.getPoint())) {
@@ -60,10 +61,7 @@ public class GameScene implements Scene {
             public void mouseReleased(MouseEvent e) {
                 clickButton = null;
             }
-        });
-
-        // Ajouter le listener de la souris pour le hover
-        sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
+            
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (fadeComplete) {
@@ -73,7 +71,11 @@ public class GameScene implements Scene {
                     }
                 }
             }
-        });
+        };
+
+        // 注册鼠标监听器
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
+        sceneManager.getPanel().addMouseMotionListener(mouseAdapter);
     }
 
     public GameScene(SceneManager sceneManager, boolean isHost) {
@@ -148,15 +150,10 @@ public class GameScene implements Scene {
 
     @Override
     public void dispose() {
-        if (sceneManager != null) {
-            MouseListener[] mouseListeners = sceneManager.getPanel().getMouseListeners();
-            if (mouseListeners.length > 0) {
-                sceneManager.getPanel().removeMouseListener(mouseListeners[0]);
-            }
-
-            if (sceneManager.getPanel().getMouseMotionListeners().length > 0) {
-                sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
-            }
+        // 安全移除鼠标监听器
+        if (mouseAdapter != null && sceneManager != null) {
+            sceneManager.getPanel().removeMouseListener(mouseAdapter);
+            sceneManager.getPanel().removeMouseMotionListener(mouseAdapter);
         }
     }
 

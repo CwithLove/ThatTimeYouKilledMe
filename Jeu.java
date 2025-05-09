@@ -157,7 +157,8 @@ public class Jeu {
                     if (gameOver(joueurCourant) != 0)
                         break;
                     if (choix == 2 && joueurCourant.equals(joueur2)){
-                        joueurCourant.setProchainPlateau(joueurIA.getQuatrieme());
+                        prochainPlateau = joueurIA.getQuatrieme();
+                        joueurCourant.setProchainPlateau(prochainPlateau);
                         breakloop = false;
                     } else {
                         System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");

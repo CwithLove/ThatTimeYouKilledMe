@@ -143,6 +143,8 @@ public class IAminimax {
         //heuritique 2: position sur plateau, +2 au milieu, 0 sur les bords, -2 dans les coins
         score += scorePositionPlateau(joueur, plateauCourant);
         //heuristique3: distance adversaire, +1 pour chaque case à distance du plus proche ennemi
+        //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
+        score += presencePlateau(joueur,passe,present,futur);
         return score;
     }
 
@@ -178,6 +180,35 @@ public class IAminimax {
                     }
                 }
             }
+        }
+        return score;
+    }
+
+    //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
+    private int presencePlateau(Joueur joueur, Plateau passe, Plateau present, Plateau futur){
+        int score = 0;
+        int nbPlateau = 0;
+        if (joueur.existePion(passe)){
+            nbPlateau++;
+        }
+        if (joueur.existePion(present)){
+            nbPlateau++;
+        }
+        if (joueur.existePion(futur)){
+            nbPlateau++;
+        }
+        switch(nbPlateau){
+            case 1:
+                score = -2;
+                break;
+            case 2:
+                score = 2;
+                break;
+            case 3:
+                score = 4;
+                break;
+            default:
+                break;
         }
         return score;
     }

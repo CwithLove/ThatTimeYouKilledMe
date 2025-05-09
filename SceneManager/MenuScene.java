@@ -9,7 +9,6 @@ import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-// A CHANGER DYNAMIQUE LA RESOLUTION
 public class MenuScene implements Scene {
 
     private SceneManager sceneManager;

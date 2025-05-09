@@ -7,7 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class MultiHostScene implements Scene {
-
+    private MouseAdapter mouseAdapter;
     private SceneManager sceneManager;
     private long startTime;
     private float alpha = 0f;
@@ -43,7 +43,7 @@ public class MultiHostScene implements Scene {
         }
 
         // Mouse Listener
-        sceneManager.getPanel().addMouseListener(new MouseAdapter() {
+        mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (fadeComplete) {
@@ -73,7 +73,9 @@ public class MultiHostScene implements Scene {
                 startButton.setClicked(false);
                 backButton.setClicked(false);
             }
-        });
+        };
+
+        sceneManager.getPanel().addMouseListener(mouseAdapter);
 
         // 添加鼠标移动监听器用于悬停效果
         sceneManager.getPanel().addMouseMotionListener(new MouseAdapter() {
@@ -204,7 +206,8 @@ public class MultiHostScene implements Scene {
 
     @Override
     public void dispose() {
-        sceneManager.getPanel().removeMouseListener(sceneManager.getPanel().getMouseListeners()[0]);
+        // Remove mouse listeners
+        sceneManager.getPanel().removeMouseListener(mouseAdapter);
         sceneManager.getPanel().removeMouseMotionListener(sceneManager.getPanel().getMouseMotionListeners()[0]);
     }
 

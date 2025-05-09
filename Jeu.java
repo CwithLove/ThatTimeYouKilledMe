@@ -12,6 +12,8 @@ public class Jeu {
     private Joueur joueurCourant; // nombre de tours
     private Piece pieceCourante; // piece courante
     Scanner sc = new Scanner(System.in);
+    private IAFields<Piece,String,String,Plateau.TypePlateau> joueurIA;
+    private IAminimax ia = new IAminimax(1,this); //CHANGER LA DIFFICULTE ICI
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
     // les methodes a completer
 
@@ -30,6 +32,12 @@ public class Jeu {
         // Afficher le plateau initial
         System.out.println("Plateau initial :");
         printGamePlay();
+
+        int choix = 0;
+        do {
+            System.out.println("Voulez-vous jouer avec (1: Autre joueur) (2: IA) ? :");
+            choix = sc.nextInt();
+        } while (choix != 1 && choix != 2);
 
         // Boucle de jeu
         Plateau plateauCourant = null;
@@ -60,30 +68,40 @@ public class Jeu {
             plateauTraitant = plateauCourant;
 
             // Choisir la piece a deplacer
+            if (choix == 2 && joueurCourant.equals(joueur2)) {
+                joueurIA = ia.coupIA(joueur2,plateauCourant,past,present,future);
+            }
 
             // A FIXER SI ON TAPE CLONE DANS CE CAS LA ET CA SE TERMINE LE TOUR
-            //System.out.println("Coup meta du joueur 2:"+ia.choisitCoupIa(joueur1,joueur2,plateauCourant,past,present,future));
             try {
                 int lig, col;
                 do {
                     if ((joueurCourant.equals(joueur1) && plateauCourant.getNbBlancs() == 0) || (joueurCourant.equals(joueur2) && plateauCourant.getNbNoirs() == 0)){
                         break;
                     }
-                    System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
-                    lig = sc.nextInt();
-                    col = sc.nextInt();
-                    //Verifie si les coordonnees sont dans le plateau
-                    if ( lig < 0 || col < 0 || lig > (plateauCourant.getSize()-1) || col > (plateauCourant.getSize()-1)){
-                        System.out.println("Coordonées incorrectes.");
-                        continue;
-                    }
-                    else{
-                        pieceCourante = plateauCourant.getPiece(lig, col);
+                    if (choix == 2 && joueurCourant.equals(joueur2)){
+                        pieceCourante = joueurIA.getPremier();
+                        if (pieceCourante == null){
+                            System.out.println("Erreur dans l'IA au niveau de la séléction de Piece");
+                        }
+                    } else {
+                        System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
+                        lig = sc.nextInt();
+                        col = sc.nextInt();
+                        //Verifie si les coordonnees sont dans le plateau
+                        if ( lig < 0 || col < 0 || lig > (plateauCourant.getSize()-1) || col > (plateauCourant.getSize()-1)){
+                            System.out.println("Coordonées incorrectes.");
+                            continue;
+                        }
+                        else{
+                            pieceCourante = plateauCourant.getPiece(lig, col);
+                        }
+
+                        if (pieceCourante == null||!pieceCourante.getOwner().equals(joueurCourant) ) {
+                            System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
+                        }
                     }
 
-                    if (pieceCourante == null||!pieceCourante.getOwner().equals(joueurCourant) ) {
-                        System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
-                    }
 
                 } while (pieceCourante == null|| !pieceCourante.getOwner().equals(joueurCourant));
             } catch (Exception e) {
@@ -97,7 +115,15 @@ public class Jeu {
             do {
                 Coup coup;
                 do {
-                    coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante, past, present, future);
+                    if (choix == 2 && joueurCourant.equals(joueur2)){
+                        if (i == 2){
+                            coup = Coup.stringToCoup(pieceCourante,plateauCourant,joueurIA.getSecond());
+                        } else {
+                            coup = Coup.stringToCoup(pieceCourante,plateauCourant,joueurIA.getTroisieme());
+                        }
+                    } else {
+                        coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante, past, present, future);
+                    }
                 } while (estCoupValide(coup) == false);
                 if (coup == null) {
                     break;
@@ -129,17 +155,23 @@ public class Jeu {
                 try {
                     if (gameOver(joueurCourant) != 0)
                         break;
-                    System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
-                    String input = sc.next().toUpperCase();
-                    //Verifie si on change de plateau
-                    if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
-                        prochainPlateau = Plateau.TypePlateau.valueOf(input);
-                        joueurCourant.setProchainPlateau(prochainPlateau);
+                    if (choix == 2 && joueurCourant.equals(joueur2)){
+                        joueurCourant.setProchainPlateau(joueurIA.getQuatrieme());
                         breakloop = false;
+                    } else {
+                        System.out.print("Veuillez entrer le prochain plateau (PAST, PRESENT, FUTURE) : ");
+                        String input = sc.next().toUpperCase();
+                        //Verifie si on change de plateau
+                        if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
+                            prochainPlateau = Plateau.TypePlateau.valueOf(input);
+                            joueurCourant.setProchainPlateau(prochainPlateau);
+                            breakloop = false;
+                        }
+                        else {
+                            System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");
+                        }
                     }
-                    else {
-                        System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");
-                    }
+
                 } catch (IllegalArgumentException e) {
                     System.out.println("Entrée invalide. Veuillez entrer PAST, PRESENT ou FUTURE : ");
                 }

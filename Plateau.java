@@ -12,6 +12,8 @@ public class Plateau {
     private int nbBlancs;
     private int nbNoirs;
     private int size;
+    private Joueur joueur1;
+    private Joueur joueur2;
 
     public Plateau(TypePlateau type, Joueur joueur1, Joueur joueur2) {
         this.nbBlancs = 1;
@@ -29,9 +31,38 @@ public class Plateau {
         this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
         
         this.size = 4;
+        //permet les clones de plateau
+        this.joueur1 = joueur1;
+        this.joueur2 = joueur2;
     }
 
+    //Permet de faire des copies du plateau
+    public Plateau(Plateau copie) {
+        this.type = copie.getType();
+        this.nbBlancs = copie.getNbBlancs();
+        this.nbNoirs = copie.getNbNoirs();
+        this.size = copie.getSize();
+        this.joueur1 = copie.getJoueur1(); // À dupliquer si mutable
+        this.joueur2 = copie.getJoueur2();
+
+        this.grille = new Piece[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                Piece p = copie.getPiece(i, j);
+                if (p != null) {
+                    this.grille[i][j] = new Piece(p); // On suppose que la classe Piece a un constructeur de copie
+                } else {
+                    this.grille[i][j] = null;
+                }
+            }
+        }
+    }
+
+
     public int getSize() { return size; }
+
+    public Joueur getJoueur1() { return joueur1; }
+    public Joueur getJoueur2() { return joueur2; }
 
     public void setPiece(Piece p, int lig, int col) {
         if (lig < 0 || lig >= this.size || col < 0 || col >= this.size) {

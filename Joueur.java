@@ -29,7 +29,8 @@ public class Joueur {
         this.filesSortantes = filesSortantes;
     }
 
-    private void envoyer(int id, String msg) {
+    private void envoyer(int id, Code code) {
+        String msg = "" + code;
         try {
             filesSortantes.get(id).put(msg);
         } catch (InterruptedException ignored) {}
@@ -88,12 +89,12 @@ public class Joueur {
         while (!validChoice) {
             try {
                 System.out.println("Choose your action: JUMP, CLONE, MOVE");
-                envoyer(id, "Choisis l'action: JUMP, CLONE, MOVE");
+                envoyer(id, Code.ACTION);
 
                 Message msg = fileEntrante.take();
 
                 while (id != msg.clientId) {
-                    envoyer(id, "Ce n'est pas votre tour.");
+                    //envoyer(id, "Ce n'est pas votre tour.");
                     msg = fileEntrante.take();
                 }
 
@@ -159,12 +160,12 @@ public class Joueur {
                 while (!validDirection) {
                     try {
                         System.out.println("Choose the direction: UP, DOWN, LEFT, RIGHT");
-                        envoyer(id, "Choisis la direction: UP, DOWN, LEFT, RIGHT");
+                        envoyer(id, Code.DIRECTION);
 
                         Message msg = fileEntrante.take();
 
                         while (id != msg.clientId) {
-                            envoyer(id, "Ce n'est pas votre tour.");
+                            //envoyer(id, "Ce n'est pas votre tour.");
                             msg = fileEntrante.take();
                         }
                         String direction = msg.contenu;

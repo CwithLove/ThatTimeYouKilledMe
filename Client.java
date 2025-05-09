@@ -5,6 +5,7 @@ import java.awt.Point;
 
 public class Client {
     private String ip;
+    private Etat etat;
 
     public Client() {
         ip = "localhost";
@@ -19,37 +20,45 @@ public class Client {
         out.flush();
         ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 
-        Thread reception = new Thread(() -> {
+        Thread reception = new Thread(() -> {       // thread pour reçevoir les messages du serveur
             try {
                 while (true) {
                     Object obj = in.readObject();
-                    //majAffichage();
                     if (obj instanceof String) {
-                        System.out.println("Serveur: " + obj);
+                        String data = (String) obj;
+                        String[] lines = data.split("\n");  // On a le message ligne par ligne
+                        System.out.println("Serveur: " + obj);  // Affichage brut dans le terminal
+                        if (Code.valueOf(lines[0]) == Code.ETAT) {
+                            etat = fromGamePlayString(lines); // On traduit le String en Etat
+                            etat.afficherEtat();    /* ETAT CONTIENT TOUTES LES INFORMATIONS POUR AFFICHER !!! */
+                        }
                     }
                 }
             } catch (Exception e) {
+                System.out.println(e.getMessage());
                 System.out.println("Déconnecté du serveur.");
             }
         });
-        reception.start();
+        reception.start();      // Démarrage du thread
 
         Scanner sc = new Scanner(System.in);
         while (true) {
-            String ligne = sc.nextLine();
+            String ligne = sc.nextLine();           // Ecriture d'un message au serveur
             out.writeObject(ligne);
             out.flush();
         }
     }
 
-    public static Etat fromGamePlayString(String data) {
-        String[] lines = data.split("\n");
+    /* Traduction d'un message contenant l'état en jeu sous forme de
+     * tableau chaîne de caractères en un objet de classe Etat
+     */
+    private static Etat fromGamePlayString(String[] lines) {
     
         // Récupération des types de plateau
-        String[] infoJ1 = lines[0].split(" ");
+        String[] infoJ1 = lines[1].split(" ");
         String type1Str = infoJ1[0];
-        String [] infoJ2 = lines[1].split(" ");
-        String type2Str = infoJ2[1];
+        String [] infoJ2 = lines[2].split(" ");
+        String type2Str = infoJ2[0];
     
         Plateau.TypePlateau type1 = Plateau.TypePlateau.valueOf(type1Str);
         Plateau.TypePlateau type2 = Plateau.TypePlateau.valueOf(type2Str);
@@ -90,39 +99,28 @@ public class Client {
         }
     
         // Parsing des grilles
-        for (int i = 0; i < taille; i++) {
-            String line = lines[i + 2];
-    
+        for (int i = 0; i < taille; i++) { 
+            //System.out.println(i);
             for (int j = 0; j < taille; j++) {
-                String code = line.substring(j * 3, j * 3 + 3);
-                past.setPiece(pieceFromCode(code, joueur1, joueur2, i, j), i, j);
-            }
-    
-            for (int j = 0; j < taille; j++) {
-                int offset = (taille + 1) * 3 + j * 3;
-                String code = line.substring(offset, offset + 3);
-                present.setPiece(pieceFromCode(code, joueur1, joueur2, i, j), i, j);
-            }
-    
-            for (int j = 0; j < taille; j++) {
-                int offset = (taille * 2 + 2) * 3 + j * 3;
-                String code = line.substring(offset, offset + 3);
-                future.setPiece(pieceFromCode(code, joueur1, joueur2, i, j), i, j);
+                //System.out.println(j);
+                past.setPiece(pieceFromCode(lines[i + 3].substring(j, j+1), joueur1, joueur2, i, j), i, j);
+                present.setPiece(pieceFromCode(lines[i + taille + 4].substring(j, j+1), joueur1, joueur2, i, j), i, j);
+                future.setPiece(pieceFromCode(lines[i + 2* taille + 5].substring(j, j+1), joueur1, joueur2, i, j), i, j);
             }
         }
 
         Joueur joueurCourant = null;
         Piece pieceCourante = null;
         int jCourant = 0;
-        if (lines.length > taille + 2) {
-            jCourant = Integer.parseInt(lines[taille+ 2]);
+        if (lines.length > 3 * taille + 6) {
+            jCourant = Integer.parseInt(lines[3 * taille + 6]);
 
             if (jCourant == 1)
                 joueurCourant = joueur1;
             else
                 joueurCourant = joueur2;
 
-            if (lines.length > taille + 3) {
+            if (lines.length > 3 * taille + 7) {
                 int x = Integer.parseInt(lines[lines.length-2]);
                 int y = Integer.parseInt(lines[lines.length-1]);
     

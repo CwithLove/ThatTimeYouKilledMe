@@ -86,24 +86,23 @@ public class Joueur {
                         System.out.println("Vous ne pouvez pas jump dans le futur");
                         break;
                     case PAST:
-                        System.out.println("PLAT: "+piece.getPosition()+", "+(int)piece.getPosition().getX()+", "+(int)piece.getPosition().getY());
                         Piece targetPiece = present.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
-                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
+                        if (targetPiece == null) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
                         }
                         else {
-                            System.out.println("Vous ne pouvez pas vous jump sur vous meme");
+                            System.out.println("Vous ne pouvez pas vous jump sur quelque chose");
                         }
                         break;
                     case PRESENT:
                        targetPiece = future.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
-                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
+                        if (targetPiece == null) {
                             type = Coup.TypeCoup.JUMP;
                             validChoice = true;
                         }
                         else {
-                            System.out.println("Vous ne pouvez pas vous jump sur vous meme");
+                            System.out.println("Vous ne pouvez pas vous jump sur quelque chose");
                         }
                         break;
                     default:
@@ -121,22 +120,22 @@ public class Joueur {
                         break;
                     case PRESENT:
                         Piece targetPiece = past.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
-                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
+                        if (targetPiece == null) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;
                         }
                         else {
-                            System.out.println("Vous ne pouvez pas vous cloner sur vous meme");
+                            System.out.println("Vous ne pouvez pas vous cloner sur quelque chose");
                         }
                         break;
                     case FUTURE:
                         targetPiece = present.getPiece((int) piece.getPosition().getX(), (int) piece.getPosition().getY());
-                        if (targetPiece == null || !targetPiece.getOwner().equals(piece.getOwner())) {
+                        if (targetPiece == null) {
                             type = Coup.TypeCoup.CLONE;
                             validChoice = true;
                         }
                         else {
-                            System.out.println("Vous ne pouvez pas vous cloner sur vous meme");
+                            System.out.println("Vous ne pouvez pas vous cloner sur quelque chose");
                         }
                         break;
                     default:

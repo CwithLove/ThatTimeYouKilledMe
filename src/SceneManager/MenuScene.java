@@ -27,7 +27,7 @@ public class MenuScene implements Scene {
         // 创建按钮并设置点击事件
         singleButton = new Button(300, 250, 200, 50, "Single Player", () -> {
             GameScene gameScene = new GameScene(sceneManager);
-            gameScene.updateLastLogin(0);
+            // gameScene.updateLastLogin(0);
             sceneManager.setScene(gameScene);
         });
         

@@ -108,8 +108,12 @@ public class MultiConnectScene implements Scene {
                 isConnected = true;
                 Thread.sleep(1000);  // Simuler le retard de connexion
                 // Apres connexion, passer a la salle d'attente
+                // SwingUtilities.invokeLater(() -> {
+                //     sceneManager.setScene(new LobbyScene(sceneManager, false));
+                // });
+                String finalIp = ip;
                 SwingUtilities.invokeLater(() -> {
-                    sceneManager.setScene(new LobbyScene(sceneManager, false));
+                    sceneManager.setScene(new LobbyScene(sceneManager, false, finalIp));
                 });
             } catch (InterruptedException e) {
                 e.printStackTrace();

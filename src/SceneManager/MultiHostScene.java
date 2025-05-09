@@ -26,7 +26,7 @@ public class MultiHostScene implements Scene {
         startButton = new Button(600, 500, 150, 50, "Commencer", () -> {
             if(playerTwoConnected) {
                 GameScene gameScene = new GameScene(sceneManager, true);
-                gameScene.updateLastLogin(1); // 1 pour le mode multi
+                // gameScene.updateLastLogin(1); // 1 pour le mode multi
                 sceneManager.setScene(gameScene);
             }
         });

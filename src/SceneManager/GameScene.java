@@ -1,202 +1,359 @@
+// Các import giữ nguyên như trước, thêm/sửa nếu cần
 package SceneManager;
 
 import Modele.Jeu;
 import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
-import Modele.Coup; // <-- THÊM DÒNG NÀY
-import java.awt.*;
-import java.awt.event.MouseAdapter; // Đảm bảo import này có
-import java.awt.event.MouseEvent;   // Đảm bảo import này có
-import java.awt.event.MouseMotionAdapter; // THÊM DÒNG NÀY cho MouseMotionListener an toàn
-// import java.awt.event.MouseListener; // KHÔNG CẦN NỮA nếu dùng MouseAdapter/MouseMotionAdapter
-// import java.awt.event.MouseMotionListener; // KHÔNG CẦN NỮA
-import javax.swing.JPanel; // Có thể cần nếu GameScene tương tác trực tiếp với Panel
+import Modele.Coup;
+import Network.GameClient;
+import Network.GameStateUpdateListener;
 
-public class GameScene implements Scene {
+import javax.swing.SwingUtilities;
+import javax.swing.JOptionPane;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import java.awt.event.MouseListener; // THÊM MỚI
+import java.awt.event.MouseMotionListener; // THÊM MỚI
+import java.io.IOException;
+
+public class GameScene implements Scene, GameStateUpdateListener {
     private boolean fadeComplete = true;
     private SceneManager sceneManager;
-    private static int lastLogin = 0; // 0: single, 1: multi
-    private static boolean isHost = false; // true: host, false: client
 
-    // Les attributs pour le jeu
     private Jeu jeu;
 
-    // Các thuộc tính để quản lý input và logic nước đi
-    private Point selectedPiecePosition = null; // Vị trí quân cờ đang được chọn
-    private Plateau.TypePlateau selectedPlateauType = null; // Loại plateau của quân cờ đang được chọn
-    private Coup.TypeCoup nextActionType = null; // Hành động tiếp theo sau khi chọn quân (MOVE, JUMP, CLONE)
+    private Point selectedPiecePosition = null;
+    private Plateau.TypePlateau selectedPlateauType = null;
+    private Coup.TypeCoup nextActionType = null;
 
-    // Nút Back (nên dùng lớp Button của bạn)
     private Button backButton;
+    private Button moveButton;
+    private Button jumpButton;
+    private Button cloneButton;
 
-    // Các MouseListener an toàn
-    private MouseAdapter mouseAdapter;
-    private MouseMotionAdapter mouseMotionAdapter;
+    private GameClient gameClient;
+    private String serverIpAddress;
+    private boolean isMultiplayerClient = false;
+    private String statusMessage = "Chào mừng!";
+    private boolean gameHasEnded = false; // Cờ để kiểm soát input sau khi game kết thúc
 
-    public GameScene() {
-        // Constructor mặc định, không làm gì nhiều, chỉ khởi tạo Jeu
-        jeu = new Jeu();
+    // Constructor cho Single Player
+    public GameScene(SceneManager sceneManager) {
+        this.sceneManager = sceneManager;
+        this.jeu = new Jeu();
+        this.isMultiplayerClient = false;
+        commonInit();
+        // Set trạng thái ban đầu cho single player
+        if (this.jeu != null && this.jeu.getJoueurCourant() != null) {
+            this.statusMessage = "Lượt của: " + this.jeu.getJoueurCourant().getNom();
+        }
     }
 
-    public GameScene(SceneManager sceneManager) {
-        this(); // Gọi constructor mặc định để khởi tạo jeu
+    // Constructor cho Multiplayer Client
+    public GameScene(SceneManager sceneManager, String serverIpAddress) {
         this.sceneManager = sceneManager;
+        this.serverIpAddress = serverIpAddress;
+        this.isMultiplayerClient = true;
+        this.jeu = new Jeu(); // Client sẽ nhận trạng thái đúng từ server
+        commonInit();
+    }
 
-        // Khởi tạo nút Back
-        backButton = new Button(50, 500, 150, 40, "Retour", () -> {
-            // Logic quay lại menu hoặc màn hình trước đó
-            if (lastLogin == 0) {
+    // Constructor cho Multiplayer Host (đóng vai trò client)
+    public GameScene(SceneManager sceneManager, boolean isHostPlayingAsClient) {
+        this.sceneManager = sceneManager;
+        if (isHostPlayingAsClient) {
+            this.serverIpAddress = "127.0.0.1"; // Host kết nối tới server của chính nó
+            this.isMultiplayerClient = true;
+        } else {
+            this.isMultiplayerClient = false; // Single player
+        }
+        this.jeu = new Jeu(); // Client/Host sẽ nhận trạng thái đúng từ server nếu là multi
+        commonInit();
+         // Set trạng thái ban đầu nếu là single player
+        if (!this.isMultiplayerClient && this.jeu != null && this.jeu.getJoueurCourant() != null) {
+            this.statusMessage = "Lượt của: " + this.jeu.getJoueurCourant().getNom();
+        }
+    }
+
+    private void commonInit() {
+        int buttonY = 550; // Tọa độ Y chung cho các nút
+        if (sceneManager != null && sceneManager.getPanel() != null) {
+             // Điều chỉnh vị trí Y dựa trên chiều cao của panel, ví dụ: cách đáy 100px
+             buttonY = sceneManager.getPanel().getHeight() - 100;
+             if (buttonY < 400) buttonY = 550; // Đảm bảo không quá cao nếu panel quá nhỏ ban đầu
+        }
+
+
+        backButton = new Button(50, buttonY, 150, 40, "Retour", () -> {
+            if (isMultiplayerClient && gameClient != null) {
+                // Xem xét gửi tin nhắn "DISCONNECT" hoặc "LEAVE_GAME" tới server
+                // gameClient.sendPlayerAction("LEAVE_GAME"); // Ví dụ
+            }
+             // Yêu cầu xác nhận nếu đang trong game
+            int confirmation = JOptionPane.YES_NO_OPTION;
+            if (!gameHasEnded) { // Chỉ hỏi nếu game chưa kết thúc
+                confirmation = JOptionPane.showConfirmDialog(sceneManager.getPanel(),
+                        "Bạn có chắc muốn thoát? Tiến trình game có thể bị mất.",
+                        "Xác nhận thoát",
+                        JOptionPane.YES_NO_OPTION);
+            }
+
+            if (confirmation == JOptionPane.YES_OPTION || gameHasEnded) {
                 sceneManager.setScene(new MenuScene(sceneManager));
-            } else if (lastLogin == 1) {
-                if (isHost) {
-                    sceneManager.setScene(new MultiHostScene(sceneManager));
-                } else {
-                    // Nếu là client, quay lại màn hình kết nối hoặc lobby
-                    sceneManager.setScene(new MultiConnectScene(sceneManager)); // Giả sử quay lại màn hình kết nối
-                }
             }
         });
 
-        // Setup Mouse Listeners an toàn
-        setupMouseListeners();
-    }
-
-    public GameScene(SceneManager sceneManager, boolean isHost) {
-        this(sceneManager);
-        GameScene.isHost = isHost;
+        moveButton = new Button(250, buttonY, 100, 40, "MOVE", () -> {
+            if (selectedPiecePosition != null && !gameHasEnded) {
+                nextActionType = Coup.TypeCoup.MOVE;
+                statusMessage = "Đã chọn MOVE. Click vào ô đích.";
+                this.sceneManager.getPanel().repaint();
+            }
+        });
+        jumpButton = new Button(360, buttonY, 100, 40, "JUMP", () -> {
+            if (selectedPiecePosition != null && selectedPlateauType != null && !gameHasEnded) {
+                nextActionType = Coup.TypeCoup.JUMP;
+                String command = nextActionType.name() + ":" + selectedPlateauType.name() + ":" +
+                                 selectedPiecePosition.x + ":" + selectedPiecePosition.y;
+                if (isMultiplayerClient && gameClient != null) {
+                    gameClient.sendPlayerAction(command);
+                    statusMessage = "Đã gửi lệnh JUMP. Chờ server...";
+                    resetSelectionAfterAction();
+                } else if (!isMultiplayerClient) { // Xử lý JUMP cho Single Player
+                    handleSinglePlayerAction(command);
+                } else {
+                    statusMessage = "Lỗi: GameClient không hoạt động.";
+                }
+                this.sceneManager.getPanel().repaint();
+            }
+        });
+        cloneButton = new Button(470, buttonY, 100, 40, "CLONE", () -> {
+            if (selectedPiecePosition != null && selectedPlateauType != null && !gameHasEnded) {
+                nextActionType = Coup.TypeCoup.CLONE;
+                String command = nextActionType.name() + ":" + selectedPlateauType.name() + ":" +
+                                 selectedPiecePosition.x + ":" + selectedPiecePosition.y;
+                if (isMultiplayerClient && gameClient != null) {
+                    gameClient.sendPlayerAction(command);
+                    statusMessage = "Đã gửi lệnh CLONE. Chờ server...";
+                    resetSelectionAfterAction();
+                } else if (!isMultiplayerClient) { // Xử lý CLONE cho Single Player
+                     handleSinglePlayerAction(command);
+                } else {
+                    statusMessage = "Lỗi: GameClient không hoạt động.";
+                }
+                this.sceneManager.getPanel().repaint();
+            }
+        });
     }
 
     @Override
     public void init() {
-        // Đảm bảo các listener được thêm khi scene được init
-        if (sceneManager != null && sceneManager.getPanel() != null) {
-            sceneManager.getPanel().addMouseListener(mouseAdapter);
-            sceneManager.getPanel().addMouseMotionListener(mouseMotionAdapter);
-            sceneManager.getPanel().requestFocusInWindow(); // Đảm bảo panel có focus để nhận input
+        gameHasEnded = false; // Reset cờ kết thúc game khi scene được init
+        if (isMultiplayerClient) {
+            statusMessage = "Đang kết nối tới server...";
+            if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+
+            gameClient = new GameClient(serverIpAddress, this);
+            try {
+                gameClient.connect();
+                statusMessage = "Đã kết nối. Chờ trạng thái game...";
+            } catch (IOException e) {
+                e.printStackTrace();
+                statusMessage = "Lỗi kết nối: " + e.getMessage();
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                        "Không thể kết nối đến server: " + e.getMessage() + "\nIP: " + serverIpAddress,
+                        "Lỗi kết nối", JOptionPane.ERROR_MESSAGE);
+                sceneManager.setScene(new MenuScene(sceneManager));
+                return;
+            }
+        } else {
+             // statusMessage đã được set trong constructor cho single player
         }
+
+        if (sceneManager != null && sceneManager.getPanel() != null) {
+            // Gỡ bỏ listener cũ một cách an toàn
+            for (MouseListener ml : sceneManager.getPanel().getMouseListeners()) {
+                sceneManager.getPanel().removeMouseListener(ml);
+            }
+            for (MouseMotionListener mml : sceneManager.getPanel().getMouseMotionListeners()) {
+                sceneManager.getPanel().removeMouseMotionListener(mml);
+            }
+            setupMouseListeners();
+            sceneManager.getPanel().requestFocusInWindow();
+        }
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
     }
 
     @Override
     public void update() {
-        // Cập nhật các animation, hiệu ứng nếu có
-        // Ví dụ: backButton.update(currentMousePosition); // Cần lưu trữ vị trí chuột hiện tại
+        // Cập nhật vị trí nút nếu kích thước panel thay đổi (cần thiết hơn nếu layout phức tạp)
+        // Tuy nhiên, vị trí Y của nút hiện được đặt cố định trong commonInit dựa trên chiều cao ban đầu.
+        // Nếu muốn nút luôn ở cuối màn hình, cần cập nhật vị trí ở đây hoặc trong render.
+        // Ví dụ:
+        // if (sceneManager != null && sceneManager.getPanel() != null) {
+        //     int panelHeight = sceneManager.getPanel().getHeight();
+        //     int newButtonY = panelHeight - 60; // Cách đáy 60px
+        //     if (newButtonY < 400) newButtonY = 400; // Giới hạn tối thiểu
+        //     backButton.setLocation(backButton.getX(), newButtonY);
+        //     moveButton.setLocation(moveButton.getX(), newButtonY);
+        //     // ... tương tự cho các nút khác
+        // }
+
+
+        // Hiệu ứng hover dựa trên vị trí chuột tức thời
+        if (sceneManager != null && sceneManager.getPanel() != null) {
+            Point mousePos = sceneManager.getPanel().getMousePosition(); // Có thể null
+            if (mousePos != null) {
+                backButton.update(mousePos);
+                // Chỉ cập nhật nút action nếu chúng hiển thị (đã chọn quân)
+                if (selectedPiecePosition != null || !isMultiplayerClient) { // Luôn cho phép hover nút action ở single player nếu chúng được vẽ
+                    moveButton.update(mousePos);
+                    jumpButton.update(mousePos);
+                    cloneButton.update(mousePos);
+                }
+            }
+        }
     }
+
 
     @Override
     public void render(Graphics g, int width, int height) {
-        // Set up Background
-        g.setColor(Color.BLACK);
+        // Cập nhật vị trí Y của các nút dựa trên chiều cao hiện tại của panel
+        // Điều này đảm bảo các nút luôn ở một vị trí tương đối so với cuối màn hình game.
+        int dynamicButtonY = height - 70; // Ví dụ: cách đáy 70 pixels
+        if (dynamicButtonY < 400) dynamicButtonY = 400; // Giữ ở một mức tối thiểu nếu panel quá thấp
+
+        backButton.setLocation(50, dynamicButtonY);
+        moveButton.setLocation(250, dynamicButtonY);
+        jumpButton.setLocation(360, dynamicButtonY);
+        cloneButton.setLocation(470, dynamicButtonY);
+
+
+        g.setColor(Color.DARK_GRAY); // Nền tối hơn một chút
         g.fillRect(0, 0, width, height);
 
-        // Graphics2D cho các hiệu ứng nâng cao
-        Graphics2D g2d = (Graphics2D) g.create(); // Tạo bản sao Graphics để không ảnh hưởng đến bản gốc
-        // g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha)); // Nếu có hiệu ứng fade-in cho GameScene
+        Graphics2D g2d = (Graphics2D) g.create();
+         // Antialiasing cho chữ và hình vẽ mượt hơn
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
 
         if (jeu != null) {
-            // Fetch the game board
-            Plateau past = jeu.getPast(); // Sửa getPast() nếu trong Jeu là getPastPlateau()
-            Plateau present = jeu.getPresent(); // Sửa getPresent() nếu trong Jeu là getPresentPlateau()
-            Plateau future = jeu.getFuture(); // Sửa getFuture() nếu trong Jeu là getFuturePlateau()
-            Joueur currentPlayer = jeu.getJoueurCourant();
+            Plateau past = jeu.getPast();
+            Plateau present = jeu.getPresent();
+            Plateau future = jeu.getFuture();
 
-            int boardSize = jeu.TAILLE; // Lấy kích thước bàn cờ từ Jeu (4x4)
+            int boardSize = Jeu.TAILLE;
+            // Tính toán tileWidth và offsetY linh hoạt hơn
+            int availableHeightForBoards = dynamicButtonY - 100; // Chiều cao có sẵn phía trên các nút
+            int tileWidth = Math.min(width / (boardSize * 3 + 4), availableHeightForBoards / (boardSize + 1)); // +4 cho spacing, +1 cho title
+            if (tileWidth < 10) tileWidth = 10; // Kích thước tối thiểu cho ô
 
-            // Tính toán kích thước ô và khoảng cách dựa trên kích thước cửa sổ
-            int totalBoardWidth = (boardSize * 3 + 2) * (width / 50); // Ước lượng tổng chiều rộng các bàn + khoảng cách
-            int totalBoardHeight = boardSize * (width / 50); // Ước lượng tổng chiều cao 1 bàn
+            int spacing = tileWidth; // Giảm spacing một chút
+            int boardRenderHeight = boardSize * tileWidth;
+            int totalBoardWidth = boardSize * tileWidth * 3 + spacing * 2;
 
-            int tileWidth = (width / 50); // Kích thước ô cơ bản
-            int spacing = tileWidth * 2; // Khoảng cách giữa các bàn
+            int presentX = (width - totalBoardWidth) / 2 + boardSize * tileWidth + spacing; // Tính toán lại cho cân đối
+            int offsetY = (availableHeightForBoards - boardRenderHeight) / 2 + 40; // +40 cho phần status message
 
-            // Vị trí X của bàn Present
-            int presentBoardRenderWidth = boardSize * tileWidth;
-            int presentX = (width / 2) - (presentBoardRenderWidth / 2);
-            int offsetY = (height / 2) - (boardSize * tileWidth / 2);
+            int pastX = presentX - boardSize * tileWidth - spacing;
+            int futureX = presentX + boardSize * tileWidth + spacing;
 
-            // Vị trí X của bàn Past và Future
-            int pastX = presentX - presentBoardRenderWidth - spacing;
-            int futureX = presentX + presentBoardRenderWidth + spacing;
 
-            // Dessiner les plateaux
             drawPlateau(g2d, past, pastX, offsetY, tileWidth, "PAST");
             drawPlateau(g2d, present, presentX, offsetY, tileWidth, "PRESENT");
             drawPlateau(g2d, future, futureX, offsetY, tileWidth, "FUTURE");
 
-            // Hiển thị thông tin người chơi hiện tại và trạng thái game
             g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Arial", Font.BOLD, 30));
-            String playerTurnText = "Lượt của: " + currentPlayer.getNom();
-            int textWidth = g2d.getFontMetrics().stringWidth(playerTurnText);
-            g2d.drawString(playerTurnText, (width - textWidth) / 2, 50); // Đặt ở trên cùng
-
-            // Hiển thị số lượng clones còn lại
-            g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-            g2d.drawString("Clones Blanc: " + jeu.getJoueur1().getNbClones(), 50, 50);
-            g2d.drawString("Clones Noir: " + jeu.getJoueur2().getNbClones(), width - 200, 50);
-
-
-            // Hiển thị kết quả Game Over
-            int winner = jeu.gameOver(currentPlayer);
-            if (winner != 0) {
-                String winnerMsg = (winner == jeu.getJoueur1().getId()) ? "Joueur " + jeu.getJoueur1().getNom() + " a gagné!" : "Joueur " + jeu.getJoueur2().getNom() + " a gagné!";
-                g2d.setColor(Color.GREEN); // Màu cho thông báo thắng
-                g2d.setFont(new Font("Arial", Font.BOLD, 60));
+            g2d.setFont(new Font("Arial", Font.BOLD, 18));
+            if (statusMessage != null && !statusMessage.isEmpty()){
                 FontMetrics metrics = g2d.getFontMetrics();
-                int msgWidth = metrics.stringWidth(winnerMsg);
-                g2d.drawString(winnerMsg, (width - msgWidth) / 2, height / 2);
+                int msgWidth = metrics.stringWidth(statusMessage);
+                g2d.drawString(statusMessage, (width - msgWidth) / 2, 30);
             }
+
+            g2d.setFont(new Font("Arial", Font.PLAIN, 16));
+            if (jeu.getJoueur1() != null)
+                g2d.drawString("Clones " + jeu.getJoueur1().getNom() + ": " + jeu.getJoueur1().getNbClones(), 50, offsetY -15);
+            if (jeu.getJoueur2() != null)
+                g2d.drawString("Clones " + jeu.getJoueur2().getNom() + ": " + jeu.getJoueur2().getNbClones(), width - 200, offsetY - 15);
+
+        } else {
+             g2d.setColor(Color.WHITE);
+             g2d.setFont(new Font("Arial", Font.BOLD, 20));
+             FontMetrics metrics = g2d.getFontMetrics();
+             int msgWidth = metrics.stringWidth(statusMessage);
+             g2d.drawString(statusMessage, (width - msgWidth) / 2, height / 2);
         }
 
-        // Render nút Back
         backButton.render(g2d);
-
+        // Luôn hiển thị nút hành động nếu không phải multiplayer hoặc nếu là single player
+        // và đã chọn quân (nếu bạn muốn UI đồng nhất)
+        // Hoặc, chỉ hiện khi selectedPiecePosition != null bất kể chế độ nào
+        if (selectedPiecePosition != null) {
+             moveButton.render(g2d);
+             jumpButton.render(g2d);
+             cloneButton.render(g2d);
+        }
         g2d.dispose();
     }
 
     private void drawPlateau(Graphics g, Plateau plateau, int x, int y, int tileWidth, String title) {
-        // Draw the board background
-        g.setColor(Color.GRAY);
-        g.fillRect(x, y - tileWidth, tileWidth * plateau.getSize(), tileWidth * plateau.getSize() + tileWidth); // Thêm chiều cao cho title
+        if (plateau == null) return;
 
-        // Draw title for the plateau
+        int boardPixelSize = plateau.getSize() * tileWidth;
+        // Vẽ title cho plateau
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, tileWidth / 2));
+        g.setFont(new Font("Arial", Font.BOLD, Math.max(12, tileWidth / 2))); // Font size linh hoạt
         FontMetrics metrics = g.getFontMetrics();
         int titleWidth = metrics.stringWidth(title);
-        g.drawString(title, x + (tileWidth * plateau.getSize() - titleWidth) / 2, y - tileWidth / 4);
+        g.drawString(title, x + (boardPixelSize - titleWidth) / 2, y - metrics.getDescent() - 5); // Vẽ title phía trên
 
-        // Draw the pieces
+        // Vẽ viền ngoài cho bàn cờ
+        g.setColor(Color.LIGHT_GRAY);
+        g.drawRect(x -1 , y -1, boardPixelSize + 2, boardPixelSize + 2);
+
+
         for (int row = 0; row < plateau.getSize(); row++) {
             for (int col = 0; col < plateau.getSize(); col++) {
-                // Draw the tile
-                if ((row + col) % 2 == 0) { // Đảm bảo màu ô cờ xen kẽ
-                    g.setColor(new Color(0xFFFFFF)); // Ô trắng
+                if ((row + col) % 2 == 0) {
+                    g.setColor(new Color(230, 230, 230)); // Màu trắng ngà
                 } else {
-                    g.setColor(new Color(0x000000)); // Ô đen
+                    g.setColor(new Color(180, 180, 180)); // Màu xám nhạt
                 }
                 g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                // Vẽ lưới cho ô
+                g.setColor(Color.DARK_GRAY);
+                g.drawRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+
 
                 Piece piece = plateau.getPiece(row, col);
-                if (piece != null) {
-                    int ovalSize = tileWidth * 3 / 4; // Size of the oval
-                    int ovalX = x + col * tileWidth + (tileWidth - ovalSize) / 2;
-                    int ovalY = y + row * tileWidth + (tileWidth - ovalSize) / 2;
+                if (piece != null && piece.getOwner() != null) {
+                    int ovalMargin = tileWidth / 8; // Thu nhỏ quân cờ một chút
+                    int ovalSize = tileWidth - 2 * ovalMargin;
+                    int ovalX = x + col * tileWidth + ovalMargin;
+                    int ovalY = y + row * tileWidth + ovalMargin;
 
-                    // Sử dụng ID của người chơi để chọn màu
-                    Color color = piece.getOwner().getId() == 1 ? Color.CYAN : Color.MAGENTA; // Màu sắc quân cờ
-                    g.setColor(color);
+                    Color pieceColor = piece.getOwner().getId() == 1 ? new Color(0, 150, 255) : new Color(255, 50, 150); // Màu sắc rõ ràng hơn
+                    g.setColor(pieceColor);
                     g.fillOval(ovalX, ovalY, ovalSize, ovalSize);
+                    // Thêm viền cho quân cờ
+                    g.setColor(pieceColor.darker());
+                    ((Graphics2D)g).setStroke(new BasicStroke(Math.max(1, tileWidth/20)));
+                    g.drawOval(ovalX, ovalY, ovalSize, ovalSize);
 
-                    // Thêm viền cho quân cờ được chọn (ví dụ)
+
                     if (selectedPiecePosition != null &&
                         selectedPiecePosition.x == row && selectedPiecePosition.y == col &&
                         plateau.getType().equals(selectedPlateauType)) {
-                        g.setColor(Color.YELLOW); // Màu viền cho quân đang chọn
-                        ((Graphics2D)g).setStroke(new BasicStroke(3)); // Độ dày của viền
-                        g.drawOval(ovalX, ovalY, ovalSize, ovalSize);
-                        ((Graphics2D)g).setStroke(new BasicStroke(1)); // Reset độ dày
+                        g.setColor(Color.YELLOW); // Viền vàng chóe
+                        ((Graphics2D)g).setStroke(new BasicStroke(Math.max(2, tileWidth/10))); // Viền dày hơn
+                        g.drawOval(ovalX - 2, ovalY - 2, ovalSize + 4, ovalSize + 4); // Viền to hơn một chút
                     }
+                     ((Graphics2D)g).setStroke(new BasicStroke(1)); // Reset stroke
                 }
             }
         }
@@ -204,197 +361,451 @@ public class GameScene implements Scene {
 
     @Override
     public void dispose() {
-        // Gỡ bỏ các listener khi scene không còn hoạt động
-        if (sceneManager != null && sceneManager.getPanel() != null) {
+        if (isMultiplayerClient && gameClient != null) {
+            gameClient.disconnect();
+        }
+        if (sceneManager != null && sceneManager.getPanel() != null && mouseAdapter != null) {
             sceneManager.getPanel().removeMouseListener(mouseAdapter);
-            sceneManager.getPanel().removeMouseMotionListener(mouseMotionAdapter);
+            mouseAdapter = null; // Giúp GC
+        }
+        if (sceneManager != null && sceneManager.getPanel() != null && mouseMotionAdapter != null) {
+             sceneManager.getPanel().removeMouseMotionListener(mouseMotionAdapter);
+             mouseMotionAdapter = null; // Giúp GC
         }
     }
 
-    public void updateLastLogin(int loginType) {
-        lastLogin = loginType;
-    }
+    private MouseAdapter mouseAdapter;
+    private MouseMotionAdapter mouseMotionAdapter;
 
-    // Phương thức để thiết lập các MouseListener an toàn
     private void setupMouseListeners() {
-        // MouseAdapter cho các sự kiện click/press/release
         mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (fadeComplete) { // Đảm bảo scene đã fade-in hoàn toàn
-                    Point mousePoint = e.getPoint();
+                if (!fadeComplete || gameHasEnded) return; // Không xử lý click nếu game đã kết thúc hoặc đang fade
 
-                    // Xử lý click nút Back
-                    if (backButton.contains(mousePoint)) {
-                        backButton.onClick();
-                        return; // Đã xử lý sự kiện
+                Point mousePoint = e.getPoint();
+
+                if (backButton.contains(mousePoint)) {
+                    backButton.onClick();
+                    return;
+                }
+                // Nút hành động chỉ được xử lý nếu đã chọn quân
+                if (selectedPiecePosition != null) {
+                    if (moveButton.contains(mousePoint)) {
+                        moveButton.onClick();
+                        return;
                     }
-
-                    // --- XỬ LÝ INPUT TRÒ CHƠI VÀ GỌI MODEL ---
-                    if (jeu != null) {
-                        // Xác định Plateau nào được click và vị trí trên Plateau đó
-                        Plateau clickedPlateau = null;
-                        int clickedRow = -1;
-                        int clickedCol = -1;
-
-                        // Lấy kích thước ô và khoảng cách
-                        int boardSize = jeu.TAILLE;
-                        int tileWidth = (sceneManager.getPanel().getWidth() / 50); // Kích thước ô cơ bản
-                        int spacing = tileWidth * 2; // Khoảng cách giữa các bàn
-                        int presentBoardRenderWidth = boardSize * tileWidth;
-                        int presentX = (sceneManager.getPanel().getWidth() / 2) - (presentBoardRenderWidth / 2);
-                        int offsetY = (sceneManager.getPanel().getHeight() / 2) - (boardSize * tileWidth / 2);
-
-                        // Kiểm tra xem click vào bàn nào
-                        if (mousePoint.x >= (presentX - presentBoardRenderWidth - spacing) && mousePoint.x < (presentX - spacing)) { // Past
-                            clickedPlateau = jeu.getPast();
-                            clickedCol = (mousePoint.x - (presentX - presentBoardRenderWidth - spacing)) / tileWidth;
-                            clickedRow = (mousePoint.y - offsetY) / tileWidth;
-                        } else if (mousePoint.x >= presentX && mousePoint.x < (presentX + presentBoardRenderWidth)) { // Present
-                            clickedPlateau = jeu.getPresent();
-                            clickedCol = (mousePoint.x - presentX) / tileWidth;
-                            clickedRow = (mousePoint.y - offsetY) / tileWidth;
-                        } else if (mousePoint.x >= (presentX + presentBoardRenderWidth + spacing) && mousePoint.x < (presentX + presentBoardRenderWidth * 2 + spacing)) { // Future
-                            clickedPlateau = jeu.getFuture();
-                            clickedCol = (mousePoint.x - (presentX + presentBoardRenderWidth + spacing)) / tileWidth;
-                            clickedRow = (mousePoint.y - offsetY) / tileWidth;
-                        }
-
-                        // Đảm bảo click nằm trong ranh giới của bàn
-                        if (clickedPlateau != null && clickedRow >= 0 && clickedRow < boardSize && clickedCol >= 0 && clickedCol < boardSize) {
-                            Piece clickedPiece = clickedPlateau.getPiece(clickedRow, clickedCol);
-                            Joueur currentPlayer = jeu.getJoueurCourant();
-
-                            if (selectedPiecePosition == null) { // Chưa có quân cờ nào được chọn
-                                if (clickedPiece != null && clickedPiece.getOwner().equals(currentPlayer)) {
-                                    // Chọn quân cờ của người chơi hiện tại
-                                    selectedPiecePosition = new Point(clickedRow, clickedCol);
-                                    selectedPlateauType = clickedPlateau.getType();
-                                    // Có thể hiển thị menu ngữ cảnh để chọn loại hành động (MOVE, JUMP, CLONE)
-                                    // Để đơn giản, giả sử mặc định là MOVE hoặc có nút chọn hành động trên UI
-                                    nextActionType = Coup.TypeCoup.MOVE; // Mặc định là di chuyển
-                                    System.out.println("Đã chọn quân tại " + selectedPiecePosition + " trên " + selectedPlateauType);
-                                } else {
-                                    System.out.println("Chọn một quân cờ của bạn để bắt đầu.");
-                                    selectedPiecePosition = null; // Đảm bảo reset nếu chọn sai
-                                }
-                            } else { // Đã có quân cờ được chọn
-                                // Xác định hành động cần thực hiện
-                                // Nếu click vào chính quân cờ đã chọn lần nữa -> bỏ chọn
-                                if (selectedPiecePosition.x == clickedRow && selectedPiecePosition.y == clickedCol &&
-                                    selectedPlateauType.equals(clickedPlateau.getType())) {
-                                    selectedPiecePosition = null;
-                                    selectedPlateauType = null;
-                                    nextActionType = null;
-                                    System.out.println("Đã bỏ chọn quân cờ.");
-                                } else {
-                                    // Đây là click đích hoặc chọn loại hành động mới
-                                    // Lấy Piece thật từ model (quan trọng vì Coup cần tham chiếu Piece thực)
-                                    Piece pieceToMove = jeu.getPlateauByType(selectedPlateauType).getPiece(selectedPiecePosition.x, selectedPiecePosition.y);
-                                    if (pieceToMove == null) { // Trường hợp đã bị xóa (ví dụ Paradoxe)
-                                        selectedPiecePosition = null;
-                                        selectedPlateauType = null;
-                                        nextActionType = null;
-                                        System.out.println("Quân cờ đã chọn không còn tồn tại.");
-                                        return;
-                                    }
-
-                                    // Tạo đối tượng Coup dựa trên loại hành động đã chọn
-                                    Coup coup = null;
-                                    Point direction = null; // Chỉ dùng cho MOVE
-                                    Plateau currentPlateau = jeu.getPlateauByType(selectedPlateauType); // Plateau gốc của quân được chọn
-
-                                    if (nextActionType == Coup.TypeCoup.MOVE) {
-                                        // Tính direction (dx, dy)
-                                        int dx = clickedRow - selectedPiecePosition.x;
-                                        int dy = clickedCol - selectedPiecePosition.y;
-                                        // Kiểm tra xem đây có phải là nước đi hợp lệ 1 ô vuông không (move, jump, clone)
-                                        // Trong "That Time You Killed Me", nước đi thường là 1 ô đơn vị
-                                        if ((Math.abs(dx) == 1 && dy == 0) || (Math.abs(dy) == 1 && dx == 0)) {
-                                            direction = new Point(dx, dy);
-                                            coup = new Coup(pieceToMove, direction, currentPlateau, Coup.TypeCoup.MOVE);
-                                        } else {
-                                            System.out.println("Nước đi không hợp lệ cho MOVE.");
-                                            // Không reset selection nếu người chơi cần chọn lại đích
-                                            return;
-                                        }
-                                    } else if (nextActionType == Coup.TypeCoup.JUMP) {
-                                        // Logic cho JUMP: không cần direction, chỉ cần Piece và Plateau gốc
-                                        // Đích đến sẽ được xử lý trong logic Jeu (jump đến Present/Future)
-                                        coup = new Coup(pieceToMove, new Point(0,0), currentPlateau, Coup.TypeCoup.JUMP);
-                                    } else if (nextActionType == Coup.TypeCoup.CLONE) {
-                                        // Logic cho CLONE: không cần direction
-                                        coup = new Coup(pieceToMove, new Point(0,0), currentPlateau, Coup.TypeCoup.CLONE);
-                                    }
-
-                                    if (coup != null) {
-                                        // boolean success = jeu.faireCoup(coup);
-                                        // if (success) {
-                                            // System.out.println("Nước đi thành công!");
-                                            // Chuyển lượt chơi (Chỉ cho Single Player)
-                                            // Nếu là Multiplayer, server sẽ quyết định chuyển lượt
-                                            // Và gửi trạng thái mới về client để cập nhật.
-                                            // Ví dụ cho Single Player:
-                                            // if (lastLogin == 0) {
-                                            //    jeu.setJoueurCourant(jeu.getJoueurCourant().equals(jeu.getJoueur1()) ? jeu.getJoueur2() : jeu.getJoueur1());
-                                            // }
-                                        // } else {
-                                            // System.out.println("Nước đi không hợp lệ hoặc không thể thực hiện.");
-                                        // }
-                                    }
-
-                                    // Reset lựa chọn sau khi thực hiện (hoặc cố gắng thực hiện) nước đi
-                                    selectedPiecePosition = null;
-                                    selectedPlateauType = null;
-                                    nextActionType = null;
-                                }
-                            }
-                        } else {
-                            System.out.println("Click không nằm trên bàn cờ hợp lệ.");
-                            selectedPiecePosition = null; // Reset nếu click ra ngoài
-                            selectedPlateauType = null;
-                            nextActionType = null;
-                        }
+                    if (jumpButton.contains(mousePoint)) {
+                        jumpButton.onClick();
+                        return;
                     }
+                    if (cloneButton.contains(mousePoint)) {
+                        cloneButton.onClick();
+                        return;
+                    }
+                }
+
+                if (isMultiplayerClient) {
+                    handleMultiplayerBoardClick(mousePoint);
+                } else {
+                    handleSinglePlayerBoardClick(mousePoint);
                 }
             }
 
             @Override
             public void mousePressed(MouseEvent e) {
-                // Xử lý hiệu ứng khi nhấn nút Back (nếu backButton là lớp Button)
-                if (backButton.contains(e.getPoint())) {
-                    backButton.setClicked(true);
+                if (gameHasEnded) return;
+                Point mousePoint = e.getPoint();
+                if (backButton.contains(mousePoint)) backButton.setClicked(true);
+                if (selectedPiecePosition != null) {
+                    if (moveButton.contains(mousePoint)) moveButton.setClicked(true);
+                    if (jumpButton.contains(mousePoint)) jumpButton.setClicked(true);
+                    if (cloneButton.contains(mousePoint)) cloneButton.setClicked(true);
                 }
+                 if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                // Reset hiệu ứng khi nhả nút Back (nếu backButton là lớp Button)
+                if (gameHasEnded) return;
                 backButton.setClicked(false);
+                moveButton.setClicked(false);
+                jumpButton.setClicked(false);
+                cloneButton.setClicked(false);
+                if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
             }
         };
         sceneManager.getPanel().addMouseListener(mouseAdapter);
 
-        // MouseMotionAdapter cho các sự kiện hover
         mouseMotionAdapter = new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                // Cập nhật trạng thái hover của các Button
-                backButton.update(e.getPoint());
+                if (gameHasEnded) return; // Không cập nhật hover nếu game đã kết thúc
+                Point mousePoint = e.getPoint(); // Phải lấy lại mousePoint ở đây
+                backButton.update(mousePoint);
+                 // Chỉ cập nhật hover nút action nếu chúng được hiển thị (đã chọn quân)
+                if (selectedPiecePosition != null) {
+                    moveButton.update(mousePoint);
+                    jumpButton.update(mousePoint);
+                    cloneButton.update(mousePoint);
+                }
+                if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
             }
         };
         sceneManager.getPanel().addMouseMotionListener(mouseMotionAdapter);
     }
 
-    // Cần một phương thức trong Jeu để lấy Plateau theo TypePlateau
-    // Ví dụ:
-    // Trong Jeu.java:
-    // public Plateau getPlateauByType(Plateau.TypePlateau type) {
-    //     switch (type) {
-    //         case PAST: return past;
-    //         case PRESENT: return present;
-    //         case FUTURE: return future;
-    //         default: return null;
-    //     }
-    // }
+    private void handleMultiplayerBoardClick(Point mousePoint) {
+        if (jeu == null || jeu.getJoueurCourant() == null || gameClient == null) {
+             statusMessage = "Chưa sẵn sàng hoặc mất kết nối.";
+             if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+             return;
+        }
+
+        Plateau clickedPlateauObj = null;
+        int clickedRow = -1, clickedCol = -1;
+        Point boardClickLocation = getBoardCoordinates(mousePoint);
+
+        if (boardClickLocation != null) {
+            clickedRow = boardClickLocation.x;
+            clickedCol = boardClickLocation.y;
+            // Xác định Plateau dựa trên mousePoint (cần một hàm helper)
+            clickedPlateauObj = getPlateauFromMousePoint(mousePoint);
+        }
+
+
+        if (clickedPlateauObj != null && clickedRow != -1) {
+            if (selectedPiecePosition == null) {
+                Piece piece = clickedPlateauObj.getPiece(clickedRow, clickedCol);
+                if (piece != null && piece.getOwner().equals(jeu.getJoueurCourant())) {
+                    selectedPiecePosition = new Point(clickedRow, clickedCol);
+                    selectedPlateauType = clickedPlateauObj.getType();
+                    nextActionType = null;
+                    statusMessage = "Đã chọn quân. Chọn hành động.";
+                } else {
+                    statusMessage = "Click vào quân cờ của bạn.";
+                    resetSelection();
+                }
+            } else { // Đã chọn quân
+                if (nextActionType == null) {
+                    // Nếu click vào chính quân đã chọn -> bỏ chọn
+                    if(clickedPlateauObj.getType().equals(selectedPlateauType) &&
+                       clickedRow == selectedPiecePosition.x && clickedCol == selectedPiecePosition.y) {
+                        resetSelection();
+                        statusMessage = "Đã bỏ chọn quân.";
+                    } else {
+                        // Nếu click vào quân khác của mình -> đổi lựa chọn
+                        Piece piece = clickedPlateauObj.getPiece(clickedRow, clickedCol);
+                        if (piece != null && piece.getOwner().equals(jeu.getJoueurCourant())) {
+                            selectedPiecePosition = new Point(clickedRow, clickedCol);
+                            selectedPlateauType = clickedPlateauObj.getType();
+                            statusMessage = "Đã chọn quân mới. Chọn hành động.";
+                        } else {
+                             statusMessage = "Chọn hành động (MOVE, JUMP, CLONE).";
+                        }
+                    }
+                    // Không return, để repaint ở cuối
+                } else if (nextActionType == Coup.TypeCoup.MOVE) {
+                    if (!clickedPlateauObj.getType().equals(selectedPlateauType)) {
+                        statusMessage = "MOVE phải trên cùng bàn cờ.";
+                        // Không reset selection, để người chơi chọn lại đích
+                    } else {
+                        int dx = clickedRow - selectedPiecePosition.x;
+                        int dy = clickedCol - selectedPiecePosition.y;
+                        String command = "MOVE:" + selectedPlateauType.name() + ":" +
+                                         selectedPiecePosition.x + ":" + selectedPiecePosition.y + ":" +
+                                         dx + ":" + dy;
+                        gameClient.sendPlayerAction(command);
+                        statusMessage = "Đã gửi lệnh MOVE. Chờ server...";
+                        resetSelectionAfterAction();
+                    }
+                }
+                // JUMP và CLONE đã được xử lý bởi nút bấm của chúng
+            }
+        } else { // Click ra ngoài
+            if (selectedPiecePosition != null && nextActionType == null) {
+                statusMessage = "Đã chọn quân. Click lại để bỏ chọn hoặc chọn hành động.";
+            } else if (selectedPiecePosition == null){
+                 statusMessage = "Click vào một quân cờ.";
+            }
+            // Nếu đã chọn action MOVE mà click ra ngoài thì không làm gì, chờ click đúng target
+        }
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+    }
+
+    // Hàm helper để lấy Plateau dựa trên vị trí chuột
+    private Plateau getPlateauFromMousePoint(Point mousePoint) {
+        if (jeu == null || sceneManager == null || sceneManager.getPanel() == null) return null;
+
+        int width = sceneManager.getPanel().getWidth();
+        int height = sceneManager.getPanel().getHeight(); // Cần height để tính dynamicButtonY
+        int dynamicButtonY = height - 70;
+        if (dynamicButtonY < 400) dynamicButtonY = 400;
+
+        int boardSize = Jeu.TAILLE;
+        int availableHeightForBoards = dynamicButtonY - 100;
+        int tileWidth = Math.min(width / (boardSize * 3 + 4), availableHeightForBoards / (boardSize + 1));
+        if (tileWidth < 10) tileWidth = 10;
+
+        int spacing = tileWidth;
+        int boardRenderHeight = boardSize * tileWidth;
+        int totalBoardWidth = boardSize * tileWidth * 3 + spacing * 2;
+
+        int presentX = (width - totalBoardWidth) / 2 + boardSize * tileWidth + spacing;
+        int offsetY = (availableHeightForBoards - boardRenderHeight) / 2 + 40;
+
+        int pastX = presentX - boardSize * tileWidth - spacing;
+        int futureX = presentX + boardSize * tileWidth + spacing;
+        int boardPixelWidth = boardSize * tileWidth; // Chiều rộng thực của một bàn cờ
+
+        if (mousePoint.x >= pastX && mousePoint.x < pastX + boardPixelWidth &&
+            mousePoint.y >= offsetY && mousePoint.y < offsetY + boardRenderHeight) {
+            return jeu.getPast();
+        } else if (mousePoint.x >= presentX && mousePoint.x < presentX + boardPixelWidth &&
+                   mousePoint.y >= offsetY && mousePoint.y < offsetY + boardRenderHeight) {
+            return jeu.getPresent();
+        } else if (mousePoint.x >= futureX && mousePoint.x < futureX + boardPixelWidth &&
+                   mousePoint.y >= offsetY && mousePoint.y < offsetY + boardRenderHeight) {
+            return jeu.getFuture();
+        }
+        return null;
+    }
+
+    // Hàm helper để lấy tọa độ (row, col) trên bàn cờ từ vị trí chuột
+    private Point getBoardCoordinates(Point mousePoint) {
+        Plateau clickedPlateau = getPlateauFromMousePoint(mousePoint);
+        if (clickedPlateau == null || sceneManager == null || sceneManager.getPanel() == null) return null;
+
+        int width = sceneManager.getPanel().getWidth();
+        int height = sceneManager.getPanel().getHeight();
+        int dynamicButtonY = height - 70;
+        if (dynamicButtonY < 400) dynamicButtonY = 400;
+
+        int boardSize = Jeu.TAILLE;
+        int availableHeightForBoards = dynamicButtonY - 100;
+        int tileWidth = Math.min(width / (boardSize * 3 + 4), availableHeightForBoards / (boardSize + 1));
+         if (tileWidth < 10) tileWidth = 10;
+
+        int spacing = tileWidth;
+        int boardRenderHeight = boardSize * tileWidth;
+        int totalBoardWidth = boardSize * tileWidth * 3 + spacing * 2;
+
+        int presentX = (width - totalBoardWidth) / 2 + boardSize * tileWidth + spacing;
+        int offsetY = (availableHeightForBoards - boardRenderHeight) / 2 + 40;
+        int pastX = presentX - boardSize * tileWidth - spacing;
+        int futureX = presentX + boardSize * tileWidth + spacing;
+
+        int boardXStart = 0;
+        if (clickedPlateau.getType() == Plateau.TypePlateau.PAST) boardXStart = pastX;
+        else if (clickedPlateau.getType() == Plateau.TypePlateau.PRESENT) boardXStart = presentX;
+        else if (clickedPlateau.getType() == Plateau.TypePlateau.FUTURE) boardXStart = futureX;
+        else return null;
+
+        int col = (mousePoint.x - boardXStart) / tileWidth;
+        int row = (mousePoint.y - offsetY) / tileWidth;
+
+        if (row >= 0 && row < boardSize && col >= 0 && col < boardSize) {
+            return new Point(row, col);
+        }
+        return null;
+    }
+
+
+    private void handleSinglePlayerBoardClick(Point mousePoint) {
+        if (jeu == null || jeu.getJoueurCourant() == null) {
+             statusMessage = "Game chưa sẵn sàng.";
+             if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+             return;
+        }
+
+        Plateau clickedPlateauObj = getPlateauFromMousePoint(mousePoint);
+        Point boardCoords = getBoardCoordinates(mousePoint); // Lấy row, col
+
+        if (clickedPlateauObj != null && boardCoords != null) {
+            int clickedRow = boardCoords.x;
+            int clickedCol = boardCoords.y;
+
+            if (selectedPiecePosition == null) {
+                Piece piece = clickedPlateauObj.getPiece(clickedRow, clickedCol);
+                if (piece != null && piece.getOwner().equals(jeu.getJoueurCourant())) {
+                    selectedPiecePosition = new Point(clickedRow, clickedCol);
+                    selectedPlateauType = clickedPlateauObj.getType();
+                    nextActionType = null;
+                    statusMessage = "Đã chọn quân. Chọn hành động.";
+                } else {
+                     statusMessage = "Chọn một quân cờ của bạn.";
+                     resetSelection();
+                }
+            } else { // Đã chọn quân
+                if (nextActionType == null) {
+                    // Click lại quân đã chọn -> bỏ chọn
+                    if(clickedPlateauObj.getType().equals(selectedPlateauType) &&
+                       clickedRow == selectedPiecePosition.x && clickedCol == selectedPiecePosition.y) {
+                        resetSelection();
+                        statusMessage = "Đã bỏ chọn quân.";
+                    } else {
+                         Piece piece = clickedPlateauObj.getPiece(clickedRow, clickedCol);
+                        if (piece != null && piece.getOwner().equals(jeu.getJoueurCourant())) {
+                            selectedPiecePosition = new Point(clickedRow, clickedCol);
+                            selectedPlateauType = clickedPlateauObj.getType();
+                            statusMessage = "Đã chọn quân mới. Chọn hành động.";
+                        } else {
+                            statusMessage = "Chọn hành động (MOVE, JUMP, CLONE).";
+                        }
+                    }
+                } else { // Đã chọn quân và action
+                    // JUMP, CLONE được xử lý bởi nút bấm, chỉ còn MOVE ở đây
+                    if (nextActionType == Coup.TypeCoup.MOVE) {
+                        if (!clickedPlateauObj.getType().equals(selectedPlateauType)) {
+                            statusMessage = "MOVE phải trên cùng bàn cờ.";
+                        } else {
+                            int dx = clickedRow - selectedPiecePosition.x;
+                            int dy = clickedCol - selectedPiecePosition.y;
+                            String commandString = "MOVE:" + selectedPlateauType.name() + ":" +
+                                             selectedPiecePosition.x + ":" + selectedPiecePosition.y + ":" +
+                                             dx + ":" + dy;
+                            handleSinglePlayerAction(commandString); // Gửi lệnh cho xử lý single player
+                        }
+                    }
+                }
+            }
+        } else {
+            if (selectedPiecePosition != null && nextActionType == null) {
+                statusMessage = "Đã chọn quân. Click lại để bỏ chọn hoặc chọn hành động.";
+            } else if(selectedPiecePosition == null) {
+                 statusMessage = "Click vào một quân cờ.";
+            }
+        }
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+    }
+
+    // Phương thức mới để xử lý action cho single player từ command string
+    private void handleSinglePlayerAction(String commandString) {
+        if (jeu == null || selectedPiecePosition == null || selectedPlateauType == null || nextActionType == null) {
+            statusMessage = "Lỗi: Lựa chọn không đầy đủ cho hành động.";
+            resetSelectionAfterAction();
+            if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+            return;
+        }
+
+        Piece pieceToAct = jeu.getPlateauByType(selectedPlateauType).getPiece(selectedPiecePosition.x, selectedPiecePosition.y);
+        if (pieceToAct == null) {
+            statusMessage = "Lỗi: Quân cờ đã chọn không tồn tại.";
+            resetSelectionAfterAction();
+            if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+            return;
+        }
+
+        Coup coup = null;
+        // Phân tích commandString để tạo Coup
+        // Ví dụ đơn giản, không phân tích lại từ string mà dùng các biến hiện có
+        Point direction = new Point(0,0); // Mặc định cho JUMP/CLONE
+        if (nextActionType == Coup.TypeCoup.MOVE) {
+            // Lấy dx, dy từ commandString nếu cần, hoặc từ click cuối cùng
+            // Giả sử dx, dy đã được xác định trước khi gọi hàm này cho MOVE
+            String[] parts = commandString.split(":");
+            if (parts.length == 6 && parts[0].equals("MOVE")) {
+                 try {
+                    int dx = Integer.parseInt(parts[4]);
+                    int dy = Integer.parseInt(parts[5]);
+                    direction = new Point(dx, dy);
+                } catch (NumberFormatException e) {
+                    statusMessage = "Lỗi định dạng lệnh MOVE.";
+                     if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+                    return;
+                }
+            } else if (parts.length < 6 && parts[0].equals("MOVE")){
+                 statusMessage = "Lệnh MOVE thiếu thông tin hướng.";
+                 if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+                return;
+            }
+        }
+        coup = new Coup(pieceToAct, direction, jeu.getPlateauByType(selectedPlateauType), nextActionType);
+
+
+        if (coup != null) {
+            boolean isValid = jeu.estCoupValide(coup);
+            if (isValid) {
+                jeu.appliquerCoup(coup, jeu.getJoueurCourant(), jeu.getPast(), jeu.getPresent(), jeu.getFuture());
+                // Chuyển lượt
+                Joueur nextPlayer = jeu.getJoueurCourant().equals(jeu.getJoueur1()) ? jeu.getJoueur2() : jeu.getJoueur1();
+                jeu.setJoueurCourant(nextPlayer);
+                statusMessage = "Lượt của: " + jeu.getJoueurCourant().getNom();
+
+                int winnerId = jeu.gameOver(jeu.getJoueur1()); // Kiểm tra cho J1
+                if (winnerId == 0) { // Nếu J1 chưa thắng, kiểm tra cho J2
+                    winnerId = jeu.gameOver(jeu.getJoueur2());
+                }
+
+                if (winnerId != 0) {
+                    Joueur winningPlayer = (winnerId == jeu.getJoueur1().getId()) ? jeu.getJoueur1() : jeu.getJoueur2();
+                    statusMessage = "Người chơi " + winningPlayer.getNom() + " đã thắng!";
+                    gameHasEnded = true;
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Game Over", JOptionPane.INFORMATION_MESSAGE);
+                }
+            } else {
+                statusMessage = "Nước đi không hợp lệ!";
+            }
+        }
+        resetSelectionAfterAction(); // Reset sau khi thử thực hiện hành động
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+    }
+
+
+    private void resetSelection() { // Được gọi khi chỉ muốn reset lựa chọn thô
+        selectedPiecePosition = null;
+        selectedPlateauType = null;
+        nextActionType = null;
+    }
+    private void resetSelectionAfterAction() { // Được gọi sau khi 1 action đã được thử (gửi hoặc thực hiện)
+        selectedPiecePosition = null;
+        selectedPlateauType = null;
+        nextActionType = null;
+        // statusMessage thường đã được set bởi logic action, không reset ở đây
+    }
+
+
+    @Override
+    public void onGameStateUpdate(Jeu newGameState) {
+        this.jeu = newGameState;
+        if (this.jeu != null && this.jeu.getJoueurCourant() != null) {
+             this.statusMessage = "Lượt của: " + this.jeu.getJoueurCourant().getNom();
+        } else {
+            this.statusMessage = "Đang chờ dữ liệu người chơi...";
+        }
+        // Kiểm tra game over từ trạng thái server gửi về
+        // Server sẽ gửi ETAT, trong đó có thể đã bao gồm thông tin thắng thua tiềm ẩn
+        // Hoặc server sẽ gửi một tin nhắn GAGNE/PERDU riêng biệt
+        gameHasEnded = false; // Reset, chờ tin nhắn GAGNE/PERDU từ server
+        resetSelectionAfterAction();
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+    }
+
+    @Override
+    public void onGameMessage(String messageType, String messageContent) {
+        this.statusMessage = messageType + ": " + messageContent;
+        if ("WIN".equalsIgnoreCase(messageType) || "LOSE".equalsIgnoreCase(messageType)) {
+            gameHasEnded = true; // Đặt cờ khi nhận được thông báo thắng/thua
+        } else if ("DISCONNECTED".equalsIgnoreCase(messageType)) {
+            gameHasEnded = true; // Coi như game kết thúc nếu mất kết nối
+        }
+
+
+        // Đảm bảo dialog hiển thị trên EDT (GameClient đã làm, nhưng cẩn thận không thừa)
+        SwingUtilities.invokeLater(() -> {
+            String title = messageType.toUpperCase();
+            int jOptionMessageType = JOptionPane.INFORMATION_MESSAGE;
+
+            if("ERROR".equalsIgnoreCase(messageType) || "DISCONNECTED".equalsIgnoreCase(messageType)) {
+                jOptionMessageType = JOptionPane.ERROR_MESSAGE;
+            } else if ("WIN".equalsIgnoreCase(messageType)) {
+                title = "CHÚC MỪNG!";
+            } else if ("LOSE".equalsIgnoreCase(messageType)) {
+                title = "THẬT TIẾC!";
+            }
+            JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, title, jOptionMessageType);
+        });
+
+        if (sceneManager.getPanel() != null) sceneManager.getPanel().repaint();
+    }
 }

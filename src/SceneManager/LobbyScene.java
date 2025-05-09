@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 
 public class LobbyScene implements Scene {
 
+    private String hostIpForClient = null; // Pour le client
     private SceneManager sceneManager;
     private MouseAdapter mouseAdapter;
     private long startTime;
@@ -26,17 +27,20 @@ public class LobbyScene implements Scene {
     private Rectangle clickButton = null;
     private long clickTime = 0;
 
-    public LobbyScene(SceneManager sceneManager, boolean isHost) {
+    public LobbyScene(SceneManager sceneManager, boolean isHost, String hostIpForClient) {
         this.sceneManager = sceneManager;
         this.isHost = isHost;
+        this.hostIpForClient = hostIpForClient;
         
         // 创建按钮并设置点击事件
         startButton = new Button(600, 500, 150, 50, "Commencer", () -> {
             if (isHost && playerTwoConnected) {
-                GameScene gameScene = new GameScene(sceneManager, true);
-                gameScene.updateLastLogin(1); // 1 pour le mode multi
-                sceneManager.setScene(gameScene);
+                GameScene gameSceneForHost = new GameScene(sceneManager, true);
+                // gameScene.updateLastLogin(1); // 1 pour le mode multi
+                sceneManager.setScene(gameSceneForHost);
                 // Normallement envoyer un message de demarrage a J2
+                // TODO: Envoyer le message de demarrage
+                
             }
         });
         
@@ -254,11 +258,19 @@ public class LobbyScene implements Scene {
         this.playerTwoConnected = connected;
     }
 
-    public void startGame() {
-        if (!isHost) {
-            GameScene gameScene = new GameScene(sceneManager, false);
-            gameScene.updateLastLogin(1);
-            sceneManager.setScene(gameScene);
-        }
+    // public void startGame() {
+    //     if (!isHost) {
+    //         GameScene gameScene = new GameScene(sceneManager, false);
+    //         gameScene.updateLastLogin(1);
+    //         sceneManager.setScene(gameScene);
+    //     }
+    // }
+
+    public void startGameAsClient() { // Gọi phương thức này cho client
+    if (!isHost && hostIpForClient != null) {
+        GameScene gameScene = new GameScene(sceneManager, hostIpForClient);
+        // gameScene.updateLastLogin(1); // Cân nhắc bỏ lastLogin nếu isMultiplayerClient đã đủ
+        sceneManager.setScene(gameScene);
     }
+}
 }

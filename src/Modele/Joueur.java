@@ -30,6 +30,10 @@ public class Joueur {
         return nbClones;
     }
 
+    public void setNbClones(int nbClones) {
+        this.nbClones = nbClones;
+    }
+
     public Plateau.TypePlateau getProchainPlateau() {
         return prochainPlateau;
     }

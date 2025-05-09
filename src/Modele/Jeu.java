@@ -411,6 +411,10 @@ public class Jeu {
         return joueur2;
     }
 
+    public void setJoueurCourant(Joueur joueurCourant) {
+        this.joueurCourant = joueurCourant;
+    }
+
     public Joueur getJoueurCourant() {
         return joueurCourant;
     }

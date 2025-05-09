@@ -82,6 +82,11 @@ public class Plateau {
 
     public void incNoirs() { this.nbNoirs+=1; }
 
+    public void resetCounts() {
+        this.nbBlancs = 0;
+        this.nbNoirs = 0;
+    }
+
     public void appliquerCoup(Coup coup) {
         return;
     }

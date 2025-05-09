@@ -328,9 +328,9 @@ public class GameScene implements Scene {
                                     }
 
                                     if (coup != null) {
-                                        boolean success = jeu.faireCoup(coup);
-                                        if (success) {
-                                            System.out.println("Nước đi thành công!");
+                                        // boolean success = jeu.faireCoup(coup);
+                                        // if (success) {
+                                            // System.out.println("Nước đi thành công!");
                                             // Chuyển lượt chơi (Chỉ cho Single Player)
                                             // Nếu là Multiplayer, server sẽ quyết định chuyển lượt
                                             // Và gửi trạng thái mới về client để cập nhật.
@@ -338,9 +338,9 @@ public class GameScene implements Scene {
                                             // if (lastLogin == 0) {
                                             //    jeu.setJoueurCourant(jeu.getJoueurCourant().equals(jeu.getJoueur1()) ? jeu.getJoueur2() : jeu.getJoueur1());
                                             // }
-                                        } else {
-                                            System.out.println("Nước đi không hợp lệ hoặc không thể thực hiện.");
-                                        }
+                                        // } else {
+                                            // System.out.println("Nước đi không hợp lệ hoặc không thể thực hiện.");
+                                        // }
                                     }
 
                                     // Reset lựa chọn sau khi thực hiện (hoặc cố gắng thực hiện) nước đi

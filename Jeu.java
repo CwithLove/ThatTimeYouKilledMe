@@ -69,7 +69,7 @@ public class Jeu {
 
             // Choisir la piece a deplacer
             if (choix == 2 && joueurCourant.equals(joueur2)) {
-                joueurIA = ia.coupIA(joueur2,plateauCourant,past,present,future);
+                joueurIA = ia.coupIA(joueur2,plateauTraitant,past,present,future);
             }
 
             // A FIXER SI ON TAPE CLONE DANS CE CAS LA ET CA SE TERMINE LE TOUR
@@ -117,9 +117,9 @@ public class Jeu {
                 do {
                     if (choix == 2 && joueurCourant.equals(joueur2)){
                         if (i == 2){
-                            coup = Coup.stringToCoup(pieceCourante,plateauCourant,joueurIA.getSecond());
+                            coup = Coup.stringToCoup(pieceCourante,plateauTraitant,joueurIA.getSecond());
                         } else {
-                            coup = Coup.stringToCoup(pieceCourante,plateauCourant,joueurIA.getTroisieme());
+                            coup = Coup.stringToCoup(pieceCourante,plateauTraitant,joueurIA.getTroisieme());
                         }
                     } else {
                         coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante, past, present, future);
@@ -129,6 +129,7 @@ public class Jeu {
                     break;
                 }
                 appliquerCoup(coup,joueurCourant,past,present,future);
+
                 // Mettre a jour le plateau suivant
                 switch (joueurCourant.getProchainPlateau()) {
                     case PAST:

@@ -1,236 +1,232 @@
-package Network; // Đảm bảo dòng này có ở đầu file
+package Network;
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
-import java.awt.Point;
+// import java.util.*; // Ne pas utiliser util.* directement
+// import java.awt.Point; // Ne pas utiliser Point directement
 
-// Các import Modele cần thiết (để GameClient có thể tạo ra các đối tượng Modele khi phân tích trạng thái)
 import Modele.Jeu;
-import Modele.Plateau;
-import Modele.Piece;
+// import Modele.Plateau; // Ne pas utiliser Plateau directement
+// import Modele.Piece; // Ne pas utiliser Piece directement
 
-public class GameClient { // Đã đổi tên từ Client (của contributor)
-    private String ipAddress; // Đổi tên từ ip
-    private Jeu gameInstance; // Đây sẽ là bản sao cục bộ của trạng thái game trên client
-    private ObjectOutputStream outputStream; // Để gửi tin nhắn đến server
-    private Socket socket; // Socket kết nối đến server
-    private GameStateUpdateListener listener; // Listener để thông báo cho GUI
-    private int clientId; // ID của client này, nhận từ server
-    private Thread receptionThread; // Luồng nhận dữ liệu
+public class GameClient {
+    private String serverIpAddress;
+    private int serverPort = 1234; // Port par défaut
+    private Jeu gameInstance;
+    private ObjectOutputStream outputStream;
+    private Socket socket;
+    private GameStateUpdateListener listener;
+    private int myPlayerId = -1; // ID de ce client, attribué par le serveur
+    private Thread receptionThread;
+    private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
+    private ObjectInputStream inputStream;
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
-        this.ipAddress = ipAddress;
+        this.serverIpAddress = ipAddress;
         this.listener = listener;
-        this.gameInstance = new Jeu(); // Khởi tạo bản sao game cục bộ
-        // Các đối tượng Joueur trong gameInstance này là bản sao, cần được gán đúng ID
-        // Server sẽ gửi thông tin ID của client này
+        this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
+                                      // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
     }
 
     public void connect() throws IOException {
-        System.out.println("GameClient: Đang cố gắng kết nối tới server " + ipAddress + ":1234...");
-        socket = new Socket(ipAddress, 1234);
-        outputStream = new ObjectOutputStream(socket.getOutputStream());
-        outputStream.flush(); // Quan trọng: flush header trước khi ObjectInputStream được tạo ở server
-
-        ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-
-        // Bắt đầu luồng nhận dữ liệu từ server
-        receptionThread = new Thread(() -> {
-            try {
-                while (true) {
-                    Object obj = inputStream.readObject();
-                    if (obj instanceof String) {
-                        String data = (String) obj;
-                        // System.out.println("GameClient - Server Raw: " + data); // Để debug tin nhắn raw từ server
-
-                        String[] parts = data.split(":", 2); // Tách CODE và CONTENT
-                        if (parts.length < 2) {
-                            System.err.println("GameClient: Lỗi: Tin nhắn từ server không đúng định dạng Code:Content -> " + data);
-                            listener.onGameMessage("ERROR", "Tin nhắn server không hợp lệ.");
-                            continue;
-                        }
-                        Code code = Code.valueOf(parts[0]); // Lấy Code từ phần đầu
-                        String content = parts[1]; // Lấy nội dung chính từ phần sau
-
-                        switch (code) {
-                            case ETAT:
-                                // Phân tích chuỗi trạng thái game và cập nhật gameInstance cục bộ
-                                parseAndApplyGameStateString(content); 
-                                // Thông báo cho GUI để cập nhật
-                                if (listener != null) {
-                                    // Đảm bảo cập nhật UI trên Event Dispatch Thread (EDT)
-                                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameStateUpdate(gameInstance));
-                                }
-                                break;
-                            case ADVERSAIRE: // Tin nhắn lỗi hoặc thông báo lượt đối thủ
-                                System.out.println("GameClient: Thông báo Server -> " + content);
-                                if (listener != null) {
-                                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("INFO", content));
-                                }
-                                break;
-                            case GAGNE: // Thông báo thắng
-                                System.out.println("GameClient: Bạn đã thắng! " + content);
-                                if (listener != null) {
-                                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("WIN", content));
-                                }
-                                break;
-                            case PERDU: // Thông báo thua
-                                System.out.println("GameClient: Bạn đã thua! " + content);
-                                if (listener != null) {
-                                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("LOSE", content));
-                                }
-                                break;
-                            // Có thể thêm các case khác nếu server gửi các loại lệnh khác
-                            default:
-                                System.out.println("GameClient: Lệnh Server không rõ: " + code.name() + " - Nội dung: " + content);
-                                if (listener != null) {
-                                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("UNKNOWN", content));
-                                }
-                                break;
-                        }
-                    }
-                }
-            } catch (SocketException se) {
-                System.err.println("GameClient: Server đã đóng kết nối hoặc lỗi mạng: " + se.getMessage());
-                if (listener != null) {
-                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("DISCONNECTED", "Mất kết nối với Server."));
-                }
-            } catch (EOFException eofe) {
-                System.err.println("GameClient: Server đã đóng kết nối.");
-                if (listener != null) {
-                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("DISCONNECTED", "Server đã đóng kết nối."));
-                }
-            } catch (Exception e) {
-                System.err.println("GameClient: Lỗi nhận dữ liệu từ server: " + e.getMessage());
-                e.printStackTrace();
-                if (listener != null) {
-                    javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("ERROR", "Lỗi nhận dữ liệu: " + e.getMessage()));
-                }
-            } finally {
-                // Đảm bảo đóng socket khi luồng kết thúc
-                try {
-                    if (socket != null && !socket.isClosed()) {
-                        socket.close();
-                    }
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            }
-        });
-        receptionThread.start();
-        System.out.println("GameClient: Đã kết nối thành công tới server.");
-    }
-
-    // Phương thức để gửi hành động của người chơi đến server
-    public void sendPlayerAction(String actionString) {
+        System.out.println("GameClient: Tentative de connexion à " + serverIpAddress + ":" + serverPort + "...");
         try {
-            if (outputStream != null) {
-                outputStream.writeObject(actionString);
-                outputStream.flush();
-                // System.out.println("GameClient: Đã gửi hành động: " + actionString);
+            socket = new Socket(serverIpAddress, serverPort);
+            isConnected = true; // Marquer la socket comme connectée
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.flush(); // Très important !
+
+            // InputStream doit être créé APRÈS que outputStream soit flush côté client
+            // et APRÈS que outputStream soit créé côté serveur.
+            InputStream socketInputStream = socket.getInputStream();
+            inputStream = new ObjectInputStream(socketInputStream);
+            System.out.println("GameClient: Connecté. En attente de l'ID du joueur...");
+
+            // 1. Lire le message d'ID attribué par le serveur
+            try {
+                Object idMessageObj = inputStream.readObject();
+                if (idMessageObj instanceof String) {
+                    String idMessage = (String) idMessageObj;
+                    if (idMessage.startsWith("ID:")) {
+                        this.myPlayerId = Integer.parseInt(idMessage.substring(3));
+                        System.out.println("GameClient: Mon ID de joueur est: " + this.myPlayerId);
+                    } else {
+                        disconnect(); // Fermer la connexion si le message d'ID est invalide
+                        throw new IOException("GameClient: Message d'ID initial invalide du serveur: " + idMessage);
+                    }
+                } else {
+                    disconnect();
+                    throw new IOException("GameClient: Type de message d'ID initial invalide.");
+                }
+            } catch (ClassNotFoundException e) {
+                disconnect();
+                throw new IOException("GameClient: Erreur lors de la lecture du message d'ID.", e);
+            } catch (NumberFormatException e){
+                disconnect();
+                throw new IOException("GameClient: Erreur de format de l'ID reçu.", e);
             }
+
+
+            // 2. Démarrer le thread de réception des données du jeu
+            receptionThread = new Thread(() -> {
+                try {
+                    while (isConnected && socket != null && !socket.isClosed()) {
+                        Object obj = inputStream.readObject(); // Lire les données du serveur
+                        if (obj instanceof String) {
+                            String data = (String) obj;
+                             // System.out.println("GameClient (ID: " + myPlayerId + ") - Server Raw: " + data); // Debug
+
+                            String[] parts = data.split(":", 2);
+                            if (parts.length < 2) {
+                                System.err.println("GameClient (ID: " + myPlayerId + "): Message serveur mal formaté: " + data);
+                                if (listener != null) listener.onGameMessage("ERROR", "Message serveur invalide.");
+                                continue;
+                            }
+                            Code code;
+                            try {
+                                code = Code.valueOf(parts[0].toUpperCase()); // Convertir en majuscules pour être sûr
+                            } catch (IllegalArgumentException e) {
+                                System.err.println("GameClient (ID: " + myPlayerId + "): Code inconnu du serveur: " + parts[0]);
+                                if (listener != null) listener.onGameMessage("UNKNOWN_CODE", "Code serveur inconnu: " + parts[0]);
+                                continue;
+                            }
+                            
+                            String content = parts[1];
+
+                            // Utiliser SwingUtilities pour s'assurer que le listener est mis à jour sur l'EDT
+                            final String finalContent = content; // Nécessaire pour utiliser dans une lambda
+                            final Code finalCode = code;
+
+                            javax.swing.SwingUtilities.invokeLater(() -> {
+                                if (listener == null) return;
+
+                                switch (finalCode) {
+                                    case ETAT:
+                                        GameStateParser.parseAndUpdateJeu(gameInstance, finalContent);
+                                        listener.onGameStateUpdate(gameInstance);
+                                        break;
+                                    case GAGNE:
+                                        listener.onGameMessage("WIN", finalContent); // "WIN" est le messageType
+                                        break;
+                                    case PERDU:
+                                        listener.onGameMessage("LOSE", finalContent);
+                                        break;
+                                    case ADVERSAIRE: // Exemple : "C'est le tour de l'adversaire", ou erreur "Pas votre tour"
+                                    case PIECE:      // Notification que le serveur attend la sélection d'une PIECE
+                                    case ACTION:     // Notification que le serveur attend la sélection d'une ACTION
+                                    case DIRECTION:  // Notification que le serveur attend la sélection d'une DIRECTION
+                                    case PLATEAU:    // Notification que le serveur attend la sélection d'un PLATEAU
+                                        listener.onGameMessage(finalCode.name(), finalContent); // Utiliser le nom du Code comme messageType
+                                        break;
+                                    default:
+                                        System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
+                                        listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);
+                                        break;
+                                }
+                            });
+                        }
+                    }
+                } catch (SocketException | EOFException se) {
+                    if (isConnected) { // Log uniquement si on attend une connexion
+                        System.out.println("GameClient (ID: " + myPlayerId + "): Connexion serveur perdue ou fermée. " + se.getMessage());
+                        final GameStateUpdateListener currentListener = listener;
+                        if (currentListener != null) {
+                             javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("DISCONNECTED", "Connexion au serveur perdue."));
+                        }
+                    }
+                } catch (IOException | ClassNotFoundException e) {
+                    if (isConnected) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): Erreur de réception des données: " + e.getMessage());
+                        e.printStackTrace();
+                        final GameStateUpdateListener currentListener = listener;
+                        if (currentListener != null) {
+                            final String errorMsg = e.getMessage();
+                             javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("ERROR", "Erreur de réception: " + errorMsg));
+                        }
+                    }
+                } finally {
+                    disconnect(); // Assurer la déconnexion lorsque le thread se termine
+                }
+            });
+            receptionThread.setName("GameClient-ReceptionThread-ID-" + myPlayerId);
+            receptionThread.start();
+            System.out.println("GameClient (ID: " + myPlayerId + "): Thread de réception démarré.");
+
         } catch (IOException e) {
-            System.err.println("GameClient: Lỗi gửi hành động đến server: " + e.getMessage());
-            e.printStackTrace();
-            if (listener != null) {
-                javax.swing.SwingUtilities.invokeLater(() -> listener.onGameMessage("ERROR", "Lỗi gửi hành động: " + e.getMessage()));
-            }
+            isConnected = false; // Assurer que isConnected est false si la connexion échoue
+            System.err.println("GameClient: Échec de la connexion initiale au serveur: " + e.getMessage());
+            throw e; // Relancer l'exception pour que l'appelant la gère
         }
     }
 
-    // Phương thức để lấy instance game cục bộ (đã được cập nhật)
+    public void sendPlayerAction(String actionString) {
+        if (!isConnected || outputStream == null || socket == null || socket.isClosed()) {
+            System.err.println("GameClient (ID: " + myPlayerId + "): Impossible d'envoyer l'action, non connecté.");
+            if(listener != null) listener.onGameMessage("ERROR", "Non connecté, impossible d'envoyer l'action.");
+            return;
+        }
+        try {
+            outputStream.writeObject(actionString);
+            outputStream.flush();
+            // System.out.println("GameClient (ID: " + myPlayerId + "): Action envoyée -> " + actionString);
+        } catch (IOException e) {
+            System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de l'envoi de l'action: " + e.getMessage());
+            // On peut envisager de déconnecter ici si l'erreur est critique
+            final GameStateUpdateListener currentListener = listener;
+            if (currentListener != null) {
+                final String errorMsg = e.getMessage();
+                javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("ERROR", "Erreur d'envoi: " + errorMsg));
+            }
+            disconnect(); // Déconnecter en cas d'erreur d'envoi
+        }
+    }
+
     public Jeu getGameInstance() {
         return gameInstance;
     }
 
-    // Phương thức để đóng kết nối client
+    public int getMyPlayerId() {
+        return myPlayerId;
+    }
+    public boolean isConnected() { return isConnected && socket != null && !socket.isClosed(); }
+
+
     public void disconnect() {
+        if (!isConnected && socket == null) return; // Déjà déconnecté ou jamais connecté
+
+        isConnected = false; // Définir avant pour arrêter les boucles
+        System.out.println("GameClient (ID: " + myPlayerId + "): Déconnexion...");
+
+        if (receptionThread != null && receptionThread.isAlive()) {
+            receptionThread.interrupt(); // Essayer d'interrompre le thread de réception
+        }
         try {
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            if (inputStream != null) {
+                inputStream.close();
+            }
             if (socket != null && !socket.isClosed()) {
                 socket.close();
-                System.out.println("GameClient: Đã đóng kết nối.");
-            }
-            if (receptionThread != null && receptionThread.isAlive()) {
-                receptionThread.interrupt(); // Ngắt luồng nhận
             }
         } catch (IOException e) {
-            System.err.println("GameClient: Lỗi khi đóng kết nối: " + e.getMessage());
+            System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de la fermeture des flux/socket: " + e.getMessage());
+        } finally {
+            socket = null;
+            outputStream = null;
+            inputStream = null;
+            System.out.println("GameClient (ID: " + myPlayerId + "): Ressources réseau libérées.");
+            final GameStateUpdateListener currentListener = listener;
+            // Notifier le listener que la déconnexion a eu lieu, uniquement si la connexion avait réussi auparavant
+            // (éviter le cas où disconnect est appelé depuis le constructeur à cause d'une erreur)
+            // if (this.myPlayerId != -1 && currentListener != null) { // myPlayerId != -1 signifie que l'ID a été attribué
+            //    javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("INFO", "Vous avez été déconnecté."));
+            // }
         }
     }
-
-    // Phương thức mới để phân tích chuỗi trạng thái game và cập nhật gameInstance
-    private void parseAndApplyGameStateString(String gameStateString) {
-        // Định dạng chuỗi: CP:1;C1:4;C2:4;GS:IN_PROGRESS;W:0;P:________;PR:________;F:________
-        String[] parts = gameStateString.split(";");
-        Map<String, String> gameStateMap = new HashMap<>();
-        for (String part : parts) {
-            String[] keyValue = part.split(":", 2); // Tách key và value
-            if (keyValue.length == 2) {
-                gameStateMap.put(keyValue[0], keyValue[1]);
-            }
-        }
-
-        // Cập nhật JoueurCourant
-        int currentPlayerId = Integer.parseInt(gameStateMap.getOrDefault("CP", "0"));
-        if (currentPlayerId == gameInstance.getJoueur1().getId()) {
-            gameInstance.setJoueurCourant(gameInstance.getJoueur1());
-        } else if (currentPlayerId == gameInstance.getJoueur2().getId()) {
-            gameInstance.setJoueurCourant(gameInstance.getJoueur2());
-        } else {
-            System.err.println("GameClient: Lỗi: ID người chơi hiện tại không hợp lệ trong chuỗi trạng thái.");
-        }
-
-        // Cập nhật số lượng clones
-        gameInstance.getJoueur1().setNbClones(Integer.parseInt(gameStateMap.getOrDefault("C1", "0")));
-        gameInstance.getJoueur2().setNbClones(Integer.parseInt(gameStateMap.getOrDefault("C2", "0")));
-
-        // Cập nhật trạng thái các Plateau
-        updatePlateauFromString(gameInstance.getPast(), gameStateMap.get("P"));
-        updatePlateauFromString(gameInstance.getPresent(), gameStateMap.get("PR"));
-        updatePlateauFromString(gameInstance.getFuture(), gameStateMap.get("F"));
-
-        // Có thể cập nhật trạng thái game over và người thắng nếu cần
-        // String gameStatus = gameStateMap.get("GS");
-        // int winner = Integer.parseInt(gameStateMap.get("W"));
-    }
-
-    // Helper method để cập nhật một Plateau từ chuỗi 16 ký tự
-    private void updatePlateauFromString(Plateau plateau, String boardString) {
-        if (boardString == null || boardString.length() != Jeu.TAILLE * Jeu.TAILLE) {
-            System.err.println("GameClient: Lỗi: Chuỗi board không hợp lệ hoặc sai kích thước cho plateau " + plateau.getType());
-            return;
-        }
-        // Xóa tất cả các quân cờ hiện có trên Plateau trước khi cập nhật
-        // và reset lại số lượng quân
-        plateau.resetCounts(); 
-        for (int r = 0; r < Jeu.TAILLE; r++) {
-            for (int c = 0; c < Jeu.TAILLE; c++) {
-                plateau.removePiece(r, c); // Đảm bảo ô trống
-            }
-        }
-        
-        // Cập nhật quân cờ dựa trên chuỗi
-        for (int i = 0; i < Jeu.TAILLE; i++) {
-            for (int j = 0; j < Jeu.TAILLE; j++) {
-                char pieceChar = boardString.charAt(i * Jeu.TAILLE + j);
-                Piece newPiece = null;
-                if (pieceChar == '1') { // Quân của Joueur 1
-                    newPiece = new Piece(gameInstance.getJoueur1(), new Point(i, j));
-                } else if (pieceChar == '2') { // Quân của Joueur 2
-                    newPiece = new Piece(gameInstance.getJoueur2(), new Point(i, j));
-                }
-                
-                if (newPiece != null) {
-                    plateau.setPiece(newPiece, i, j);
-                    // Cập nhật số lượng quân trên Plateau sau khi đặt Piece
-                    if (newPiece.getOwner().equals(gameInstance.getJoueur1())) {
-                        plateau.incBlancs();
-                    } else if (newPiece.getOwner().equals(gameInstance.getJoueur2())) {
-                        plateau.incNoirs();
-                    }
-                }
-            }
-        }
+    // Permet de mettre à jour le listener (par exemple lors du passage de LobbyScene à GameScene)
+    public void setListener(GameStateUpdateListener newListener){
+        this.listener = newListener;
     }
 }

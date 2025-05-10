@@ -7,5 +7,4 @@ public interface Scene {
     void update();
     void render(Graphics g, int width, int height);
     void dispose();
-
 }

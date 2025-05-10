@@ -5,9 +5,13 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+import java.io.File;
 
 public class IntroductionScene implements Scene {
-
+    private BufferedImage logo;  
     private SceneManager sceneManager;
     private long startTime;
     private float alpha = 0.0f;
@@ -22,6 +26,12 @@ public class IntroductionScene implements Scene {
     private Phase phase = Phase.FADE_IN;
 
     public IntroductionScene(SceneManager sceneManager) {
+        try {
+            logo = ImageIO.read(new File("res/logo/logo.png")); // Load your image here
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
         this.sceneManager = sceneManager;
     }
 
@@ -45,7 +55,7 @@ public class IntroductionScene implements Scene {
 
             case HOLD:
                 alpha = 1f;
-                if (elapsed >= 1000) {
+                if (elapsed >= 1500) {
                     phase = Phase.FADE_OUT;
                     startTime = System.currentTimeMillis();
                 }
@@ -74,7 +84,22 @@ public class IntroductionScene implements Scene {
 
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 32));
-        g2d.drawString("Made by Me", 300, 300);
+        String text = "Made by";
+        Font font = g2d.getFont();
+        int textWidth = g2d.getFontMetrics(font).stringWidth(text);
+        int textHeight = g2d.getFontMetrics(font).getHeight();
+        int x = (width - textWidth) / 2;
+        int y = height * 2 / 5;
+        g2d.drawString(text, x, y);
+
+        // Draw the image with alpha composite
+        if (logo != null) {
+            int imgWidth = (int) (logo.getWidth() * 0.3);
+            int imgHeight = (int) (logo.getHeight() * 0.3);
+            int imgX = (width - imgWidth) / 2;
+            int imgY = height * 2 / 5;
+            g2d.drawImage(logo, imgX, imgY, imgWidth, imgHeight, null);
+        }
 
         g2d.dispose();
     }

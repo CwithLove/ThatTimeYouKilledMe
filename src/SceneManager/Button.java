@@ -7,9 +7,9 @@ public class Button {
     private Rectangle rect;
     private String text;
     private Font font;
-    private Color normalColor;
-    private Color hoverColor;
-    private Color clickColor;
+    public Color normalColor;
+    public Color hoverColor;
+    public Color clickColor;
     private boolean isHovered = false;
     private boolean isClicked = false;
     private Runnable onClick;

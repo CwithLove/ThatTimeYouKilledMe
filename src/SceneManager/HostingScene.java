@@ -8,6 +8,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import javax.swing.SwingUtilities;
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 
 import Network.GameClient;
 import Network.GameServerManager;
@@ -15,6 +16,7 @@ import Network.GameStateUpdateListener;
 import Modele.Jeu;
 
 public class HostingScene implements Scene, GameStateUpdateListener {
+
     private SceneManager sceneManager;
     private GameServerManager gameServerManager; // Chỉ được quản lý bởi HostingScene
     private Button startGameButton;
@@ -23,6 +25,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private GameClient hostClient; // Client của Host, kết nối vào server của chính Host
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean playerTwoConfirmedConnected = false;
+    private volatile boolean hostClientConnected = false; // 新增：标记主机客户端是否已连接
 
     private MouseAdapter mouseAdapterInternal;
     private long startTime;
@@ -37,27 +40,31 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         this.sceneManager = sceneManager;
 
         startGameButton = new Button(300, 400, 200, 50, "Lancer la partie", () -> {
-            if (serverSuccessfullyStarted && playerTwoConfirmedConnected) {
+            if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {
                 System.out.println("HostingScene: Lancement du GameEngine.");
                 if (gameServerManager != null && gameServerManager.areAllPlayersConnected()) {
                     gameServerManager.startGameEngine();
 
                     try {
-                        Thread.sleep(2000); // Attendre 1 seconde pour s'assurer que le moteur de jeu est prêt
+                        // 等待游戏引擎准备就绪
+                        Thread.sleep(1000);
+
+                        // 确保主机客户端已连接
+                        if (hostClient != null && hostClient.isConnected()) {
+                            System.out.println("HostingScene: Client hôte déjà connecté. Passage à GameScene.");
+                            SwingUtilities.invokeLater(() -> {
+                                GameScene gameScene = new GameScene(sceneManager, hostClient);
+                                sceneManager.setScene(gameScene);
+                            });
+                        } else {
+                            statusMessage = "Erreur: Client hôte non connecté.";
+                            repaintPanel();
+                            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                    "Le client hôte n'est pas connecté. Veuillez réessayer.",
+                                    "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                        }
                     } catch (InterruptedException e) {
                         System.err.println("HostingScene: Erreur attente avant passage à GameScene: " + e.getMessage());
-                    }
-
-                    hostClient = new GameClient("localhost", this);
-                    try {
-                        hostClient.connect();
-                        System.out.println("HostingScene: Client hôte connecté. Passage à GameScene.");
-                        SwingUtilities.invokeLater(() -> {
-                            GameScene gameScene = new GameScene(sceneManager, hostClient);
-                            sceneManager.setScene(gameScene);
-                        });
-                    } catch (IOException e) {
-                        handleHostClientConnectionError(e);
                     }
                 } else {
                     statusMessage = "Attente: Tous les joueurs ne sont pas prêts.";
@@ -105,25 +112,82 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         fadeComplete = false;
         playerTwoConfirmedConnected = false;
         serverSuccessfullyStarted = false;
+        hostClientConnected = false; // 重置主机客户端连接状态
         statusMessage = "Démarrage du serveur hôte...";
 
         setupMouseListeners();
 
-        this.gameServerManager = new GameServerManager(this);
-        try {
-            gameServerManager.startServer();
-            serverSuccessfullyStarted = true;
-            statusMessage = "Serveur démarré sur IP: " + hostIP + ". En attente du Joueur 2...";
-            System.out.println("HostingScene: Serveur démarré.");
-        } catch (IOException e) {
-            serverSuccessfullyStarted = false;
-            statusMessage = "Erreur démarrage serveur: " + e.getMessage();
-            System.err.println("HostingScene: Erreur démarrage serveur: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+        // 使用SwingWorker在后台线程启动服务器和连接主机客户端
+        SwingWorker<Void, String> initWorker = new SwingWorker<Void, String>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                // 步骤1：启动服务器
+                publish("Démarrage du serveur hôte...");
+                gameServerManager = new GameServerManager(HostingScene.this);
+                try {
+                    gameServerManager.startServer();
+                    serverSuccessfullyStarted = true;
+                    publish("Serveur démarré sur IP: " + hostIP);
+                    System.out.println("HostingScene: Serveur démarré.");
+
+                    // 等待服务器完全启动
+                    Thread.sleep(500);
+
+                    // 步骤2：立即作为玩家1连接到服务器
+                    publish("Connexion de l'hôte en tant que Joueur 1...");
+                    hostClient = new GameClient("localhost", HostingScene.this);
+                    try {
+                        hostClient.connect();
+                        hostClientConnected = true;
+                        System.out.println("HostingScene: Hôte connecté en tant que Joueur 1 (ID: " + hostClient.getMyPlayerId() + ")");
+                        publish("Hôte connecté! En attente du Joueur 2...");
+                    } catch (IOException e) {
+                        System.err.println("HostingScene: Erreur lors de la connexion de l'hôte: " + e.getMessage());
+                        e.printStackTrace();
+                        publish("Erreur connexion hôte: " + e.getMessage());
+                    }
+
+                } catch (IOException e) {
+                    serverSuccessfullyStarted = false;
+                    System.err.println("HostingScene: Erreur démarrage serveur: " + e.getMessage());
+                    e.printStackTrace();
+                    publish("Erreur démarrage serveur: " + e.getMessage());
+
+                    // 显示弹窗在EDT线程上
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                 "Impossible de démarrer le serveur : " + e.getMessage(),
                                 "Erreur Serveur", JOptionPane.ERROR_MESSAGE);
-        }
+                    });
+                }
+
+                return null;
+            }
+
+            @Override
+            protected void process(java.util.List<String> chunks) {
+                // 更新UI的状态消息
+                if (!chunks.isEmpty()) {
+                    statusMessage = chunks.get(chunks.size() - 1);
+                    repaintPanel();
+                }
+            }
+
+            @Override
+            protected void done() {
+                // 后台任务完成后更新UI
+                if (!serverSuccessfullyStarted) {
+                    statusMessage = "Échec du démarrage du serveur.";
+                } else if (!hostClientConnected) {
+                    statusMessage = "Serveur démarré, mais échec de connexion de l'hôte.";
+                } else {
+                    statusMessage = "Serveur démarré sur IP: " + hostIP + ". En attente du Joueur 2...";
+                }
+                repaintPanel();
+            }
+        };
+
+        initWorker.execute();
         lastDotTime = startTime;
         repaintPanel();
     }
@@ -144,7 +208,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         if (!fadeComplete) {
             long elapsed = System.currentTimeMillis() - startTime;
             alpha = Math.min(1f, elapsed / 1000f);
-            if (alpha >= 1f) fadeComplete = true;
+            if (alpha >= 1f) {
+                fadeComplete = true;
+            }
         }
 
         long currentTime = System.currentTimeMillis();
@@ -154,16 +220,18 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         }
 
         if (fadeComplete && sceneManager.getPanel() != null) {
-             Point mousePos = sceneManager.getPanel().getMousePosition();
-             if (mousePos != null) {
-                 if (serverSuccessfullyStarted && playerTwoConfirmedConnected) {
-                     startGameButton.update(mousePos);
-                 } else {
-                     if(startGameButton.contains(mousePos)) startGameButton.update(new Point(-1,-1));
-                 }
-                 backButton.update(mousePos);
-                 repaintPanel(); // Repaint khi có di chuyển chuột để hover button chính xác
-             }
+            Point mousePos = sceneManager.getPanel().getMousePosition();
+            if (mousePos != null) {
+                if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {
+                    startGameButton.update(mousePos);
+                } else {
+                    if (startGameButton.contains(mousePos)) {
+                        startGameButton.update(new Point(-1, -1));
+                    }
+                }
+                backButton.update(mousePos);
+                repaintPanel(); // Repaint khi có di chuyển chuột để hover button chính xác
+            }
         }
     }
 
@@ -195,7 +263,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             g2d.setColor(Color.GREEN);
         } else if (serverSuccessfullyStarted) {
             String dots = "";
-            for (int i = 0; i < animationDots; i++) dots += ".";
+            for (int i = 0; i < animationDots; i++) {
+                dots += ".";
+            }
             player2StatusText = "Joueur 2: En attente de connexion" + dots;
             g2d.setColor(Color.YELLOW);
         } else {
@@ -206,7 +276,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         g2d.setColor(Color.WHITE);
 
         if (statusMessage != null && !statusMessage.isEmpty()) {
-            g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize * 3/4));
+            g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize * 3 / 4));
             FontMetrics statusMetrics = g2d.getFontMetrics();
             int statusWidth = statusMetrics.stringWidth(statusMessage);
             g2d.drawString(statusMessage, (width - statusWidth) / 2, height / 2);
@@ -221,9 +291,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         startGameButton.setLocation(width / 2 - btnWidth / 2, height * 3 / 5);
         startGameButton.setFont(commonBtnFont);
 
-        backButton.setSize(btnWidth * 3/4, btnHeight * 3/4);
-        backButton.setLocation(50, height - (btnHeight*3/4) - 30);
-        backButton.setFont(new Font("Arial", Font.PLAIN, btnFontSize * 3/4));
+        backButton.setSize(btnWidth * 3 / 4, btnHeight * 3 / 4);
+        backButton.setLocation(50, height - (btnHeight * 3 / 4) - 30);
+        backButton.setFont(new Font("Arial", Font.PLAIN, btnFontSize * 3 / 4));
 
         if (serverSuccessfullyStarted && playerTwoConfirmedConnected) {
             startGameButton.render(g2d);
@@ -242,7 +312,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         mouseAdapterInternal = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (!fadeComplete) return;
+                if (!fadeComplete) {
+                    return;
+                }
                 Point mousePoint = e.getPoint();
                 if (startGameButton.contains(mousePoint) && serverSuccessfullyStarted && playerTwoConfirmedConnected) {
                     startGameButton.onClick();
@@ -250,9 +322,12 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     backButton.onClick();
                 }
             }
+
             @Override
             public void mousePressed(MouseEvent e) {
-                if (!fadeComplete) return;
+                if (!fadeComplete) {
+                    return;
+                }
                 Point mousePoint = e.getPoint();
                 if (startGameButton.contains(mousePoint) && serverSuccessfullyStarted && playerTwoConfirmedConnected) {
                     startGameButton.setClicked(true);
@@ -261,6 +336,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 }
                 repaintPanel();
             }
+
             @Override
             public void mouseReleased(MouseEvent e) {
                 startGameButton.setClicked(false);
@@ -271,7 +347,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         if (sceneManager.getPanel() != null) {
             sceneManager.getPanel().addMouseListener(mouseAdapterInternal);
             // Add MouseMotionListener if needed for Button.update in mouseMoved
-             sceneManager.getPanel().addMouseMotionListener(mouseAdapterInternal);
+            sceneManager.getPanel().addMouseMotionListener(mouseAdapterInternal);
         }
     }
 
@@ -297,7 +373,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         if (gameServerManager != null) {
             gameServerManager.stopServer();
         }
-         if (hostClient != null) {
+        if (hostClient != null) {
             hostClient.disconnect();
         }
         System.out.println("HostingScene disposée.");
@@ -318,8 +394,8 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             if ("ERROR".equalsIgnoreCase(messageType) || "DISCONNECTED".equalsIgnoreCase(messageType)) {
                 statusMessage = "Client Hôte: " + messageType + " - " + messageContent;
                 JOptionPane.showMessageDialog(sceneManager.getPanel(),
-                    "Problème avec le client hôte interne: " + messageContent,
-                    "Erreur Client Hôte", JOptionPane.ERROR_MESSAGE);
+                        "Problème avec le client hôte interne: " + messageContent,
+                        "Erreur Client Hôte", JOptionPane.ERROR_MESSAGE);
                 repaintPanel();
                 // Có thể cần xử lý thêm, ví dụ quay về MultiplayerScene
             }

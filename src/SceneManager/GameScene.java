@@ -53,6 +53,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // MouseMotionListener được gộp vào MouseAdapter nếu mouseAdapterInternal kế thừa MouseAdapter và implement MouseMotionListener
     // Hoặc tạo một biến riêng cho MouseMotionListener
 
+    // Ajout pour la gestion du serveur en mode multijoueur
+    private GameServerManager hostServerManager; // Instance du serveur reprise de HostingScene
+
     // Constructor cho Single Player (tự host server và AI)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
         this.sceneManager = sceneManager;
@@ -77,19 +80,53 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     // Constructor cho Host trong Multiplayer (đã có GameClient được kết nối từ HostingScene)
-    public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient) {
+    public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient, GameServerManager serverManager) {
         this.sceneManager = sceneManager;
         this.isOperatingInSinglePlayerMode = false;
-        this.gameClient = alreadyConnectedHostClient; // Sử dụng client đã được cung cấp
-        if (this.gameClient != null) {
-            this.gameClient.setListener(this); // Đảm bảo listener là GameScene này
-            this.jeu = this.gameClient.getGameInstance(); // Lấy trạng thái game ban đầu
-            updateStatusFromCurrentGame(false); // Cập nhật status message ban đầu
+        this.gameClient = alreadyConnectedHostClient; // Utilise le client déjà connecté
+        this.hostServerManager = serverManager; // Reprend la gestion du serveur
+        
+        if (this.gameClient == null) {
+            this.statusMessage = "Erreur fatale: Client hôte non fourni à GameScene.";
+            System.err.println(this.statusMessage);
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), 
+                    "Erreur fatale lors de l'initialisation du jeu: Client hôte manquant.", 
+                    "Erreur d'Initialisation", JOptionPane.ERROR_MESSAGE);
+                cleanUpAndGoToMenu();
+            });
+        } else if (!this.gameClient.isConnected()) {
+            this.statusMessage = "Erreur fatale: Client hôte non connecté.";
+            System.err.println(this.statusMessage);
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), 
+                    "Erreur fatale lors de l'initialisation du jeu: Client hôte déconnecté.", 
+                    "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                cleanUpAndGoToMenu();
+            });
         } else {
-            this.statusMessage = "Erreur: Client hôte non fourni à GameScene.";
-            System.err.println(statusMessage);
+            System.out.println("GameScene: Initialisation avec client hôte (ID: " + this.gameClient.getMyPlayerId() + 
+                (this.hostServerManager != null ? ", avec serveur hôte" : ", sans serveur hôte"));
+            
+            this.gameClient.setListener(this); // Définit cette scène comme écouteur
+            this.jeu = this.gameClient.getGameInstance(); // Obtient l'état initial du jeu
+            
+            if (this.jeu == null) {
+                System.out.println("GameScene: Instance de jeu est null, attente de mise à jour du serveur");
+                this.statusMessage = "En attente de l'état du jeu...";
+            } else {
+                System.out.println("GameScene: Instance de jeu reçue (Joueur courant: " + 
+                    (this.jeu.getJoueurCourant() != null ? this.jeu.getJoueurCourant().getId() : "non défini") + ")");
+                updateStatusFromCurrentGame(false); // Met à jour le message de statut initial
+            }
         }
+        
         commonUIInit();
+    }
+
+    // Modifie le constructeur original pour maintenir la compatibilité
+    public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient) {
+        this(sceneManager, alreadyConnectedHostClient, null);
     }
 
     private void commonUIInit() {
@@ -125,23 +162,31 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     private void cleanUpAndGoToMenu() {
-        isLoading = false; // Dừng mọi trạng thái loading
+        isLoading = false; // Arrête tous les états de chargement
         if (gameClient != null) {
             gameClient.disconnect();
             gameClient = null;
         }
-        // Dừng server và AI CHỈ nếu GameScene này chịu trách nhiệm khởi động chúng (chế độ single player)
+        
+        // Si cette GameScene gère le serveur hôte, l'arrêter
+        if (hostServerManager != null) {
+            System.out.println("GameScene: Arrêt du serveur hôte avant retour au menu.");
+            hostServerManager.stopServer();
+            hostServerManager = null;
+        }
+        
+        // En mode solo, arrête le serveur et l'IA seulement si cette GameScene les a créés
         if (isOperatingInSinglePlayerMode) {
             if (localAIClientThread != null && localAIClientThread.isAlive()) {
-                if(aiClientInstance != null) aiClientInstance.disconnect(); // Yêu cầu AI client ngắt kết nối
-                localAIClientThread.interrupt(); // Ngắt luồng AI
+                if(aiClientInstance != null) aiClientInstance.disconnect(); // Demande à l'IA de se déconnecter
+                localAIClientThread.interrupt(); // Interrompt le thread de l'IA
                 localAIClientThread = null;
                 aiClientInstance = null;
                  System.out.println("GameScene (Solo): Thread AI arrêté.");
             }
             if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
                 localSinglePlayerServerManager.stopServer();
-                // Không set localSinglePlayerServerManager = null để có thể kiểm tra isServerRunning lần sau
+                // Ne pas définir localSinglePlayerServerManager = null pour pouvoir vérifier isServerRunning plus tard
                 System.out.println("GameScene (Solo): Serveur local arrêté.");
             }
         }
@@ -158,9 +203,50 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         if (gameClient != null && gameClient.isConnected()) {
             // Trường hợp Host vào GameScene, client đã được kết nối và truyền vào
-            System.out.println("GameScene (Host): Utilisation du GameClient déjà connecté.");
-            isLoading = false; // Host đã kết nối, không cần loading kéo dài
-            updateStatusFromCurrentGame(false);
+            System.out.println("GameScene: Utilisation du GameClient déjà connecté.");
+            
+            // Ajoute un mécanisme de timeout pour éviter d'attendre indéfiniment l'état du jeu
+            if (this.jeu == null) {
+                System.out.println("GameScene: Attente de l'état initial du jeu avec timeout...");
+                new SwingWorker<Boolean, Void>() {
+                    @Override
+                    protected Boolean doInBackground() throws Exception {
+                        // Attend l'état du jeu pendant 5 secondes maximum
+                        for (int i = 0; i < 25; i++) {
+                            Thread.sleep(200);
+                            if (jeu != null) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    @Override
+                    protected void done() {
+                        try {
+                            boolean success = get();
+                            isLoading = false;
+                            
+                            if (success) {
+                                System.out.println("GameScene: État de jeu reçu avec succès");
+                                updateStatusFromCurrentGame(false);
+                            } else {
+                                System.err.println("GameScene: Timeout en attendant l'état du jeu");
+                                statusMessage = "Erreur: Impossible d'obtenir l'état du jeu";
+                                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                    "Timeout en attendant l'état du jeu. Essayez de redémarrer la partie.",
+                                    "Erreur de Synchronisation", JOptionPane.ERROR_MESSAGE);
+                            }
+                            repaintPanel();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }.execute();
+            } else {
+                isLoading = false; // Host đã kết nối, không cần loading kéo dài
+                updateStatusFromCurrentGame(false);
+            }
         } else if (isOperatingInSinglePlayerMode) {
             statusMessage = "Mode Solo: Démarrage du serveur local...";
             startSinglePlayerServerAndClients(); // Sẽ chạy trong SwingWorker
@@ -355,19 +441,30 @@ public class GameScene implements Scene, GameStateUpdateListener {
         if (!isLoading && !gameHasEnded && sceneManager != null && sceneManager.getPanel() != null) {
             Point mousePos = sceneManager.getPanel().getMousePosition();
             if (mousePos != null) {
-                backButton.update(mousePos);
-                boolean myTurn = isMyTurn(); // Kiểm tra một lần
-
+                // Traite d'abord le bouton retour
+                boolean backContained = backButton.contains(mousePos);
+                if (backContained) {
+                    backButton.update(mousePos);
+                } else if (!backContained && mousePos.x != -1) {
+                    backButton.update(new Point(-1, -1));
+                }
+                
+                boolean myTurn = isMyTurn(); // Vérifie si c'est le tour du joueur
+                
+                // Activer les boutons d'action seulement quand c'est notre tour et qu'une pièce est sélectionnée
                 if (myTurn && selectedPiecePosition != null) {
                     moveButton.update(mousePos);
                     jumpButton.update(mousePos);
                     cloneButton.update(mousePos);
-                } else { // Không phải lượt hoặc không có quân nào được chọn -> không hover nút action
-                    if(moveButton.contains(mousePos)) moveButton.update(new Point(-1,-1));
-                    if(jumpButton.contains(mousePos)) jumpButton.update(new Point(-1,-1));
-                    if(cloneButton.contains(mousePos)) cloneButton.update(new Point(-1,-1));
+                } else {
+                    // Si ce n'est pas notre tour ou aucune pièce sélectionnée, s'assurer que les boutons ne sont pas en survol
+                    moveButton.update(new Point(-1, -1));
+                    jumpButton.update(new Point(-1, -1));
+                    cloneButton.update(new Point(-1, -1));
                 }
-                // repaintPanel(); // Có thể không cần thiết nếu render() được gọi thường xuyên
+                
+                // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
+                repaintPanel();
             }
         }
     }
@@ -599,18 +696,39 @@ public class GameScene implements Scene, GameStateUpdateListener {
             public void mousePressed(MouseEvent e) {
                 if (isLoading || gameHasEnded) return;
                 Point mousePoint = e.getPoint();
-                if (backButton.contains(mousePoint)) backButton.setClicked(true);
-                if (selectedPiecePosition != null && isMyTurn()) {
-                    if (moveButton.contains(mousePoint)) moveButton.setClicked(true);
-                    if (jumpButton.contains(mousePoint)) jumpButton.setClicked(true);
-                    if (cloneButton.contains(mousePoint)) cloneButton.setClicked(true);
+                
+                boolean needsRepaint = false;
+                
+                if (backButton.contains(mousePoint)) {
+                    backButton.setClicked(true);
+                    needsRepaint = true;
                 }
-                repaintPanel();
+                
+                if (selectedPiecePosition != null && isMyTurn()) {
+                    if (moveButton.contains(mousePoint)) {
+                        moveButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                    if (jumpButton.contains(mousePoint)) {
+                        jumpButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                    if (cloneButton.contains(mousePoint)) {
+                        cloneButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                }
+                
+                if (needsRepaint) {
+                    repaintPanel();
+                }
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (isLoading || gameHasEnded) return;
+                
+                // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
                 moveButton.setClicked(false);
                 jumpButton.setClicked(false);
@@ -620,19 +738,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
         };
 
         // MouseMotionListener cũng cần được quản lý tương tự
-        // Nếu mouseAdapterInternal cũng implement MouseMotionListener, thì một lần add/remove là đủ.
-        // Nếu không, bạn cần một biến riêng cho MouseMotionListener.
         // Ở đây, MouseAdapter không implement MouseMotionListener, nên chúng ta cần một MouseMotionListener riêng.
         // Tuy nhiên, logic hover đã được đưa vào `update()`, nên `mouseMoved` không còn quá cần thiết ở đây.
-        // Nếu bạn vẫn muốn dùng mouseMoved cho hover, hãy tạo một MouseMotionAdapter riêng.
-        // Ví dụ: (trong setupMouseListeners)
-        // mouseMotionAdapterInternal = new MouseMotionAdapter() { ... };
-        // sceneManager.getPanel().addMouseMotionListener(mouseMotionAdapterInternal);
 
         if (sceneManager.getPanel() != null) {
             sceneManager.getPanel().addMouseListener(mouseAdapterInternal);
-            // Nếu bạn có logic hover trong mouseMoved của adapter riêng:
-            // sceneManager.getPanel().addMouseMotionListener(mouseMotionAdapterForHover);
         }
     }
 
@@ -667,6 +777,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int clickedRow = boardCoords.x;
             int clickedCol = boardCoords.y;
             Piece pieceAtClick = clickedPlateauObj.getPiece(clickedRow, clickedCol);
+            boolean needsRepaint = false; // Indique si un repaint est nécessaire
 
             if (selectedPiecePosition == null) { // CHƯA CHỌN QUÂN CỜ
                 if (pieceAtClick != null && pieceAtClick.getOwner().getId() == gameClient.getMyPlayerId()) {
@@ -674,9 +785,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     selectedPlateauType = clickedPlateauObj.getType();
                     nextActionType = null; // Reset action khi chọn quân mới
                     statusMessage = "Pion (" + selectedPlateauType + " " + clickedRow + "," + clickedCol + ") sélectionné. Choisissez une action.";
+                    needsRepaint = true;
                 } else {
                     statusMessage = "Cliquez sur un de VOS pions.";
                     resetSelection();
+                    needsRepaint = true;
                 }
             } else { // ĐÃ CHỌN QUÂN CỜ
                 if (nextActionType == null) { // Chưa chọn MOVE/JUMP/CLONE bằng nút
@@ -684,17 +797,21 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         clickedRow == selectedPiecePosition.x && clickedCol == selectedPiecePosition.y) {
                         resetSelection(); // Click lại quân cũ -> bỏ chọn
                         statusMessage = "Pion désélectionné.";
+                        needsRepaint = true;
                     } else if (pieceAtClick != null && pieceAtClick.getOwner().getId() == gameClient.getMyPlayerId()) {
                         selectedPiecePosition = new Point(clickedRow, clickedCol); // Chọn quân khác của mình
                         selectedPlateauType = clickedPlateauObj.getType();
                         statusMessage = "Nouveau pion sélectionné. Choisissez une action.";
+                        needsRepaint = true;
                     } else {
                         // Click vào ô trống/quân địch khi chưa có action -> không làm gì, chờ nút action
                         statusMessage = "Pion ("+selectedPlateauType+" "+selectedPiecePosition.x+","+selectedPiecePosition.y+ ") sélectionné. Choisissez une ACTION.";
+                        needsRepaint = true;
                     }
                 } else if (nextActionType == Coup.TypeCoup.MOVE) {
                     if (!clickedPlateauObj.getType().equals(selectedPlateauType)) {
                         statusMessage = "MOVE doit être sur le même plateau (" + selectedPlateauType + ").";
+                        needsRepaint = true;
                     } else {
                         // Tính toán dx, dy dựa trên vị trí nguồn và đích
                         int dx = clickedRow - selectedPiecePosition.x;
@@ -708,23 +825,37 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             gameClient.sendPlayerAction(command);
                             statusMessage = "MOVE envoyé à ("+clickedRow+","+clickedCol+"). Attente serveur...";
                             resetSelectionAfterAction();
+                            needsRepaint = true;
                         } else {
                             statusMessage = "Destination invalide pour MOVE. Doit être une case adjacente.";
+                            needsRepaint = true;
                             // Không reset nextActionType, cho phép thử lại đích MOVE
                         }
                     }
                 }
                 // JUMP và CLONE đã được xử lý bởi handleActionCommand() khi nhấn nút
             }
+            
+            // Ne repeindre que si nécessaire
+            if (needsRepaint) {
+                repaintPanel();
+            }
         } else { // Click bên ngoài bàn cờ
+            boolean needsRepaint = false;
+            
             if (selectedPiecePosition != null && nextActionType == null) {
                 resetSelection(); // Bỏ chọn nếu click ra ngoài khi chưa chọn action
                 statusMessage = "Pion désélectionné (clic extérieur).";
+                needsRepaint = true;
             } else if (selectedPiecePosition == null) {
                 statusMessage = "Cliquez sur un de vos pions.";
+                needsRepaint = true;
+            }
+            
+            if (needsRepaint) {
+                repaintPanel();
             }
         }
-        repaintPanel();
     }
 
     // --- Các hàm helper getPlateauFromMousePoint, getBoardCoordinates, repaintPanel, resetSelection, resetSelectionAfterAction ---
@@ -841,11 +972,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
     @Override
     public void onGameStateUpdate(Jeu newGameState) {
         // Được gọi từ GameClient, đã nằm trên EDT
+        System.out.println("GameScene: Nouvelle mise à jour d'état de jeu reçue.");
+        
+        if (this.jeu == null && newGameState != null) {
+            System.out.println("GameScene: Premier état de jeu reçu.");
+        }
+        
         this.jeu = newGameState;
         isLoading = false; // Game state received, no longer "initial loading"
         updateStatusFromCurrentGame(true);
         gameHasEnded = false; // Chờ tin nhắn GAGNE/PERDU cụ thể
         resetSelectionAfterAction(); // Xóa lựa chọn UI sau khi server cập nhật
+        
+        if (newGameState != null && newGameState.getJoueurCourant() != null) {
+            System.out.println("GameScene: Tour actuel - Joueur " + newGameState.getJoueurCourant().getId() 
+                + " (" + newGameState.getJoueurCourant().getNom() + ")");
+        }
+        
         repaintPanel();
     }
 
@@ -893,12 +1036,20 @@ public class GameScene implements Scene, GameStateUpdateListener {
         isLoading = false;
         clearMouseListeners();
 
-        // Dọn dẹp client và server nếu GameScene chịu trách nhiệm
+        // Nettoie le client et le serveur
         if (gameClient != null) {
             gameClient.disconnect();
             gameClient = null;
         }
-        if (isOperatingInSinglePlayerMode) { // Chỉ dừng server và AI nếu GameScene khởi tạo chúng
+        
+        // Si cette GameScene gère le serveur hôte, l'arrêter
+        if (hostServerManager != null) {
+            System.out.println("GameScene: Arrêt du serveur hôte géré par GameScene.");
+            hostServerManager.stopServer();
+            hostServerManager = null;
+        }
+        
+        if (isOperatingInSinglePlayerMode) { // Nettoyage du serveur et IA en mode solo
             if (aiClientInstance != null) {
                 aiClientInstance.disconnect();
                 aiClientInstance = null;
@@ -909,7 +1060,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
             if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
                 localSinglePlayerServerManager.stopServer();
-                // localSinglePlayerServerManager = null; // Không nullify static ở đây, trừ khi muốn reset hoàn toàn
             }
             System.out.println("GameScene (Solo): Ressources serveur/AI nettoyées.");
         }

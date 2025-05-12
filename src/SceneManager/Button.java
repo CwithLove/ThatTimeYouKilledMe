@@ -13,6 +13,7 @@ public class Button {
     private boolean isHovered = false;
     private boolean isClicked = false;
     private Runnable onClick;
+    private boolean enabled = true;
 
     public Button(int x, int y, int width, int height, String text, Runnable onClick) {
         this.rect = new Rectangle(x, y, width, height);
@@ -25,29 +26,50 @@ public class Button {
     }
 
     public void update(Point mousePos) {
+        if (!enabled) {
+            isHovered = false;
+            return;
+        }
+        
         isHovered = rect.contains(mousePos);
     }
 
     public void render(Graphics2D g2d) {
-        if (isClicked) {
-            g2d.setColor(clickColor);
-        } else if (isHovered) {
-            g2d.setColor(hoverColor);
+        if (enabled) {
+            if (isClicked) {
+                g2d.setColor(clickColor);
+            } else if (isHovered) {
+                g2d.setColor(hoverColor);
+            } else {
+                g2d.setColor(normalColor);
+            }
         } else {
-            g2d.setColor(normalColor);
+            g2d.setColor(new Color(100, 100, 100));
         }
         g2d.fill(rect);
+
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(rect.x, rect.y, rect.width, rect.height);
 
         g2d.setColor(Color.WHITE);
         g2d.setFont(font);
         FontMetrics metrics = g2d.getFontMetrics();
         int textWidth = metrics.stringWidth(text);
         int textHeight = metrics.getHeight();
-        g2d.drawString(text, rect.x + (rect.width - textWidth) / 2, rect.y + (rect.height + textHeight / 2) / 2);
+        int textX = rect.x + (rect.width - textWidth) / 2;
+        int textY = rect.y + ((rect.height - textHeight) / 2) + metrics.getAscent();
+
+        if (enabled) {
+            g2d.setColor(Color.BLACK);
+        } else {
+            g2d.setColor(new Color(70, 70, 70));
+        }
+
+        g2d.drawString(text, textX, textY);
     }
 
     public void onClick() {
-        if (onClick != null) {
+        if (enabled && onClick != null) {
             onClick.run();
         }
     }
@@ -98,5 +120,13 @@ public class Button {
 
     public int getHeight() {
         return rect.height;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 }

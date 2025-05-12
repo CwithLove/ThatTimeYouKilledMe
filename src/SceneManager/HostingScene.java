@@ -25,7 +25,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private GameClient hostClient; // Client của Host, kết nối vào server của chính Host
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean playerTwoConfirmedConnected = false;
-    private volatile boolean hostClientConnected = false; // 新增：标记主机客户端是否已连接
+    private volatile boolean hostClientConnected = false; // Indique si le client hôte est connecté
 
     private MouseAdapter mouseAdapterInternal;
     private long startTime;
@@ -36,36 +36,119 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private long lastDotTime = 0;
     private String statusMessage = "Initialisation...";
 
+    private boolean transitioningToGameScene = false;
+
     public HostingScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
 
         startGameButton = new Button(300, 400, 200, 50, "Lancer la partie", () -> {
             if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {
-                System.out.println("HostingScene: Lancement du GameEngine.");
+                System.out.println("HostingScene: Tentative de lancement du jeu...");
                 if (gameServerManager != null && gameServerManager.areAllPlayersConnected()) {
-                    gameServerManager.startGameEngine();
-
-                    try {
-                        // 等待游戏引擎准备就绪
-                        Thread.sleep(1000);
-
-                        // 确保主机客户端已连接
-                        if (hostClient != null && hostClient.isConnected()) {
-                            System.out.println("HostingScene: Client hôte déjà connecté. Passage à GameScene.");
-                            SwingUtilities.invokeLater(() -> {
-                                GameScene gameScene = new GameScene(sceneManager, hostClient);
-                                sceneManager.setScene(gameScene);
-                            });
-                        } else {
-                            statusMessage = "Erreur: Client hôte non connecté.";
-                            repaintPanel();
-                            JOptionPane.showMessageDialog(sceneManager.getPanel(),
-                                    "Le client hôte n'est pas connecté. Veuillez réessayer.",
-                                    "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                    // Désactive le bouton de démarrage 
+                    // pour eviter les clics multiples
+                    startGameButton.setEnabled(false);
+                    statusMessage = "Démarrage du jeu en cours...";
+                    repaintPanel();
+                    
+                    // Utilise SwingWorker pour gérer le démarrage du jeu en arriere
+                    SwingWorker<Void, String> gameStarter = new SwingWorker<Void, String>() {
+                        @Override
+                        protected Void doInBackground() throws Exception {
+                            try {
+                                // Lance le moteur de jeu
+                                publish("Initialisation du moteur de jeu...");
+                                gameServerManager.startGameEngine();
+                                
+                                // Donne au serveur un peu de temps
+                                Thread.sleep(800);
+                                
+                                if (hostClient == null || !hostClient.isConnected()) {
+                                    throw new Exception("Client hôte non connecté ou invalide");
+                                }
+                                
+                                // Verifie si l'instance de jeu est initialisée
+                                if (hostClient.getGameInstance() == null) {
+                                    publish("Attente de l'état initial du jeu...");
+                                    for (int i = 0; i < 5; i++) { // Essaie 5 fois, toutes les 200ms
+                                        Thread.sleep(200);
+                                        if (hostClient.getGameInstance() != null) {
+                                            System.out.println("HostingScene: État de jeu reçu après " + (i+1) + " tentatives");
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                return null;
+                            } catch (Exception e) {
+                                System.err.println("HostingScene: Erreur lors du démarrage du jeu: " + e.getMessage());
+                                e.printStackTrace();
+                                throw e; // Relance l'exception pour traitement dans done()
+                            }
                         }
-                    } catch (InterruptedException e) {
-                        System.err.println("HostingScene: Erreur attente avant passage à GameScene: " + e.getMessage());
-                    }
+                        
+                        @Override
+                        protected void process(java.util.List<String> chunks) {
+                            if (!chunks.isEmpty()) {
+                                statusMessage = chunks.get(chunks.size() - 1);
+                                repaintPanel();
+                            }
+                        }
+                        
+                        @Override
+                        protected void done() {
+                            try {
+                                get(); // Vérifie s'il y a des exceptions
+                                
+                                if (hostClient != null && hostClient.isConnected()) {
+                                    System.out.println("HostingScene: Passage à GameScene avec client ID: " + hostClient.getMyPlayerId());
+                                    
+                                    // Marque la transition vers GameScene pour éviter la fermeture du serveur
+                                    setTransitioningToGameScene(true);
+                                    
+                                    // Assure la création et le changement de scène sur le thread EDT
+                                    SwingUtilities.invokeLater(() -> {
+                                        try {
+                                            // Crée une nouvelle GameScene avec le client hôte et le gestionnaire de serveur
+                                            GameScene gameScene = new GameScene(sceneManager, hostClient, gameServerManager);
+                                            System.out.println("HostingScene: GameScene créée avec le serveur transféré");
+                                            
+                                            // Après transfert de la gestion du serveur à GameScene, supprime la référence ici
+                                            gameServerManager = null;
+                                            
+                                            // Change vers la scène de jeu
+                                            sceneManager.setScene(gameScene);
+                                            System.out.println("HostingScene: Transition vers GameScene terminée");
+                                        } catch (Exception e) {
+                                            System.err.println("HostingScene: Erreur critique lors de la création de GameScene: " + e.getMessage());
+                                            e.printStackTrace();
+                                            statusMessage = "Erreur critique: " + e.getMessage();
+                                            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                                    "Erreur lors du lancement du jeu: " + e.getMessage(),
+                                                    "Erreur Critique", JOptionPane.ERROR_MESSAGE);
+                                            // Réactive le bouton pour permettre une nouvelle tentative
+                                            startGameButton.setEnabled(true);
+                                            repaintPanel();
+                                        }
+                                    });
+                                } else {
+                                    throw new Exception("Client hôte non connecté après initialisation");
+                                }
+                            } catch (Exception e) {
+                                System.err.println("HostingScene: Erreur finale: " + e.getMessage());
+                                statusMessage = "Échec du lancement: " + e.getMessage();
+                                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                        "Impossible de démarrer le jeu: " + e.getMessage(),
+                                        "Erreur de Lancement", JOptionPane.ERROR_MESSAGE);
+                                // Réactive le bouton pour permettre une nouvelle tentative
+                                startGameButton.setEnabled(true);
+                                repaintPanel();
+                            }
+                        }
+                    };
+                    
+                    // Exécute la tâche en arrière-plan
+                    gameStarter.execute();
                 } else {
                     statusMessage = "Attente: Tous les joueurs ne sont pas prêts.";
                     repaintPanel();
@@ -94,10 +177,16 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     }
 
     private void cleanUpAndGoToMenu() {
-        if (gameServerManager != null) {
-            gameServerManager.stopServer(); // Dừng server khi rời khỏi HostingScene
+        System.out.println("HostingScene: cleanUpAndGoToMenu invoquée, transitioningToGameScene=" + transitioningToGameScene);
+        // Uniquement nettoyer le serveur si on ne passe PAS à GameScene
+        if (!transitioningToGameScene && gameServerManager != null) {
+            System.out.println("HostingScene: Arrêt du serveur avant retour au menu");
+            gameServerManager.stopServer(); // Arrête le serveur
             gameServerManager = null;
+        } else if (transitioningToGameScene) {
+            System.out.println("HostingScene: Préservation du serveur pour GameScene");
         }
+        
         if (hostClient != null) {
             hostClient.disconnect();
             hostClient = null;
@@ -112,28 +201,28 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         fadeComplete = false;
         playerTwoConfirmedConnected = false;
         serverSuccessfullyStarted = false;
-        hostClientConnected = false; // 重置主机客户端连接状态
+        hostClientConnected = false; // Réinitialise l'état de connexion du client hôte
         statusMessage = "Démarrage du serveur hôte...";
 
         setupMouseListeners();
 
-        // 使用SwingWorker在后台线程启动服务器和连接主机客户端
+        // Utilise SwingWorker pour démarrer le serveur et connecter le client hôte en arrière-plan
         SwingWorker<Void, String> initWorker = new SwingWorker<Void, String>() {
             @Override
             protected Void doInBackground() throws Exception {
-                // 步骤1：启动服务器
+                // Étape 1: Démarrage du serveur
                 publish("Démarrage du serveur hôte...");
                 gameServerManager = new GameServerManager(HostingScene.this);
                 try {
                     gameServerManager.startServer();
                     serverSuccessfullyStarted = true;
                     publish("Serveur démarré sur IP: " + hostIP);
-                    System.out.println("HostingScene: Serveur démarré.");
+                    System.out.println("HostingScene: Serveur démarré avec succès sur IP: " + hostIP);
 
-                    // 等待服务器完全启动
+                    // Attend que le serveur soit complètement démarré
                     Thread.sleep(500);
 
-                    // 步骤2：立即作为玩家1连接到服务器
+                    // Étape 2: Connexion immédiate en tant que Joueur 1
                     publish("Connexion de l'hôte en tant que Joueur 1...");
                     hostClient = new GameClient("localhost", HostingScene.this);
                     try {
@@ -142,9 +231,12 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                         System.out.println("HostingScene: Hôte connecté en tant que Joueur 1 (ID: " + hostClient.getMyPlayerId() + ")");
                         publish("Hôte connecté! En attente du Joueur 2...");
                     } catch (IOException e) {
+                        // Erreur grave si le client hôte ne peut pas se connecter
                         System.err.println("HostingScene: Erreur lors de la connexion de l'hôte: " + e.getMessage());
                         e.printStackTrace();
                         publish("Erreur connexion hôte: " + e.getMessage());
+                        // Si l'hôte ne peut pas se connecter, considère que le serveur a échoué
+                        serverSuccessfullyStarted = false;
                     }
 
                 } catch (IOException e) {
@@ -153,7 +245,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     e.printStackTrace();
                     publish("Erreur démarrage serveur: " + e.getMessage());
 
-                    // 显示弹窗在EDT线程上
+                    // Affiche la boîte de dialogue sur le thread EDT
                     SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                 "Impossible de démarrer le serveur : " + e.getMessage(),
@@ -166,7 +258,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
             @Override
             protected void process(java.util.List<String> chunks) {
-                // 更新UI的状态消息
+                // Mise à jour des messages de statut dans l'UI
                 if (!chunks.isEmpty()) {
                     statusMessage = chunks.get(chunks.size() - 1);
                     repaintPanel();
@@ -175,7 +267,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
             @Override
             protected void done() {
-                // 后台任务完成后更新UI
+                // Mise à jour de l'UI après la fin de la tâche
                 if (!serverSuccessfullyStarted) {
                     statusMessage = "Échec du démarrage du serveur.";
                 } else if (!hostClientConnected) {
@@ -364,17 +456,28 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         }
     }
 
+    // Ajoute une méthode pour définir l'état de transition
+    public void setTransitioningToGameScene(boolean transitioning) {
+        this.transitioningToGameScene = transitioning;
+        System.out.println("HostingScene: Transition vers GameScene = " + transitioning);
+    }
+
     @Override
     public void dispose() {
         clearMouseListeners();
-        // gameServerManager và hostClient được dừng trong cleanUpAndGoToMenu
-        // hoặc khi HostingScene bị thay thế bởi GameScene.
-        // Đảm bảo gameServerManager được stop nếu scene này bị dispose bất ngờ.
-        if (gameServerManager != null) {
-            gameServerManager.stopServer();
-        }
-        if (hostClient != null) {
-            hostClient.disconnect();
+        // Le gameServerManager et hostClient doivent être nettoyés uniquement si on ne passe PAS à GameScene
+        // Si on passe à GameScene, le serveur et hostClient doivent continuer à fonctionner
+        if (!transitioningToGameScene) {
+            System.out.println("HostingScene dispose: Nettoyage complet (pas de transition vers GameScene)");
+            if (gameServerManager != null) {
+                gameServerManager.stopServer();
+            }
+            if (hostClient != null) {
+                hostClient.disconnect();
+            }
+        } else {
+            System.out.println("HostingScene dispose: Conservation du serveur et client (transition vers GameScene)");
+            // Ne pas fermer le serveur ou déconnecter hostClient ici, car GameScene en a besoin
         }
         System.out.println("HostingScene disposée.");
     }

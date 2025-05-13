@@ -13,7 +13,18 @@ public class Jeu {
     private Piece pieceCourante; // piece courante
     Scanner sc = new Scanner(System.in);
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
-    // les methodes a completer
+    
+    public Jeu() {
+        // Initialiser les joueurs
+        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
+        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+        //IAminmax ia = new IAminmax(1);
+
+        // Initialiser les plateaux
+        past = new Plateau(Plateau.TypePlateau.PAST, joueur1, joueur2); 
+        present = new Plateau(Plateau.TypePlateau.PRESENT, joueur1, joueur2);
+        future = new Plateau(Plateau.TypePlateau.FUTURE, joueur1, joueur2);
+    }
 
     public void demarrer() {
         // Initialiser les joueurs
@@ -402,6 +413,12 @@ public class Jeu {
             }
             System.out.println();
         }
+    }
+
+    //Liste des coups possibles
+    public ArrayList<Coup> getCoupPossibles(Plateau plateau, Piece piece) {
+        //TO DO
+        return null;
     }
 
 }   

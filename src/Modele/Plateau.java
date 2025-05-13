@@ -82,21 +82,8 @@ public class Plateau {
 
     public void incNoirs() { this.nbNoirs+=1; }
 
-    public void resetCounts() {
-        this.nbBlancs = 0;
-        this.nbNoirs = 0;
-    }
-
     public void appliquerCoup(Coup coup) {
         return;
-    }
-
-    public boolean estCoupValide(Coup coup) {
-        if (coup.getTypeCoup() == Coup.TypeCoup.MOVE) {
-            
-        }
-        
-        return true;
     }
 
     public boolean paradoxe(Piece piece1, Piece piece2, int ecartx, int ecarty){

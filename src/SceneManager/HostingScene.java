@@ -40,6 +40,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
     public HostingScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
+        this.transitioningToGameScene = false;
 
         startGameButton = new Button(300, 400, 200, 50, "Lancer la partie", () -> {
             if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {

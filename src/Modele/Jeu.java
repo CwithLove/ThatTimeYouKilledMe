@@ -248,7 +248,7 @@ public class Jeu {
         // Passer le tour après avoir effectué le COUP (après tous les cas)
         // REMARQUE IMPORTANTE : Dans un environnement multijoueur, la logique de changement de tour sera contrôlée par le GameServer.
         // Ce code est uniquement pour maintenir la cohérence du modèle lorsqu'il est exécuté de manière autonome.
-        // setJoueurCourant(getJoueurCourant().equals(getJoueur1()) ? getJoueur2() : getJoueur1());
+        setJoueurCourant(getJoueurCourant().equals(getJoueur1()) ? getJoueur2() : getJoueur1());
     }
 
     public boolean estCoupValide(Coup coup) {

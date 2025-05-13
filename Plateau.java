@@ -84,14 +84,6 @@ public class Plateau {
         return;
     }
 
-    public boolean estCoupValide(Coup coup) {
-        if (coup.getTypeCoup() == Coup.TypeCoup.MOVE) {
-            
-        }
-        
-        return true;
-    }
-
     public boolean paradoxe(Piece piece1, Piece piece2, int ecartx, int ecarty){
         if (piece1 != null && piece2 != null) {
             if (estPareilPion(piece1,piece2) && (piece1.getPosition().x == (piece2.getPosition().x + ecartx)) && (piece1.getPosition().y == (piece2.getPosition().y + ecarty))) {

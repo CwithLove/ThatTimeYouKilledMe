@@ -8,8 +8,11 @@ public class Coup {
 
     public enum TypeCoup {
         JUMP, // Travel Forward: Sauter a la future
-        MOVE, // Move: Deplacer une piece dans le meme plateau
-        CLONE // Clone: Travel Backward: Revenir dans le passe et se cloner
+        CLONE, // Clone: Travel Backward: Revenir dans le passe et se cloner
+        UP, // Move Up
+        DOWN, // Move Down
+        LEFT, // Move Left
+        RIGHT // Move Right
     }
 
 
@@ -40,13 +43,13 @@ public class Coup {
         //System.out.println("pendant: " + plateau.getType());
         switch(coupstr){
             case "UP":
-                return new Coup(piece,new Point(-1, 0),plateau,TypeCoup.MOVE);
+                return new Coup(piece,new Point(-1, 0),plateau,TypeCoup.UP);
             case "DOWN":
-                return new Coup(piece,new Point(1, 0),plateau,TypeCoup.MOVE);
+                return new Coup(piece,new Point(1, 0),plateau,TypeCoup.DOWN);
             case "RIGHT":
-                return new Coup(piece,new Point(0, 1),plateau,TypeCoup.MOVE);
+                return new Coup(piece,new Point(0, 1),plateau,TypeCoup.RIGHT);
             case "LEFT":
-                return new Coup(piece,new Point(0,-1),plateau,TypeCoup.MOVE);
+                return new Coup(piece,new Point(0,-1),plateau,TypeCoup.LEFT);
             case "CLONE":
                 return new Coup(piece,new Point(0,0),plateau,TypeCoup.CLONE);
             case "JUMP":

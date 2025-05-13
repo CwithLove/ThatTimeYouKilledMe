@@ -9,8 +9,10 @@ public class Jeu {
     private Plateau future; // plateau future
     private Joueur joueur1; // joueur 1
     private Joueur joueur2; // joueur 2
-    private Joueur joueurCourant; // nombre de tours
+    private Joueur joueurCourant;
     private Piece pieceCourante; // piece courante
+    private Plateau plateauCourant; // plateau courant
+    private int etapeCoup; // etape du coup, 0 = choisir piece , 1 = coup 1, 2 = coup 2, 3 = choisir plateau
     Scanner sc = new Scanner(System.in);
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
     
@@ -24,7 +26,103 @@ public class Jeu {
         past = new Plateau(Plateau.TypePlateau.PAST, joueur1, joueur2); 
         present = new Plateau(Plateau.TypePlateau.PRESENT, joueur1, joueur2);
         future = new Plateau(Plateau.TypePlateau.FUTURE, joueur1, joueur2);
+        etapeCoup = 0; // Par défaut, on commence par choisir une pièce
+
+        joueurCourant = joueur1;
+        pieceCourante = null;
     }
+
+    int getEtape() {
+        return etapeCoup;
+    }
+
+    public void joueursuivant() {
+        if (joueurCourant.equals(joueur1)) {
+            joueurCourant = joueur2;
+        } else if (joueurCourant.equals(joueur2)) {
+            joueurCourant = joueur1;
+        }
+    }
+
+    public void majPlateauCourant() {
+        Plateau.TypePlateau prochainPlateau = joueurCourant.getProchainPlateau();
+        switch (prochainPlateau) {
+            case PAST:
+                plateauCourant = past;
+                break;
+            case PRESENT:
+                plateauCourant = present;
+                break;
+            case FUTURE:
+                plateauCourant = future;
+                break;
+        }
+    }
+
+    // Choisir la piece a deplacer => Fini
+    public boolean choisirPiece(int lig, int col) {
+        // Choisir la piece a deplacer
+        if  (etapeCoup != 0) {
+            System.err.println("Erreur: etapeCoup != 0 => vous ne pouvez pas choisir une piece maintenant.");
+            return false;
+        }
+
+        if ( lig < 0 || col < 0 || lig > (plateauCourant.getSize()-1) || col > (plateauCourant.getSize()-1)){
+            System.out.println("Coordonées incorrectes.");
+            return false;
+        }
+
+        if (!plateauCourant.getPiece(lig, col).getOwner().equals(joueurCourant) ) {
+            System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
+            return false;
+        }
+        pieceCourante = plateauCourant.getPiece(lig, col);
+        etapeCoup = 1; // Passer à l'étape 1 (choisir le coup)
+        return true;          
+    }
+
+    // Choisir le coup
+    public boolean jouerCoup() {
+        Plateau plateauTraitant = plateauCourant;
+            Coup coup;
+            do {
+                coup = joueurCourant.choisirCoup(plateauTraitant, pieceCourante, past, present, future);
+            } while (estCoupValide(coup) == false);
+            if (coup == null) {
+                return false;
+            }
+            appliquerCoup(coup,joueurCourant,past,present,future);
+            // Mettre a jour le plateau suivant
+            majPlateauCourant();
+            joueurCourant.setProchainPlateau(plateauCourant.getType());
+            
+            if (etapeCoup == 1) {
+                etapeCoup = 2; // Passer à l'étape 2 (choisir
+            }
+            return true;
+    }
+
+    boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
+        try {
+            if (gameOver(joueurCourant) != 0 && etapeCoup != 3)
+                return false;
+            String input = sc.next().toUpperCase();
+            //Verifie si on change de plateau
+            if (plateauCourant.getType() != Plateau.TypePlateau.valueOf(input)) {
+                prochainPlateau = Plateau.TypePlateau.valueOf(input);
+                joueurCourant.setProchainPlateau(prochainPlateau);
+            }
+            else {
+                System.out.println("Vous etes déjà sur ce plateau ! Veuillez en sélectionner un autre :");
+                return false;
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Entrée invalide. Veuillez entrer PAST, PRESENT ou FUTURE : ");
+            return false;
+        }
+        return true;
+    }
+        
 
     public void demarrer() {
         // Initialiser les joueurs
@@ -417,8 +515,61 @@ public class Jeu {
 
     //Liste des coups possibles
     public ArrayList<Coup> getCoupPossibles(Plateau plateau, Piece piece) {
-        //TO DO
-        return null;
+        ArrayList<Coup> coupsPossibles = new ArrayList<>();
+        // Définir les directions possibles (haut, bas, gauche, droite)
+        Point[] directions = {
+            new Point(-1, 0), // haut
+            new Point(1, 0),  // bas
+            new Point(0, -1), // gauche
+            new Point(0, 1)   // droite
+        };
+
+        // Pour chaque direction
+        for (int i = 0; i < 4; i++) {
+            Point newPos = new Point(piece.getPosition().x + directions[i].x, piece.getPosition().y + directions[i].y); 
+            // il faut que le newPos est libre ou la piece qui se situe la est de l'autre joueur
+            if (plateau.getPiece((int)newPos.getX(), (int)newPos.getY()) == null || plateau.getPiece((int)newPos.getX(), (int)newPos.getY()).getOwner().equals(piece.getOwner())) {
+                Coup.TypeCoup typeCoup = null;
+                switch (i) {
+                    case 0:
+                    typeCoup = Coup.TypeCoup.UP; 
+                    break;
+                    
+                    case 1:
+                    typeCoup = Coup.TypeCoup.DOWN;
+                    break;
+
+                    case 2:
+                    typeCoup = Coup.TypeCoup.LEFT;
+                    break;
+
+                    case 3:
+                    typeCoup = Coup.TypeCoup.RIGHT;
+                    break;
+
+                    default:
+                    break;
+                }
+                coupsPossibles.add(new Coup(piece, directions[i], plateau, typeCoup));
+            }
+        }        
+
+        switch (plateau.getType()) {
+            case PAST:
+                coupsPossibles.add(new Coup(piece, new Point(0, 0), plateau, Coup.TypeCoup.JUMP));
+                break;
+            case FUTURE:
+                coupsPossibles.add(new Coup(piece, new Point(0, 0), plateau, Coup.TypeCoup.CLONE));
+                break;
+            case PRESENT:
+                coupsPossibles.add(new Coup(piece, new Point(0, 0), plateau, Coup.TypeCoup.JUMP));
+                coupsPossibles.add(new Coup(piece, new Point(0, 0), plateau, Coup.TypeCoup.CLONE));
+
+            default:
+                break;
+        }
+
+        return coupsPossibles;
     }
 
 }   

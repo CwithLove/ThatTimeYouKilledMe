@@ -1,27 +1,39 @@
 package SceneManager;
 
+import Modele.Coup;
 import Modele.Jeu;
-import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
-import Modele.Coup;
+import Network.AIClient;
 import Network.GameClient;
-import Network.GameStateUpdateListener;
 import Network.GameServerManager;
-import Network.AIClient; // Đảm bảo bạn đã tạo lớp này trong package AI
-
-import javax.swing.SwingUtilities;
-import javax.swing.JOptionPane;
-import javax.swing.SwingWorker; // Sử dụng SwingWorker cho các tác vụ nền
-import java.awt.*;
+import Network.GameStateUpdateListener;
+import java.awt.*; // Đảm bảo bạn đã tạo lớp này trong package AI
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionListener; // Cần cho mouseMoved
+import java.awt.image.BufferedImage; // Sử dụng SwingWorker cho các tác vụ nền
+import java.io.File;
 import java.io.IOException;
+import javax.imageio.ImageIO;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities; // Cần cho mouseMoved
+import javax.swing.SwingWorker;
 
 public class GameScene implements Scene, GameStateUpdateListener {
     private SceneManager sceneManager;
     private Jeu jeu; // Luôn là bản sao của trạng thái game từ server
+
+    // 背景和图像资源
+    private BufferedImage backgroundImage;
+    private BufferedImage lemielImage;
+    private BufferedImage zarekImage;
+    private BufferedImage crackPresentImage;
+    private BufferedImage crackFutureImage;
+    private BufferedImage lemielAvatarImage;
+    private BufferedImage zarekAvatarImage;
+    private int zarekAnimationFrame = 0;
+    private long lastFrameUpdateTime = 0;
+    private BufferedImage[] zarekAnimationFrames;
 
     // Trạng thái lựa chọn của UI
     private Point selectedPiecePosition = null;
@@ -67,6 +79,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Constructor này chỉ nên được gọi với isSinglePlayer = true
             throw new IllegalArgumentException("Pour le mode multijoueur client, utilisez le constructeur avec server IP.");
         }
+        loadResources();
         commonUIInit();
     }
 
@@ -76,6 +89,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         this.isOperatingInSinglePlayerMode = false;
         this.serverIpToConnectOnDemand = serverIpToConnect;
         this.statusMessage = "Mode Multi: Connexion à l'hôte...";
+        loadResources();
         commonUIInit();
     }
 
@@ -121,7 +135,31 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
         }
         
+        loadResources();
         commonUIInit();
+    }
+
+    // 加载图像资源
+    private void loadResources() {
+        try {
+            backgroundImage = ImageIO.read(new File("res/Background.png"));
+            lemielImage = ImageIO.read(new File("res/Lemiel/Lemiel_Idle.png"));
+            crackPresentImage = ImageIO.read(new File("res/Plateau/Crack_Present.png"));
+            crackFutureImage = ImageIO.read(new File("res/Plateau/Crack_Future.png"));
+            lemielAvatarImage = ImageIO.read(new File("res/Avatar/Lemiel_Avatar.png"));
+            zarekAvatarImage = ImageIO.read(new File("res/Avatar/Zarek_Avatar.png"));
+            
+            // 加载Zarek动画帧
+            zarekAnimationFrames = new BufferedImage[4];
+            zarekAnimationFrames[0] = ImageIO.read(new File("res/Zarek/Zarek_Idle_1.png"));
+            zarekAnimationFrames[1] = ImageIO.read(new File("res/Zarek/Zarek_Idle_2.png"));
+            zarekAnimationFrames[2] = ImageIO.read(new File("res/Zarek/Zarek_Idle_3.png"));
+            zarekAnimationFrames[3] = ImageIO.read(new File("res/Zarek/Zarek_Idle_4.png"));
+            zarekImage = zarekAnimationFrames[0]; // 初始帧
+        } catch (IOException e) {
+            System.err.println("Error loading resources: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     // Modifie le constructeur original pour maintenir la compatibilité
@@ -437,6 +475,14 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     @Override
     public void update() {
+        // 更新Zarek动画
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastFrameUpdateTime > 250) { // 每250ms更新一帧
+            zarekAnimationFrame = (zarekAnimationFrame + 1) % 4;
+            zarekImage = zarekAnimationFrames[zarekAnimationFrame];
+            lastFrameUpdateTime = currentTime;
+        }
+
         // Chỉ cập nhật hover nếu không loading và game chưa kết thúc
         if (!isLoading && !gameHasEnded && sceneManager != null && sceneManager.getPanel() != null) {
             Point mousePos = sceneManager.getPanel().getMousePosition();
@@ -491,13 +537,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
         cloneButton.setSize(actionButtonWidth, buttonCommonHeight);
         cloneButton.setLocation(actionButtonXStart + (actionButtonWidth + 10) * 2, dynamicButtonY);
 
-        // Vẽ nền
-        g.setColor(new Color(25, 25, 35)); // Nền tối hơn
-        g.fillRect(0, 0, width, height);
-
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        // 绘制背景图像
+        if (backgroundImage != null) {
+            g2d.drawImage(backgroundImage, 0, 0, width, height, null);
+        } else {
+            // 如果背景加载失败，使用原来的背景色
+            g2d.setColor(new Color(25, 25, 35)); 
+            g2d.fillRect(0, 0, width, height);
+        }
 
         // Nếu đang loading, hiển thị thông báo loading
         if (isLoading) {
@@ -541,9 +592,24 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int pastX = presentX - boardSize * tileWidth - spacing;
             int futureX = presentX + boardSize * tileWidth + spacing;
 
-            drawPlateau(g2d, past, pastX, offsetY, tileWidth, "PASSÉ");
-            drawPlateau(g2d, present, presentX, offsetY, tileWidth, "PRÉSENT");
-            drawPlateau(g2d, future, futureX, offsetY, tileWidth, "FUTUR");
+            // 绘制角色
+            // Lemiel (J1) 在左边
+            if (lemielImage != null) {
+                int lemielHeight = Math.min(height/2, lemielImage.getHeight()*2);
+                int lemielWidth = lemielHeight * lemielImage.getWidth() / lemielImage.getHeight();
+                g2d.drawImage(lemielImage, 10, height/2 - lemielHeight/2, lemielWidth, lemielHeight, null);
+            }
+            
+            // Zarek (J2) 在右边
+            if (zarekImage != null) {
+                int zarekHeight = Math.min(height/2, zarekImage.getHeight()*2);
+                int zarekWidth = zarekHeight * zarekImage.getWidth() / zarekImage.getHeight();
+                g2d.drawImage(zarekImage, width - zarekWidth - 10, height/2 - zarekHeight/2, zarekWidth, zarekHeight, null);
+            }
+
+            drawPlateau(g2d, past, pastX, offsetY, tileWidth, "PASSÉ", null);
+            drawPlateau(g2d, present, presentX, offsetY, tileWidth, "PRÉSENT", crackPresentImage);
+            drawPlateau(g2d, future, futureX, offsetY, tileWidth, "FUTUR", crackFutureImage);
 
             // Status Message
             g2d.setColor(Color.CYAN);
@@ -554,26 +620,37 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 g2d.drawString(statusMessage, (width - msgWidth) / 2, 40);
             }
 
-            // Clones Info
+            // Clones Info with Avatars
             g2d.setFont(new Font("Consolas", Font.PLAIN, 15));
             g2d.setColor(Color.LIGHT_GRAY);
             int cloneInfoY = offsetY + boardRenderHeight + 25;
-             if (cloneInfoY >= dynamicButtonY - 15) { // Tránh đè lên nút
+            if (cloneInfoY >= dynamicButtonY - 15) { // Tránh đè lên nút
                 cloneInfoY = offsetY - 35; // Đặt phía trên plateau nếu không đủ chỗ
-                 if (cloneInfoY < 20) cloneInfoY = 20;
+                if (cloneInfoY < 20) cloneInfoY = 20;
             }
 
+            int avatarSize = 30;
+            
             if (jeu.getJoueur1() != null) {
-                String p1Info = jeu.getJoueur1().getNom() + " (ID " + jeu.getJoueur1().getId() + ") Clones: " + jeu.getJoueur1().getNbClones();
+                if (lemielAvatarImage != null) {
+                    g2d.drawImage(lemielAvatarImage, Math.max(10, pastX - 20), cloneInfoY - avatarSize, avatarSize, avatarSize, null);
+                }
+                String p1Info = "Lemiel (ID " + jeu.getJoueur1().getId() + ") Clones: " + jeu.getJoueur1().getNbClones();
                 if (gameClient != null && jeu.getJoueur1().getId() == gameClient.getMyPlayerId()) p1Info += " (Vous)";
-                g2d.drawString(p1Info, Math.max(10,pastX - 20), cloneInfoY);
+                g2d.drawString(p1Info, Math.max(10, pastX - 20) + avatarSize + 5, cloneInfoY);
             }
+            
             if (jeu.getJoueur2() != null) {
-                String p2Info = jeu.getJoueur2().getNom() + " (ID " + jeu.getJoueur2().getId() + ") Clones: " + jeu.getJoueur2().getNbClones();
-                 if (gameClient != null && jeu.getJoueur2().getId() == gameClient.getMyPlayerId()) p2Info += " (Vous)";
+                String p2Info = "Zarek (ID " + jeu.getJoueur2().getId() + ") Clones: " + jeu.getJoueur2().getNbClones();
+                if (gameClient != null && jeu.getJoueur2().getId() == gameClient.getMyPlayerId()) p2Info += " (Vous)";
                 FontMetrics p2Metrics = g2d.getFontMetrics();
                 int p2InfoWidth = p2Metrics.stringWidth(p2Info);
-                g2d.drawString(p2Info, Math.min(width - 10 - p2InfoWidth, futureX + (boardSize * tileWidth) + 20 - p2InfoWidth), cloneInfoY);
+                int p2X = Math.min(width - 10 - p2InfoWidth - avatarSize - 5, futureX + (boardSize * tileWidth) + 20 - p2InfoWidth - avatarSize - 5);
+                
+                if (zarekAvatarImage != null) {
+                    g2d.drawImage(zarekAvatarImage, p2X + p2InfoWidth + 5, cloneInfoY - avatarSize, avatarSize, avatarSize, null);
+                }
+                g2d.drawString(p2Info, p2X, cloneInfoY);
             }
 
         } else { // jeu is null (chưa nhận được trạng thái đầu tiên)
@@ -596,7 +673,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         g2d.dispose();
     }
 
-    private void drawPlateau(Graphics2D g, Plateau plateau, int x, int y, int tileWidth, String title) {
+    private void drawPlateau(Graphics2D g, Plateau plateau, int x, int y, int tileWidth, String title, BufferedImage crackImage) {
         if (plateau == null) {
             g.setColor(Color.RED);
             g.setFont(new Font("Arial", Font.BOLD, 12));
@@ -618,54 +695,75 @@ public class GameScene implements Scene, GameStateUpdateListener {
         g.setColor(new Color(80, 80, 80));
         g.drawRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1);
 
+        // 如果有裂缝图像且不是past棋盘，绘制裂缝背景
+        if (crackImage != null && !plateau.getType().equals(Plateau.TypePlateau.PAST)) {
+            g.drawImage(crackImage, x, y, boardPixelSize, boardPixelSize, null);
+        }
+
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
-                // Cell background
-                if ((row + col) % 2 == 0) g.setColor(new Color(75, 75, 85)); // Darker
-                else g.setColor(new Color(60, 60, 70)); // Darkest
-                g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                // Cell background (只有past棋盘保持原来的颜色)
+                if (plateau.getType().equals(Plateau.TypePlateau.PAST)) {
+                    if ((row + col) % 2 == 0) g.setColor(new Color(75, 75, 85)); // Darker
+                    else g.setColor(new Color(75, 75, 85, 180)); // Darkest
+                    g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                } else {
+                    // Present和Future棋盘使用半透明格子
+                    if ((row + col) % 2 == 0) {
+                        g.setColor(new Color(75, 75, 85, 180)); // 半透明版本
+                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                    }
+                }
+                
                 // Cell grid
                 g.setColor(new Color(100, 100, 110));
                 g.drawRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
 
                 Piece piece = plateau.getPiece(row, col);
                 if (piece != null && piece.getOwner() != null) {
-                    int ovalMargin = Math.max(2, tileWidth / 8);
-                    int ovalSize = tileWidth - 2 * ovalMargin;
-                    int ovalX = x + col * tileWidth + ovalMargin;
-                    int ovalY = y + row * tileWidth + ovalMargin;
-
-                    Color pieceFillColor;
-                    Color pieceBorderColor;
-
-                    if (piece.getOwner().getId() == 1) { // Joueur 1 (Blanc)
-                        pieceFillColor = new Color(220, 220, 240); // Presque blanc
-                        pieceBorderColor = new Color(150, 150, 200);
-                    } else { // Joueur 2 (Noir/Bot)
-                        pieceFillColor = new Color(60, 60, 80);   // Bleu-noir foncé
-                        pieceBorderColor = new Color(100, 100, 180);
+                    int pieceMargin = Math.max(2, tileWidth / 8);
+                    int pieceSize = tileWidth - 2 * pieceMargin;
+                    int pieceX = x + col * tileWidth + pieceMargin;
+                    int pieceY = y + row * tileWidth + pieceMargin;
+                    
+                    // 使用头像图片而不是颜色填充
+                    if (piece.getOwner().getId() == 1) { // Joueur 1 (Lemiel)
+                        if (lemielAvatarImage != null) {
+                            g.drawImage(lemielAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
+                        } else {
+                            // 如果图片加载失败，使用原来的颜色填充
+                            g.setColor(new Color(220, 220, 240));
+                            g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
+                        }
+                    } else { // Joueur 2 (Zarek)
+                        if (zarekAvatarImage != null) {
+                            g.drawImage(zarekAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
+                        } else {
+                            // 如果图片加载失败，使用原来的颜色填充
+                            g.setColor(new Color(70, 70, 100));
+                            g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
+                        }
                     }
-                    // Thêm hiệu ứng nếu là quân của client hiện tại
+                    
+                    // 添加棋子边框，突出显示当前棋子
+                    Color borderColor = new Color(100, 100, 180);
                     if (gameClient != null && piece.getOwner().getId() == gameClient.getMyPlayerId()){
-                         pieceBorderColor = Color.GREEN; // Viền xanh lá cho quân của mình
+                        borderColor = Color.GREEN; // 我方棋子绿色边框
                     }
-
-
-                    g.setColor(pieceFillColor);
-                    g.fillOval(ovalX, ovalY, ovalSize, ovalSize);
-                    g.setColor(pieceBorderColor);
+                    
+                    g.setColor(borderColor);
                     g.setStroke(new BasicStroke(Math.max(1.5f, tileWidth / 16f)));
-                    g.drawOval(ovalX, ovalY, ovalSize, ovalSize);
+                    g.drawRect(pieceX, pieceY, pieceSize, pieceSize);
 
-                    // Highlight if selected
+                    // 高亮选中的棋子
                     if (selectedPiecePosition != null &&
                         selectedPiecePosition.x == row && selectedPiecePosition.y == col &&
                         plateau.getType().equals(selectedPlateauType)) {
                         g.setColor(Color.ORANGE);
                         g.setStroke(new BasicStroke(Math.max(2.5f, tileWidth / 10f)));
-                        g.drawOval(ovalX - 2, ovalY - 2, ovalSize + 4, ovalSize + 4); // Slightly larger highlight
+                        g.drawRect(pieceX - 2, pieceY - 2, pieceSize + 4, pieceSize + 4);
                     }
-                    g.setStroke(new BasicStroke(1f)); // Reset stroke
+                    g.setStroke(new BasicStroke(1f)); // 重置线条宽度
                 }
             }
         }
@@ -954,9 +1052,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private void updateStatusFromCurrentGame(boolean fromServerUpdate) {
         if (this.jeu != null && this.jeu.getJoueurCourant() != null && gameClient != null) {
             if (this.jeu.getJoueurCourant().getId() == gameClient.getMyPlayerId()) {
-                this.statusMessage = "C'est VOTRE tour (Joueur " + gameClient.getMyPlayerId() + " - " + this.jeu.getJoueurCourant().getNom() + ")";
+                String playerName = this.jeu.getJoueurCourant().getId() == 1 ? "Lemiel" : "Zarek";
+                this.statusMessage = "C'est VOTRE tour (" + playerName + " - Joueur " + gameClient.getMyPlayerId() + ")";
             } else {
-                this.statusMessage = "Tour de l'adversaire : " + this.jeu.getJoueurCourant().getNom() + " (ID " + this.jeu.getJoueurCourant().getId() + ")";
+                String opponentName = this.jeu.getJoueurCourant().getId() == 1 ? "Lemiel" : "Zarek";
+                this.statusMessage = "Tour de l'adversaire : " + opponentName + " (ID " + this.jeu.getJoueurCourant().getId() + ")";
             }
         } else if (isLoading) {
              // Giữ statusMessage của SwingWorker nếu đang loading
@@ -996,7 +1096,16 @@ public class GameScene implements Scene, GameStateUpdateListener {
     public void onGameMessage(String messageType, String messageContent) {
         // Được gọi từ GameClient, đã nằm trên EDT
         isLoading = false; // Bất kỳ tin nhắn nào từ server đều ngụ ý không còn loading ban đầu nữa
-        this.statusMessage = messageType + ": " + messageContent;
+        
+        // 修改消息内容将玩家ID替换为角色名称
+        String modifiedContent = messageContent;
+        if (messageContent.contains("Joueur 1")) {
+            modifiedContent = messageContent.replace("Joueur 1", "Lemiel");
+        } else if (messageContent.contains("Joueur 2")) {
+            modifiedContent = messageContent.replace("Joueur 2", "Zarek");
+        }
+        
+        this.statusMessage = messageType + ": " + modifiedContent;
         String dialogTitle = messageType.toUpperCase();
         int jOptionPaneType = JOptionPane.INFORMATION_MESSAGE;
         boolean shouldShowDialog = true;
@@ -1019,13 +1128,13 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
 
         if (shouldShowDialog) {
-            JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, dialogTitle, jOptionPaneType);
+            JOptionPane.showMessageDialog(sceneManager.getPanel(), modifiedContent, dialogTitle, jOptionPaneType);
         }
         repaintPanel();
 
         // Nếu là DISCONNECTED hoặc lỗi nghiêm trọng, có thể muốn tự động quay về menu
         if ("DISCONNECTED".equalsIgnoreCase(messageType) ||
-           ("ERROR".equalsIgnoreCase(messageType) && messageContent.contains("Connexion refusée"))) { // Ví dụ lỗi cụ thể
+           ("ERROR".equalsIgnoreCase(messageType) && modifiedContent.contains("Connexion refusée"))) { // Ví dụ lỗi cụ thể
             //cleanUpAndGoToMenu(); // Đã có nút Retour, để người dùng quyết định
         }
     }

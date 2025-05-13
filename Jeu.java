@@ -16,6 +16,7 @@ public class Jeu {
     Scanner sc = new Scanner(System.in);
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
     
+    // Constructeur => Fini
     public Jeu() {
         // Initialiser les joueurs
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
@@ -36,6 +37,7 @@ public class Jeu {
         return etapeCoup;
     }
 
+    // Fini
     public void joueursuivant() {
         if (joueurCourant.equals(joueur1)) {
             joueurCourant = joueur2;
@@ -44,6 +46,7 @@ public class Jeu {
         }
     }
 
+    // Fini
     public void majPlateauCourant() {
         Plateau.TypePlateau prochainPlateau = joueurCourant.getProchainPlateau();
         switch (prochainPlateau) {
@@ -102,6 +105,7 @@ public class Jeu {
             return true;
     }
 
+    // Fini
     boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
         try {
             if (gameOver(joueurCourant) != 0 && etapeCoup != 3)
@@ -433,6 +437,7 @@ public class Jeu {
         return true;
     }
     
+    // condition d'arret
     private int gameOver(Joueur joueur) {
         //System.out.println("Nombre de blancs: passe "+past.getNbBlancs()+", present "+present.getNbBlancs()+", future "+future.getNbBlancs());
         //System.out.println("Nombre de Noirs: passe "+past.getNbNoirs()+", present "+present.getNbNoirs()+", future "+future.getNbNoirs());
@@ -462,6 +467,7 @@ public class Jeu {
 
 
 
+    // afficher le jeu => Fini
     public void printGamePlay() {
         System.out.println("Next Area J1 : " + joueur1.getProchainPlateau().toString());
         System.out.println("Next Area J2 : " + joueur2.getProchainPlateau().toString());
@@ -513,7 +519,7 @@ public class Jeu {
         }
     }
 
-    //Liste des coups possibles
+    //Liste des coups possibles => Fini
     public ArrayList<Coup> getCoupPossibles(Plateau plateau, Piece piece) {
         ArrayList<Coup> coupsPossibles = new ArrayList<>();
         // Définir les directions possibles (haut, bas, gauche, droite)

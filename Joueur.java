@@ -84,16 +84,4 @@ public class Joueur {
         return coordonnesPions;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-
-        Joueur joueur = (Joueur) obj;
-
-        if (id != joueur.id) return false;
-        if (nbClones != joueur.nbClones) return false;
-        if (!nom.equals(joueur.nom)) return false;
-        return prochainPlateau == joueur.prochainPlateau;
-    }
 }

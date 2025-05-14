@@ -170,19 +170,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
         this(sceneManager, alreadyConnectedHostClient, null);
     }
 
-    private void commonUIInit() {
+        private void commonUIInit() {
         // Vị trí nút sẽ được cập nhật trong render()
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
-        
-        // 四个方向按钮
-        upButton = new Button(0, 0, 80, 40, "UP", () -> handleDirectionMove(Coup.TypeCoup.UP));
-        downButton = new Button(0, 0, 80, 40, "DOWN", () -> handleDirectionMove(Coup.TypeCoup.DOWN));
-        leftButton = new Button(0, 0, 80, 40, "LEFT", () -> handleDirectionMove(Coup.TypeCoup.LEFT));
-        rightButton = new Button(0, 0, 80, 40, "RIGHT", () -> handleDirectionMove(Coup.TypeCoup.RIGHT));
+
+        upButton = new Button(0, 0, 80, 40, "UP", () ->  handleActionCommand(new Point(selectedPiecePosition.x + 1, selectedPiecePosition.y)));
+        downButton = new Button(0, 0, 80, 40, "DOWN", () -> handleActionCommand(new Point(selectedPiecePosition.x - 1, selectedPiecePosition.y)));
+        leftButton = new Button(0, 0, 80, 40, "LEFT", () -> handleActionCommand(new Point(selectedPiecePosition.x, selectedPiecePosition.y - 1)));
+        rightButton = new Button(0, 0, 80, 40, "RIGHT", () -> handleActionCommand(new Point(selectedPiecePosition.x, selectedPiecePosition.y + 1)));
         
         // 重新添加JUMP和CLONE按钮
-        jumpButton = new Button(0, 0, 100, 40, "JUMP", () -> handleActionCommand(Coup.TypeCoup.JUMP));
-        cloneButton = new Button(0, 0, 100, 40, "CLONE", () -> handleActionCommand(Coup.TypeCoup.CLONE));
+        jumpButton = new Button(0, 0, 100, 40, "JUMP", () -> handleActionCommand(new Point(selectedPiecePosition.x, selectedPiecePosition.y)));
+        cloneButton = new Button(0, 0, 100, 40, "CLONE", () -> handleActionCommand(new Point(selectedPiecePosition.x, selectedPiecePosition.y)));
     }
 
     private void handleBackButton() {
@@ -455,37 +454,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
         return isMyTurn;
     }
 
-    private void handleActionCommand(Coup.TypeCoup actionType) {
+     private void handleActionCommand(Point targetPosition) {
+        // Il faut choisir une piece tout au debut
         if (selectedPiecePosition == null || selectedPlateauType == null || gameHasEnded || gameClient == null || !gameClient.isConnected()) {
             statusMessage = "Sélectionnez un pion d'abord ou action non permise.";
             repaintPanel();
             return;
         }
-
-        // 直接构造命令发送到服务器，不在客户端验证
-        String command = actionType.name() + ":" + selectedPlateauType.name() + ":" +
-                         selectedPiecePosition.x + ":" + selectedPiecePosition.y;
+        String command = jeu.getEtapeCoup() + ":" + selectedPlateauType.name() + ":" +
+                         selectedPiecePosition.x + "," + selectedPiecePosition.y;
 
         gameClient.sendPlayerAction(command);
-        statusMessage = "Commande " + actionType.name() + " envoyée...";
-        resetSelectionAfterAction(); // 发送命令后重置UI
-        repaintPanel();
-    }
-
-    // 添加一个新的方法处理方向移动
-    private void handleDirectionMove(Coup.TypeCoup direction) {
-        if (selectedPiecePosition == null || selectedPlateauType == null || gameHasEnded || gameClient == null || !gameClient.isConnected()) {
-            statusMessage = "Sélectionnez un pion d'abord ou action non permise.";
-            repaintPanel();
-            return;
-        }
-        
-        // 直接构造命令发送到服务器，不在客户端验证
-        String command = direction.name() + ":" + selectedPlateauType.name() + ":" +
-                        selectedPiecePosition.x + ":" + selectedPiecePosition.y;
-        
-        gameClient.sendPlayerAction(command);
-        statusMessage = "Déplacement " + direction.name() + " envoyé...";
+        statusMessage = "Commande " + command + " envoyée...";
         resetSelectionAfterAction();
         repaintPanel();
     }

@@ -1,10 +1,11 @@
+package Modele;
+
 import java.util.Stack;
 
 public class HistoriqueJeu {
 
     // pile des etats du jeu contenant les plateaux et les reserves et prochain
     // plateau des joueurs
-
     Stack<Plateau> past = new Stack<>();
     Stack<Plateau> present = new Stack<>();
     Stack<Plateau> future = new Stack<>();
@@ -13,32 +14,31 @@ public class HistoriqueJeu {
     private int nbTours;
 
     public HistoriqueJeu() {
-            this.past = new Stack<>();
-            this.present = new Stack<>();
-            this.future = new Stack<>();
-            this.joueur1 = new Stack<>();
-            this.joueur2 = new Stack<>();
-            this.nbTours = -1;
-        }
+        this.past = new Stack<>();
+        this.present = new Stack<>();
+        this.future = new Stack<>();
+        this.joueur1 = new Stack<>();
+        this.joueur2 = new Stack<>();
+        this.nbTours = -1;
+    }
 
     public HistoriqueJeu(Plateau past, Plateau present, Plateau future, Joueur joueur1, Joueur joueur2) {
-            this.joueur1.push(joueur1.copie());
-            this.joueur2.push(joueur2.copie());
-            this.past.push(past.copie(getJoueur1(), getJoueur2()));
-            this.present.push(present.copie(getJoueur1(), getJoueur2()));
-            this.future.push(future.copie(getJoueur1(), getJoueur2()));
-            
-            
-            this.nbTours = 1;
-        }
+        this.joueur1.push(joueur1.copie());
+        this.joueur2.push(joueur2.copie());
+        this.past.push(past.copie(joueur1, joueur2));
+        this.present.push(present.copie(joueur1, joueur2));
+        this.future.push(future.copie(joueur1, joueur2));
+
+        this.nbTours = 1;
+    }
 
     public void add(Plateau past, Plateau present, Plateau future, Joueur joueur1, Joueur joueur2) {
         this.joueur1.push(joueur1.copie());
         this.joueur2.push(joueur2.copie());
 
-        this.past.push(past.copie(getJoueur1(), getJoueur2()));
-        this.present.push(present.copie(getJoueur1(), getJoueur2()));
-        this.future.push(future.copie(getJoueur1(), getJoueur2()));      
+        this.past.push(past.copie(joueur1, joueur2));
+        this.present.push(present.copie(joueur1, joueur2));
+        this.future.push(future.copie(joueur1, joueur2));
         this.nbTours++;
     }
 
@@ -76,4 +76,3 @@ public class HistoriqueJeu {
     }
 
 }
-

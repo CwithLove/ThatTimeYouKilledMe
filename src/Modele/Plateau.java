@@ -114,7 +114,7 @@ public class Plateau {
     }
 
     public boolean estPareilPion(Piece piece1, Piece piece2){
-        return piece1.getOwner() == piece2.getOwner();
+        return piece1.getOwner().getId() == piece2.getOwner().getId();
     }
 
     public String plateauToString() {
@@ -134,7 +134,6 @@ public class Plateau {
 
     }
 
-    // 清除棋盘上所有棋子
     public void clearPieces() {
         for (int i = 0; i < this.getSize(); i++) {
             for (int j = 0; j < this.getSize(); j++) {
@@ -146,7 +145,7 @@ public class Plateau {
         this.nbBlancs = 0;
         this.nbNoirs = 0;
     }
-
+    
     // 重新计算棋盘上的棋子数量
     public void updatePieceCount() {
         int blancs = 0;
@@ -166,5 +165,26 @@ public class Plateau {
         this.nbBlancs = blancs;
         this.nbNoirs = noirs;
         System.out.println("棋盘" + this.getType() + "：白棋=" + blancs + "，黑棋=" + noirs);
+    }
+    public Plateau copie(Joueur joueur1, Joueur joueur2) {
+        Plateau copie = new Plateau(this.type, joueur1, joueur2);
+        //a verifier
+        copie.nbBlancs = this.nbBlancs;
+        copie.nbNoirs = this.nbNoirs;
+        copie.size = this.size;
+        for (int lig = 0; lig < this.size; lig++) {
+            for (int col = 0; col < this.size; col++) {
+                if (this.grille[lig][col] != null) {
+                    if(this.grille[lig][col].getOwner().getId() == joueur1.getId()) {
+                        copie.grille[lig][col] = new Piece(joueur1, this.grille[lig][col].getPosition());
+                    } else if (this.grille[lig][col].getOwner().getId() == joueur2.getId()) {
+                        copie.grille[lig][col] = new Piece(joueur2, this.grille[lig][col].getPosition());
+                    }
+                } else {
+                    copie.grille[lig][col] = null;
+                }
+            }
+        }
+        return copie;
     }
 }   

@@ -1,7 +1,9 @@
 package Network;
 
+import Modele.Coup;
 import Modele.Jeu;
 import Modele.Joueur;
+import Modele.Piece;
 import Modele.Plateau;
 import SceneManager.HostingScene;
 import java.io.IOException;
@@ -18,12 +20,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue; // Importer la classe Jeu
 
 public class GameServerManager {
+
     private static final int PORT = 12345;
     private ServerSocket serverSocket;
     private Thread acceptConnectionsThread;
     private Thread gameEngineThread;
     private Jeu gameInstance; // 游戏实例，替代原来的GameEngineServer
-    
+
     private final BlockingQueue<Message> incomingMessages = new LinkedBlockingQueue<>();
     private final Map<Integer, BlockingQueue<String>> outgoingQueues = new ConcurrentHashMap<>();
     // Utilisation de synchronizedList pour la sécurité des threads lorsque plusieurs clients se connectent en même temps
@@ -52,9 +55,9 @@ public class GameServerManager {
             try {
                 while (connectedClientIds.size() < maxClients && isServerRunning) {
                     System.out.println("GameServerManager: En attente de connexions client ("
-                                        + connectedClientIds.size() + "/" + maxClients +")...");
+                            + connectedClientIds.size() + "/" + maxClients + ")...");
                     Socket clientSocket = serverSocket.accept(); // Accepter une connexion
-                    
+
                     synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
                         clientIdCounter++;
                     }
@@ -67,31 +70,31 @@ public class GameServerManager {
                         // 1. 服务器创建输出流并刷新
                         ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
                         out.flush(); // 立即发送流头部信息
-                        
+
                         // 2. 客户端创建输入流
                         // 3. 客户端创建输出流并刷新
                         // 4. 服务器创建输入流
                         ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-                        
+
                         // 5. 服务器发送ID消息
                         out.writeObject("ID:" + newClientId);
                         out.flush();
                         System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
-                        
+
                         BlockingQueue<String> clientOutgoingQueue = new LinkedBlockingQueue<>();
                         outgoingQueues.put(newClientId, clientOutgoingQueue);
                         connectedClientIds.add(newClientId);
 
                         // 创建并启动带有客户端ID的ClientReceiver和ClientSender
                         Thread receiverThread = new Thread(
-                            new ClientReceiver(in, incomingMessages, newClientId), 
-                            "ClientReceiver-" + newClientId
+                                new ClientReceiver(in, incomingMessages, newClientId),
+                                "ClientReceiver-" + newClientId
                         );
                         receiverThread.start();
-                        
+
                         Thread senderThread = new Thread(
-                            new ClientSender(out, clientOutgoingQueue, newClientId),
-                            "ClientSender-" + newClientId
+                                new ClientSender(out, clientOutgoingQueue, newClientId),
+                                "ClientSender-" + newClientId
                         );
                         senderThread.start();
 
@@ -148,23 +151,23 @@ public class GameServerManager {
             System.out.println("GameServerManager: Démarrage du moteur de jeu...");
             // 初始化游戏实例
             gameInstance = new Jeu();
-            
+
             // 设置第一个玩家（游戏开始时应该是玩家1）
             if (gameInstance.getJoueurCourant().getId() != 1) {
                 gameInstance.joueurSuivant(); // 确保第一个玩家是玩家1
             }
             currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
-            
+
             // 开始游戏引擎线程
             gameEngineThread = new Thread(this::runGameEngine, "GameEngineThread");
             gameEngineThread.start();
-            
+
             System.out.println("GameServerManager: Moteur de jeu démarré. Tour du joueur " + currentTurnPlayerId);
-            
+
             // 发送初始游戏状态给所有客户端
             sendGameStateToAllClients();
         } else {
-            System.out.println("GameServerManager: Pas assez de joueurs ("+ connectedClientIds.size() +"/"+maxClients+") pour démarrer le moteur de jeu.");
+            System.out.println("GameServerManager: Pas assez de joueurs (" + connectedClientIds.size() + "/" + maxClients + ") pour démarrer le moteur de jeu.");
         }
     }
 
@@ -174,13 +177,107 @@ public class GameServerManager {
         try {
             // 等待一小段时间确保客户端已准备好
             Thread.sleep(500);
-            
+
             while (isServerRunning) {
-                // 等待客户端消息(阻塞调用)
+                int etapeCoup = gameInstance.getEtapeCoup();
+
                 Message msg = incomingMessages.take();
-                
+                int clientId = msg.clientId;
+                System.out.println("GameServerManager: Processing message from client " + clientId + ": " + msg.contenu);
+
+                if (gameInstance == null) {
+                    System.err.println("GameServerManager: Instance de jeu non initialisée.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur serveur: jeu non initialisé.");
+                    return;
+                }
+
+                Joueur currentJoueur = gameInstance.getJoueurCourant();
+                if (currentJoueur.getId() == 1) {
+                    currentJoueur = gameInstance.getJoueur2();
+                } else {
+                    currentJoueur = gameInstance.getJoueur1();
+                }
+
+                // 首先检查是否是当前玩家的回合
+                if (clientId != currentJoueur.getId()) {
+                    System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
+                    System.out.println("GameServerManager: Current turn player ID: " + currentTurnPlayerId);
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
+                    return;
+                }
+
+                if (msg.contenu == null) {
+                    System.err.println("GameServerManager: Message de client " + clientId + " est null.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message de client null.");
+                    return;
+                }
+
+                Piece selectedPiece = null;
+                try {
+                    int x, y;
+                    String[] parts = msg.contenu.split(":");
+                    if (parts.length != 4) {
+                        System.err.println("GameServerManager: Message de client " + clientId + " ne contient pas 4 parties.");
+                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message de client invalide.");
+                        return;
+                    }
+                    x = Integer.parseInt(parts[2]);
+                    y = Integer.parseInt(parts[3]);
+                    selectedPiece = gameInstance.getPlateauCourant().getPiece(x, y);
+                } catch (NumberFormatException e) {
+                    System.err.println("GameServerManager: Erreur lors de la conversion des coordonnées: " + e.getMessage());
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Coordonnées invalides.");
+                    return;
+                }
+
+                if (selectedPiece == null) {
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
+                    return;
+                }
+
+                Plateau currentPlateau = gameInstance.getPlateauCourant();
+
+                // 重写代码，不使用processClientMessage
+                switch (etapeCoup) {
+                    case 0: // etapeCoupe == 0, 那么用户就能选择扔个当前Plateau的棋子; 服务器验证当前用户选择的棋子是否有效，如果有效那么就返回当前Plateau的棋子；如果无效那么就返回null
+                        // 处理消息
+                        // 验证选择的棋子是否有效
+                        ArrayList<Piece> piecesPossibles = gameInstance.getPlateauCourant().getPieces(gameInstance.getJoueurCourant());
+                        if (piecesPossibles.size() == 0) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
+                            return;
+                        }
+
+                        for (Piece piece : piecesPossibles) {
+                            ArrayList<Coup> coupPossibles = gameInstance.getCoupPossibles(currentPlateau, piece);
+                            if (coupPossibles.isEmpty()) {
+                                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, parce que pas de coup possible.");
+                                return;
+                            } else {
+                                for (Coup coup : coupPossibles) {
+                                    if (coup.getPiece().equals(selectedPiece)) {
+                                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + "Pièce valide.");
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+
+                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide.");
+                        break;
+                    case 1:
+                    case 2:
+                        // getCoupPossibles
+                        ArrayList<Coup> coupPossibles = gameInstance.getCoupPossibles(currentPlateau, selectedPiece);
+                        if (coupPossibles.isEmpty()) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, parce que pas de coup possible.");
+                            return;
+                        }
+                        // get current TypeCoup
+
+                }
                 // 处理消息
-                processClientMessage(msg);
+                // processClientMessage(msg);
             }
         } catch (InterruptedException e) {
             System.err.println("GameServerManager: Thread de jeu interrompu: " + e.getMessage());
@@ -190,18 +287,18 @@ public class GameServerManager {
             e.printStackTrace();
         }
     }
-    
+
     // 处理客户端消息
     private void processClientMessage(Message msg) {
         int clientId = msg.clientId;
         System.out.println("GameServerManager: Processing message from client " + clientId + ": " + msg.contenu);
-        
+
         if (gameInstance == null) {
             System.err.println("GameServerManager: Instance de jeu non initialisée.");
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur serveur: jeu non initialisé.");
             return;
         }
-        
+
         // 首先检查是否是当前玩家的回合
         if (clientId != gameInstance.getJoueurCourant().getId()) {
             System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
@@ -209,17 +306,17 @@ public class GameServerManager {
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
             return;
         }
-        
+
         // 将命令传递给Jeu类处理
         boolean actionSuccess = gameInstance.processPlayerCommand(msg.contenu, clientId);
-        
+
         if (actionSuccess) {
             // 从Jeu获取当前步骤信息
             int etapeCoup = gameInstance.getEtapeCoup();
 
             // 检查游戏是否结束
             checkGameOver();
-            
+
             // 如果玩家已经完成了两步操作，应该自动切换到下一个玩家
             if (etapeCoup >= 3) {
                 // 第三步选择新的棋盘
@@ -230,22 +327,21 @@ public class GameServerManager {
                 } else {
                     nextPlateau = Plateau.TypePlateau.PRESENT;
                 }
-                
+
                 gameInstance.getJoueurCourant().setProchainPlateau(nextPlateau);
                 gameInstance.setEtapeCoup(0);
                 gameInstance.joueurSuivant(); // 切换到下一玩家
                 gameInstance.majPlateauCourant();
-                
+
                 // 添加明确的日志，显示当前轮到谁
-                System.out.println("GameServerManager: Joueur suivant - ID: " + gameInstance.getJoueurCourant().getId() + 
-                                   " (" + (gameInstance.getJoueurCourant().equals(gameInstance.getJoueur1()) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
+                System.out.println("GameServerManager: Joueur suivant - ID: " + gameInstance.getJoueurCourant().getId()
+                        + " (" + (gameInstance.getJoueurCourant().equals(gameInstance.getJoueur1()) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
             }
-            
-            
+
             // 游戏状态更新成功，更新当前玩家
             currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
             System.out.println("GameServerManager: Action validée. Nouveau tour pour le joueur: " + currentTurnPlayerId);
-            
+
             // 发送更新后的游戏状态给所有客户端
             sendGameStateToAllClients();
         } else {
@@ -253,32 +349,34 @@ public class GameServerManager {
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Action invalide.");
         }
     }
-    
+
     // 检查游戏是否结束
     private void checkGameOver() {
-        if (gameInstance == null) return;
-        
+        if (gameInstance == null) {
+            return;
+        }
+
         // 获取游戏状态
         int gameState = gameInstance.gameOver(gameInstance.getJoueurCourant());
         int winnerId = 0;
 
         System.out.println("GameServerManager: Game state: " + gameState);
-        
+
         // 通过game state确定获胜者ID
         if (gameState == 1) {
             winnerId = gameInstance.getJoueur1().getId(); // 玩家1赢
         } else if (gameState == 2) {
             winnerId = gameInstance.getJoueur2().getId(); // 玩家2赢
         }
-        
+
         System.out.println("GameServerManager: Winner ID: " + winnerId);
-        
+
         if (winnerId != 0) {
             Joueur joueur1 = gameInstance.getJoueur1();
             Joueur joueur2 = gameInstance.getJoueur2();
             String winnerMsg = Code.GAGNE.name() + ":" + winnerId;
             String loserMsg = Code.PERDU.name() + ":" + winnerId;
-            
+
             if (winnerId == joueur1.getId()) {
                 winnerMsg += ":Félicitations " + joueur1.getNom() + " pour votre victoire!";
                 loserMsg += ":" + joueur1.getNom() + " a gagné la partie!";
@@ -286,7 +384,7 @@ public class GameServerManager {
                 winnerMsg += ":Félicitations " + joueur2.getNom() + " pour votre victoire!";
                 loserMsg += ":" + joueur2.getNom() + " a gagné la partie!";
             }
-            
+
             // 给赢家和输家发送不同消息
             for (Integer clientId : connectedClientIds) {
                 if (clientId == winnerId) {
@@ -295,18 +393,20 @@ public class GameServerManager {
                     sendMessageToClient(clientId, loserMsg);
                 }
             }
-            
+
             System.out.println("GameServerManager: Jeu terminé! Gagnant: " + winnerId);
         }
     }
-    
+
     // 发送游戏状态给所有客户端
     private void sendGameStateToAllClients() {
-        if (gameInstance == null) return;
-        
+        if (gameInstance == null) {
+            return;
+        }
+
         String gameStateString = gameInstance.getGameStateAsString();
         String messageToSend = Code.ETAT.name() + ":" + gameStateString;
-        
+
         sendStateToAllClients(messageToSend);
         System.out.println("GameServerManager: État du jeu envoyé à tous les clients");
     }
@@ -333,7 +433,7 @@ public class GameServerManager {
         if (gameEngineThread != null && gameEngineThread.isAlive()) {
             gameEngineThread.interrupt(); // Essayer d'interrompre le thread du moteur de jeu
         }
-        
+
         // TODO : Un mécanisme est nécessaire pour déconnecter tous les ClientReceiver/ClientSender en cours d'exécution
         // et fermer leurs sockets clients. Actuellement, ils se termineront automatiquement lorsque le socket sera fermé.
         // Supprimer les clients connectés et leurs files d'attente
@@ -348,7 +448,7 @@ public class GameServerManager {
 
     // 发送消息给所有客户端
     private void sendStateToAllClients(String message) {
-        for (Integer clientId : connectedClientIds) { 
+        for (Integer clientId : connectedClientIds) {
             BlockingQueue<String> queue = outgoingQueues.get(clientId);
             if (queue != null) {
                 try {
@@ -378,7 +478,7 @@ public class GameServerManager {
     public synchronized boolean areAllPlayersConnected() {
         return connectedClientIds.size() == maxClients;
     }
-    
+
     public boolean isServerRunning() {
         return isServerRunning && serverSocket != null && !serverSocket.isClosed();
     }

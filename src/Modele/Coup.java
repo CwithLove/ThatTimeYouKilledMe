@@ -1,6 +1,7 @@
 package Modele;
 
 import java.awt.Point;
+
 public class Coup {
     private Piece piece;
     private Plateau pltCourant;
@@ -12,7 +13,7 @@ public class Coup {
         UP, // Move Up
         DOWN, // Move Down
         LEFT, // Move Left
-        RIGHT, // Move Right
+        RIGHT // Move Right
     }
 
 
@@ -63,6 +64,8 @@ public class Coup {
         }
         return null;
     }
+
+    public TypeCoup getCoup(Piece piece1, Piece piece2) {return TypeCoup.LEFT;}
 
     @Override
     public boolean equals(Object obj) {

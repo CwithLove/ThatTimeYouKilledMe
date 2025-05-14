@@ -2,6 +2,13 @@ import java.awt.Point;
 import java.util.Scanner;
 import java.util.ArrayList;
 
+/**
+ * La classe Jeu contient les méthodes pour intéragir avec le modèle du jeu.
+ * 
+ * @author The MACKYZ Protocol
+ * @version 2.0
+ */
+
 public class Jeu {
     final static int TAILLE = 4;
     private Plateau past; // plateau past
@@ -18,6 +25,11 @@ public class Jeu {
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
     
     // Constructeur => Fini
+
+    /**
+     * Crée une nouvelle instance du jeu.
+     * Initialise les joueurs, les plateaux et l'état du jeu
+     */
     public Jeu() {
         // Initialiser les joueurs
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
@@ -36,11 +48,20 @@ public class Jeu {
         plateauCourant = past; // Par défaut, on commence par le plateau passé
     }
 
-    int getEtape() {
+    /**
+     * Donne l'étape du coup en cours
+     *
+     * @return l'étape du coup en cours
+     */
+    public int getEtape() {
         return etapeCoup;
     }
 
     // Fini
+
+    /**
+     * Change le joueur courant
+     */
     public void joueurSuivant() {
         if (joueurCourant.equals(joueur1)) {
             joueurCourant = joueur2;
@@ -50,6 +71,9 @@ public class Jeu {
     }
 
     // Fini
+    /**
+     * Change le plateau courant
+     */
     public void majPlateauCourant() {
         Plateau.TypePlateau prochainPlateau = joueurCourant.getProchainPlateau();
         switch (prochainPlateau) {
@@ -65,7 +89,14 @@ public class Jeu {
         }
     }
 
-    // Choisir la piece a deplacer => Fini
+
+    /**
+     * Sélectionne la pièce à déplacer
+     *
+     * @param lig ligne de la pièce
+     * @param col colonne de la pièce
+     * @return 1 si le sélection a fonctionné, 0 sinon
+     */
     public boolean choisirPiece(int lig, int col) {
         // Choisir la piece a deplacer
         if  (etapeCoup != 0) {
@@ -91,6 +122,9 @@ public class Jeu {
         etapeCoup = 1; // Passer à l'étape 1 (choisir le coup)
         return true;          
     }
+
+
+    //Déplace la pièce dans la direction voulu
 
     private void deplacerPiece(Piece pieceactuelle, Point dir, Coup coup) {
         //4 cas si la piece arrive sur une case vide, 
@@ -179,6 +213,12 @@ public class Jeu {
     // }
 
     // Jump - Travel forward => Fini
+
+    /**
+     * Fait une action jump
+     *
+     * @param coup le coup correspondant
+     */
     public void jumping(Coup coup) {
         Piece pieceActuelle = coup.getPiece();
         switch (coup.getPltCourant().getType()) {
@@ -215,6 +255,12 @@ public class Jeu {
     }
 
     // Clone - Travel backward => Fini
+
+    /**
+     * Fait une action clone
+     *
+     * @param coup le coup correspondant
+     */
     public void clonage(Coup coup){
         Piece pieceActuelle = coup.getPiece();
         switch (coup.getPltCourant().getType()) {
@@ -247,6 +293,12 @@ public class Jeu {
     }
 
     // Appliquer le coup => Fini
+
+    /**
+     * Applique un coup au jeu
+     *
+     * @param coup le coup voulu
+     */
     public void appliquerCoup(Coup coup) {
         int index = -1;
         Point dir = null;
@@ -291,6 +343,13 @@ public class Jeu {
     }
 
     // Choisir le coup
+
+    /**
+     * Joue un coup si celui-ci est possible
+     *
+     * @param coup le coup voulu
+     * @return 1 si le coup a été joué, 0 sinon
+     */
     public boolean jouerCoup(Coup coup) {
 
         if (!estCoupValide(coup)) {
@@ -330,8 +389,9 @@ public class Jeu {
     }
 
     
-        
-
+    /**
+     * Lance le jeu sur les entrée et sortie standards
+     */
     public void demarrer() {
         //IAminmax ia = new IAminmax(1);
         // Afficher le plateau initial
@@ -450,6 +510,12 @@ public class Jeu {
 
     }
 
+    /**
+     * Vérifie si le coup est jouable
+     *
+     * @param coup le coup voulu
+     * @return 1 si le coup est jouable, 0 sinon
+     */
     public boolean estCoupValide(Coup coup) {
         ArrayList<Coup> coupsPossibles = getCoupPossibles(coup.getPltCourant(), coup.getPiece());
         for (Coup possibleCoup : coupsPossibles) {
@@ -496,10 +562,9 @@ public class Jeu {
         return 0;
     }
 
-
-
-
-    // afficher le jeu => Fini
+    /**
+     * Affiche le jeu sur la sortie standard
+     */
     public void printGamePlay() {
         System.out.println("Next Area J1 : " + joueur1.getProchainPlateau().toString());
         System.out.println("Next Area J2 : " + joueur2.getProchainPlateau().toString());
@@ -552,6 +617,14 @@ public class Jeu {
     }
 
     //Liste des coups possibles => Fini
+
+    /**
+     * Donne la liste des coups possibles pour un pièce
+     *
+     * @param plateau plateau sur lequel la pièce se trouve
+     * @param piece la pièce à partir de laquelle on veut savoir les coups possibles
+     * @return la liste des coups possibles
+     */
     public ArrayList<Coup> getCoupPossibles(Plateau plateau, Piece piece) {
         ArrayList<Coup> coupsPossibles = new ArrayList<>();
         // Définir les directions possibles (haut, bas, gauche, droite)

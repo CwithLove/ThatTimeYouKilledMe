@@ -240,13 +240,13 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         if (destX >= 0 && destX < boardSize && destY >= 0 && destY < boardSize) {
                             // Kiểm tra xem ô đích có quân của mình không
                             Piece pieceAtDest = gameInstance.getPlateauByType(plateauOfPiece).getPiece(destX, destY);
-                            if (pieceAtDest == null || pieceAtDest.getOwner().getId() != myPlayerId) {
-                                String command = Coup.TypeCoup.MOVE.name() + ":" + plateauOfPiece.name() + ":" +
-                                                 pieceToMove.getPosition().x + ":" + pieceToMove.getPosition().y + ":" +
-                                                 dir.x + ":" + dir.y;
-                                sendPlayerAction(command);
-                                return;
-                            }
+                            // if (pieceAtDest == null || pieceAtDest.getOwner().getId() != myPlayerId) {
+                            //     String command = Coup.TypeCoup.MOVE.name() + ":" + plateauOfPiece.name() + ":" +
+                            //                      pieceToMove.getPosition().x + ":" + pieceToMove.getPosition().y + ":" +
+                            //                      dir.x + ":" + dir.y;
+                            //     sendPlayerAction(command);
+                            //     return;
+                            // }
                         }
                     }
                 }

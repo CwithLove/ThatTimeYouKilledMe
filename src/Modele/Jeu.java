@@ -690,7 +690,7 @@ public class Jeu {
             // obtenir la piece selectionnee
             Piece selectedPiece = selectedPlateau.getPiece(row, col);
             System.out.println("Jeu: pieces possible sur le plateau :");
-            for (Piece piece : selectedPlateau.getPieces()) {
+            for (Piece piece : selectedPlateau.getPieces(joueurCourant)) {
                 System.out.println("Jeu: " + piece.getOwner().toString() + " " + piece.getPosition().toString());
             }
             if (selectedPiece == null) {

@@ -56,11 +56,11 @@ public class Plateau {
         return grille[lig][col];
     }
 
-    public ArrayList<Piece> getPieces() {
+    public ArrayList<Piece> getPieces(Joueur joueur) {
         ArrayList<Piece> pieces = new ArrayList<>();
         for (int lig = 0; lig < this.size; lig++) {
             for (int col = 0; col < this.size; col++) {
-                if (grille[lig][col] != null) {
+                if (grille[lig][col] != null && grille[lig][col].getOwner().getId() == joueur.getId()) {
                     pieces.add(grille[lig][col]);
                 }
             }

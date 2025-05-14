@@ -13,7 +13,6 @@ public class Coup {
         DOWN, // Move Down
         LEFT, // Move Left
         RIGHT, // Move Right
-        MOVE  // 通用移动操作（用于客户端与服务器之间的通信）
     }
 
 

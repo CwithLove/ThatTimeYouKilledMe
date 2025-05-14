@@ -21,5 +21,13 @@ public class Piece {
         this.position = position;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Piece)) return false;
+        Piece other = (Piece) obj;
+        return owner.equals(other.owner) && position.equals(other.position);
+    }
+
 
 }

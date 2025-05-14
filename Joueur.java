@@ -84,4 +84,16 @@ public class Joueur {
         return coordonnesPions;
     }
 
+    public Joueur copie() {
+        return new Joueur(this.nom, this.id, this.nbClones, this.prochainPlateau);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Joueur)) return false;
+        Joueur other = (Joueur) obj;
+        return id == other.id;
+    }
+
 }

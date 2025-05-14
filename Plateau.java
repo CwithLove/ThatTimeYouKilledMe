@@ -27,6 +27,20 @@ public class Plateau {
         // Initialisation des pièces sur le plateau
         this.grille[0][0] = new Piece(joueur1, new Point(0, 0));
         this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
+        // this.grille[0][1] = new Piece(joueur1, new Point(0, 1));
+        // this.grille[1][0] = new Piece(joueur1, new Point(1, 0));
+        // this.grille[3][2] = new Piece(joueur2, new Point(3, 2));
+        // this.grille[2][3] = new Piece(joueur2, new Point(2, 3));
+        // this.grille[1][3] = new Piece(joueur1, new Point(1, 3));
+        // this.grille[2][0] = new Piece(joueur2, new Point(2, 0));
+        // this.grille[0][2] = new Piece(joueur1, new Point(0, 2));
+        // this.grille[2][1] = new Piece(joueur2, new Point(2, 1));
+        // this.grille[1][2] = new Piece(joueur1, new Point(1, 2));
+        // this.grille[3][1] = new Piece(joueur2, new Point(3, 1));
+        // this.grille[2][2] = new Piece(joueur1, new Point(2, 2));
+        // this.grille[1][1] = new Piece(joueur2, new Point(1, 1));
+        // this.grille[3][0] = new Piece(joueur2, new Point(3, 0));
+        // this.grille[0][3] = new Piece(joueur1, new Point(0, 3));
         
         this.size = 4;
     }
@@ -94,7 +108,7 @@ public class Plateau {
     }
 
     public boolean estPareilPion(Piece piece1, Piece piece2){
-        return piece1.getOwner() == piece2.getOwner();
+        return piece1.getOwner().getId() == piece2.getOwner().getId();
     }
 
     public String plateauToString() {
@@ -112,5 +126,27 @@ public class Plateau {
             return null;
         }
 
+    }
+
+    public Plateau copie(Joueur joueur1, Joueur joueur2) {
+        Plateau copie = new Plateau(this.type, joueur1, joueur2);
+        //a verifier
+        copie.nbBlancs = this.nbBlancs;
+        copie.nbNoirs = this.nbNoirs;
+        copie.size = this.size;
+        for (int lig = 0; lig < this.size; lig++) {
+            for (int col = 0; col < this.size; col++) {
+                if (this.grille[lig][col] != null) {
+                    if(this.grille[lig][col].getOwner().getId() == joueur1.getId()) {
+                        copie.grille[lig][col] = new Piece(joueur1, this.grille[lig][col].getPosition());
+                    } else if (this.grille[lig][col].getOwner().getId() == joueur2.getId()) {
+                        copie.grille[lig][col] = new Piece(joueur2, this.grille[lig][col].getPosition());
+                    }
+                } else {
+                    copie.grille[lig][col] = null;
+                }
+            }
+        }
+        return copie;
     }
 }   

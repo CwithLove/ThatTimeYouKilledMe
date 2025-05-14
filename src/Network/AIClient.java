@@ -1,15 +1,12 @@
 package Network;
 
+import Modele.Coup;
 import Modele.Jeu;
 import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
-import Modele.Coup;
-import Network.Code;
-import Network.GameStateParser; // Sử dụng GameStateParser
-import Network.GameStateUpdateListener;
-
-import java.io.EOFException;
+import java.awt.Point;
+import java.io.EOFException; // Sử dụng GameStateParser
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -18,11 +15,10 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.awt.Point;
 
 public class AIClient implements GameStateUpdateListener, Runnable {
     private String serverIpAddress;
-    private int serverPort = 1234;
+    private int serverPort = 12345;
     private Socket socket;
     private ObjectOutputStream outputStream;
     private ObjectInputStream inputStream;
@@ -39,29 +35,35 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
     public void connect() throws IOException {
         System.out.println(aiName + ": Tentative de connexion à " + serverIpAddress + ":" + serverPort);
-        socket = new Socket(serverIpAddress, serverPort);
-        // Phải tạo outputStream trước inputStream khi client là người bắt đầu kết nối
-        outputStream = new ObjectOutputStream(socket.getOutputStream());
-        outputStream.flush(); // Rất quan trọng!
-
-        inputStream = new ObjectInputStream(socket.getInputStream());
-        System.out.println(aiName + ": Connecté au serveur.");
-
         try {
-            Object idMessageObj = inputStream.readObject();
-            if (idMessageObj instanceof String) {
-                String idMessage = (String) idMessageObj;
-                if (idMessage.startsWith("ID:")) {
-                    this.myPlayerId = Integer.parseInt(idMessage.substring(3));
-                    System.out.println(aiName + ": Mon ID de joueur est : " + this.myPlayerId);
+            socket = new Socket(serverIpAddress, serverPort);
+            // 确保按照正确的顺序创建流
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.flush(); // 必须刷新输出流
+            
+            // 在刷新输出流后创建输入流
+            inputStream = new ObjectInputStream(socket.getInputStream());
+            System.out.println(aiName + ": Connecté au serveur.");
+            
+            try {
+                Object idMessageObj = inputStream.readObject();
+                if (idMessageObj instanceof String) {
+                    String idMessage = (String) idMessageObj;
+                    if (idMessage.startsWith("ID:")) {
+                        this.myPlayerId = Integer.parseInt(idMessage.substring(3));
+                        System.out.println(aiName + ": Mon ID de joueur est : " + this.myPlayerId);
+                    } else {
+                        throw new IOException(aiName + ": Message d'ID initial invalide: " + idMessage);
+                    }
                 } else {
-                    throw new IOException(aiName + ": Message d'ID initial invalide: " + idMessage);
+                    throw new IOException(aiName + ": Type de message d'ID initial invalide.");
                 }
-            } else {
-                throw new IOException(aiName + ": Type de message d'ID initial invalide.");
+            } catch (ClassNotFoundException e) {
+                throw new IOException(aiName + ": Erreur lecture ID.", e);
             }
-        } catch (ClassNotFoundException e) {
-            throw new IOException(aiName + ": Erreur lecture ID.", e);
+        } catch (IOException e) {
+            System.err.println(aiName + ": Erreur connexion: " + e.getMessage());
+            throw e;
         }
         isRunning = true;
     }
@@ -234,7 +236,8 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         // AI có thể kiểm tra sơ bộ xem nước đi có ra ngoài bàn cờ không
                         int destX = pieceToMove.getPosition().x + dir.x;
                         int destY = pieceToMove.getPosition().y + dir.y;
-                        if (destX >= 0 && destX < Jeu.TAILLE && destY >= 0 && destY < Jeu.TAILLE) {
+                        int boardSize = 4; // 使用固定棋盘大小而不是直接访问私有常量
+                        if (destX >= 0 && destX < boardSize && destY >= 0 && destY < boardSize) {
                             // Kiểm tra xem ô đích có quân của mình không
                             Piece pieceAtDest = gameInstance.getPlateauByType(plateauOfPiece).getPiece(destX, destY);
                             if (pieceAtDest == null || pieceAtDest.getOwner().getId() != myPlayerId) {
@@ -257,8 +260,9 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private List<Piece> findMyPiecesOnBoard(Plateau board, Joueur myself) {
         List<Piece> myPieces = new ArrayList<>();
         if (board == null || myself == null) return myPieces;
-        for (int r = 0; r < Jeu.TAILLE; r++) {
-            for (int c = 0; c < Jeu.TAILLE; c++) {
+        int boardSize = 4; // 使用固定棋盘大小而不是直接访问私有常量
+        for (int r = 0; r < boardSize; r++) {
+            for (int c = 0; c < boardSize; c++) {
                 Piece p = board.getPiece(r, c);
                 if (p != null && p.getOwner().getId() == myself.getId()) {
                     myPieces.add(p);

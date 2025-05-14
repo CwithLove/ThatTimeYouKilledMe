@@ -55,6 +55,10 @@ public class Joueur {
         }
     }
 
+    public void setNbClones(int nbClones) {
+        this.nbClones = nbClones;
+    }
+
     public void setProchainPlateau(Plateau.TypePlateau prochainPlateau) {
         this.prochainPlateau = prochainPlateau;
     }

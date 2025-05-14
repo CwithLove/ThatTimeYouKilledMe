@@ -42,7 +42,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     // UI Buttons
     private Button backButton;
-    private Button moveButton;
+    private Button upButton;
+    private Button downButton;
+    private Button leftButton;
+    private Button rightButton;
     private Button jumpButton;
     private Button cloneButton;
 
@@ -170,16 +173,14 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private void commonUIInit() {
         // Vị trí nút sẽ được cập nhật trong render()
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
-        moveButton = new Button(0, 0, 100, 40, "MOVE", () -> {
-            if (isMyTurn() && selectedPiecePosition != null && !gameHasEnded) {
-                nextActionType = Coup.TypeCoup.MOVE;
-                statusMessage = "MOVE: Cliquez sur la case destination.";
-                repaintPanel();
-            } else if (!isMyTurn()){
-                statusMessage = "Ce n'est pas votre tour.";
-                repaintPanel();
-            }
-        });
+        
+        // 四个方向按钮
+        upButton = new Button(0, 0, 80, 40, "UP", () -> handleDirectionMove(Coup.TypeCoup.UP));
+        downButton = new Button(0, 0, 80, 40, "DOWN", () -> handleDirectionMove(Coup.TypeCoup.DOWN));
+        leftButton = new Button(0, 0, 80, 40, "LEFT", () -> handleDirectionMove(Coup.TypeCoup.LEFT));
+        rightButton = new Button(0, 0, 80, 40, "RIGHT", () -> handleDirectionMove(Coup.TypeCoup.RIGHT));
+        
+        // 重新添加JUMP和CLONE按钮
         jumpButton = new Button(0, 0, 100, 40, "JUMP", () -> handleActionCommand(Coup.TypeCoup.JUMP));
         cloneButton = new Button(0, 0, 100, 40, "CLONE", () -> handleActionCommand(Coup.TypeCoup.CLONE));
     }
@@ -434,44 +435,60 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     private boolean isMyTurn() {
-        if (jeu == null || jeu.getJoueurCourant() == null || gameClient == null || gameClient.getMyPlayerId() == -1) {
-            return false; // Chưa sẵn sàng hoặc không biết ID của mình
+        if (jeu == null) {
+            System.out.println("isMyTurn: false, jeu为null");
+            return false;
         }
-        return jeu.getJoueurCourant().getId() == gameClient.getMyPlayerId();
+        
+        if (jeu.getJoueurCourant() == null || gameClient == null || gameClient.getMyPlayerId() == -1) {
+            System.out.println("isMyTurn: false, jeu.getJoueurCourant(): " + 
+                (jeu.getJoueurCourant() == null ? "null" : jeu.getJoueurCourant()) + 
+                ", gameClient: " + gameClient + 
+                ", gameClient.getMyPlayerId(): " + (gameClient != null ? gameClient.getMyPlayerId() : -1));
+            return false;
+        }
+        
+        boolean isMyTurn = jeu.getJoueurCourant().getId() == gameClient.getMyPlayerId();
+        // System.out.println("isMyTurn: " + isMyTurn + 
+        //     ", jeu.getJoueurCourant().getId(): " + jeu.getJoueurCourant().getId() + 
+        //     ", gameClient.getMyPlayerId(): " + gameClient.getMyPlayerId());
+        return isMyTurn;
     }
 
     private void handleActionCommand(Coup.TypeCoup actionType) {
-        if (!isMyTurn()){
-            statusMessage = "Ce n'est pas votre tour.";
-            repaintPanel();
-            return;
-        }
         if (selectedPiecePosition == null || selectedPlateauType == null || gameHasEnded || gameClient == null || !gameClient.isConnected()) {
             statusMessage = "Sélectionnez un pion d'abord ou action non permise.";
             repaintPanel();
             return;
         }
 
-        // Lấy quân cờ từ trạng thái game cục bộ (đã được server cập nhật) để kiểm tra owner
-        Piece piece = jeu.getPlateauByType(selectedPlateauType).getPiece(selectedPiecePosition.x, selectedPiecePosition.y);
-        if (piece == null || piece.getOwner().getId() != gameClient.getMyPlayerId()) {
-            statusMessage = "Pion invalide ou n'appartient pas à vous.";
-            resetSelection();
-            repaintPanel();
-            return;
-        }
-
-        // JUMP và CLONE gửi lệnh ngay
-        nextActionType = actionType;
-        String command = nextActionType.name() + ":" + selectedPlateauType.name() + ":" +
+        // 直接构造命令发送到服务器，不在客户端验证
+        String command = actionType.name() + ":" + selectedPlateauType.name() + ":" +
                          selectedPiecePosition.x + ":" + selectedPiecePosition.y;
 
         gameClient.sendPlayerAction(command);
         statusMessage = "Commande " + actionType.name() + " envoyée...";
-        resetSelectionAfterAction(); // Reset UI sau khi gửi lệnh
+        resetSelectionAfterAction(); // 发送命令后重置UI
         repaintPanel();
     }
 
+    // 添加一个新的方法处理方向移动
+    private void handleDirectionMove(Coup.TypeCoup direction) {
+        if (selectedPiecePosition == null || selectedPlateauType == null || gameHasEnded || gameClient == null || !gameClient.isConnected()) {
+            statusMessage = "Sélectionnez un pion d'abord ou action non permise.";
+            repaintPanel();
+            return;
+        }
+        
+        // 直接构造命令发送到服务器，不在客户端验证
+        String command = direction.name() + ":" + selectedPlateauType.name() + ":" +
+                        selectedPiecePosition.x + ":" + selectedPiecePosition.y;
+        
+        gameClient.sendPlayerAction(command);
+        statusMessage = "Déplacement " + direction.name() + " envoyé...";
+        resetSelectionAfterAction();
+        repaintPanel();
+    }
 
     @Override
     public void update() {
@@ -496,15 +513,20 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 }
                 
                 boolean myTurn = isMyTurn(); // Vérifie si c'est le tour du joueur
-                
-                // Activer les boutons d'action seulement quand c'est notre tour et qu'une pièce est sélectionnée
-                if (myTurn && selectedPiecePosition != null) {
-                    moveButton.update(mousePos);
+                // Activer les boutons d'action seulement quand c'est notre tour
+                if (myTurn) {
+                    upButton.update(mousePos);
+                    downButton.update(mousePos);
+                    leftButton.update(mousePos);
+                    rightButton.update(mousePos);
                     jumpButton.update(mousePos);
                     cloneButton.update(mousePos);
                 } else {
-                    // Si ce n'est pas notre tour ou aucune pièce sélectionnée, s'assurer que les boutons ne sont pas en survol
-                    moveButton.update(new Point(-1, -1));
+                    // Si ce n'est pas notre tour, s'assurer que les boutons ne sont pas en survol
+                    upButton.update(new Point(-1, -1));
+                    downButton.update(new Point(-1, -1));
+                    leftButton.update(new Point(-1, -1));
+                    rightButton.update(new Point(-1, -1));
                     jumpButton.update(new Point(-1, -1));
                     cloneButton.update(new Point(-1, -1));
                 }
@@ -528,14 +550,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
         backButton.setLocation(30, dynamicButtonY);
 
         int actionButtonXStart = backButton.getX() + backButton.getWidth() + 20;
-        moveButton.setSize(actionButtonWidth, buttonCommonHeight);
-        moveButton.setLocation(actionButtonXStart, dynamicButtonY);
+        upButton.setSize(actionButtonWidth, buttonCommonHeight);
+        upButton.setLocation(actionButtonXStart, dynamicButtonY - buttonCommonHeight - 10);
+
+        downButton.setSize(actionButtonWidth, buttonCommonHeight);
+        downButton.setLocation(actionButtonXStart + actionButtonWidth + 10, dynamicButtonY - buttonCommonHeight - 10);
+
+        leftButton.setSize(actionButtonWidth, buttonCommonHeight);
+        leftButton.setLocation(actionButtonXStart + (actionButtonWidth + 10) * 2, dynamicButtonY - buttonCommonHeight - 10);
+
+        rightButton.setSize(actionButtonWidth, buttonCommonHeight);
+        rightButton.setLocation(actionButtonXStart + (actionButtonWidth + 10) * 3, dynamicButtonY - buttonCommonHeight - 10);
 
         jumpButton.setSize(actionButtonWidth, buttonCommonHeight);
-        jumpButton.setLocation(actionButtonXStart + actionButtonWidth + 10, dynamicButtonY);
+        jumpButton.setLocation(actionButtonXStart + actionButtonWidth/2, dynamicButtonY);
 
         cloneButton.setSize(actionButtonWidth, buttonCommonHeight);
-        cloneButton.setLocation(actionButtonXStart + (actionButtonWidth + 10) * 2, dynamicButtonY);
+        cloneButton.setLocation(actionButtonXStart + actionButtonWidth/2 + actionButtonWidth + 20, dynamicButtonY);
 
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -571,7 +602,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau present = jeu.getPresent();
             Plateau future = jeu.getFuture();
 
-            int boardSize = Jeu.TAILLE;
+            int boardSize = jeu.getTAILLE();
             int topMargin = 70; // Espace cho statusMessage
             int bottomMarginForButtons = height - dynamicButtonY + 30;
             int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
@@ -664,9 +695,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Rendu các nút
         backButton.render(g2d);
-        // Chỉ hiển thị nút action nếu quân cờ được chọn VÀ đến lượt người chơi VÀ game chưa kết thúc
-        if (selectedPiecePosition != null && isMyTurn() && !gameHasEnded) {
-            moveButton.render(g2d);
+        // Chỉ hiển thị nút action nếu đến lượt người chơi VÀ game chưa kết thúc
+        if (isMyTurn() && !gameHasEnded) {
+            upButton.render(g2d);
+            downButton.render(g2d);
+            leftButton.render(g2d);
+            rightButton.render(g2d);
             jumpButton.render(g2d);
             cloneButton.render(g2d);
         }
@@ -781,9 +815,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 if (backButton.contains(mousePoint)) { backButton.onClick(); return; }
 
-                // Các nút hành động chỉ được xử lý nếu một quân cờ đã được chọn VÀ đến lượt người chơi
-                if (selectedPiecePosition != null && isMyTurn()) {
-                    if (moveButton.contains(mousePoint)) { moveButton.onClick(); return; }
+                // Các nút hành động chỉ được xử lý nếu đến lượt người chơi
+                if (isMyTurn()) {
+                    if (upButton.contains(mousePoint)) { upButton.onClick(); return; }
+                    if (downButton.contains(mousePoint)) { downButton.onClick(); return; }
+                    if (leftButton.contains(mousePoint)) { leftButton.onClick(); return; }
+                    if (rightButton.contains(mousePoint)) { rightButton.onClick(); return; }
                     if (jumpButton.contains(mousePoint)) { jumpButton.onClick(); return; }
                     if (cloneButton.contains(mousePoint)) { cloneButton.onClick(); return; }
                 }
@@ -802,9 +839,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     needsRepaint = true;
                 }
                 
-                if (selectedPiecePosition != null && isMyTurn()) {
-                    if (moveButton.contains(mousePoint)) {
-                        moveButton.setClicked(true);
+                // Các nút hành động chỉ được xử lý nếu đến lượt người chơi
+                if (isMyTurn()) {
+                    if (upButton.contains(mousePoint)) {
+                        upButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                    if (downButton.contains(mousePoint)) {
+                        downButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                    if (leftButton.contains(mousePoint)) {
+                        leftButton.setClicked(true);
+                        needsRepaint = true;
+                    }
+                    if (rightButton.contains(mousePoint)) {
+                        rightButton.setClicked(true);
                         needsRepaint = true;
                     }
                     if (jumpButton.contains(mousePoint)) {
@@ -828,7 +878,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 
                 // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
-                moveButton.setClicked(false);
+                upButton.setClicked(false);
+                downButton.setClicked(false);
+                leftButton.setClicked(false);
+                rightButton.setClicked(false);
                 jumpButton.setClicked(false);
                 cloneButton.setClicked(false);
                 repaintPanel();
@@ -857,12 +910,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     private void handleBoardClick(Point mousePoint) {
-        if (!isMyTurn()) {
-            statusMessage = "Ce n'est pas votre tour.";
-            repaintPanel();
-            return;
-        }
-        if (jeu == null || gameClient == null || !gameClient.isConnected()) {
+        if (jeu == null || gameClient == null || !gameClient.isConnected() || gameHasEnded) {
             statusMessage = "Jeu non prêt ou déconnecté.";
             repaintPanel();
             return;
@@ -871,82 +919,50 @@ public class GameScene implements Scene, GameStateUpdateListener {
         Plateau clickedPlateauObj = getPlateauFromMousePoint(mousePoint);
         Point boardCoords = getBoardCoordinates(mousePoint);
 
-        if (clickedPlateauObj != null && boardCoords != null) { // Click hợp lệ trên một ô
+        if (clickedPlateauObj != null && boardCoords != null) { // 有效的棋盘点击
             int clickedRow = boardCoords.x;
             int clickedCol = boardCoords.y;
             Piece pieceAtClick = clickedPlateauObj.getPiece(clickedRow, clickedCol);
-            boolean needsRepaint = false; // Indique si un repaint est nécessaire
+            boolean needsRepaint = false; // 是否需要重绘
 
-            if (selectedPiecePosition == null) { // CHƯA CHỌN QUÂN CỜ
-                if (pieceAtClick != null && pieceAtClick.getOwner().getId() == gameClient.getMyPlayerId()) {
-                    selectedPiecePosition = new Point(clickedRow, clickedCol);
-                    selectedPlateauType = clickedPlateauObj.getType();
-                    nextActionType = null; // Reset action khi chọn quân mới
-                    statusMessage = "Pion (" + selectedPlateauType + " " + clickedRow + "," + clickedCol + ") sélectionné. Choisissez une action.";
-                    needsRepaint = true;
-                } else {
-                    statusMessage = "Cliquez sur un de VOS pions.";
-                    resetSelection();
-                    needsRepaint = true;
-                }
-            } else { // ĐÃ CHỌN QUÂN CỜ
-                if (nextActionType == null) { // Chưa chọn MOVE/JUMP/CLONE bằng nút
+            if (selectedPiecePosition == null) { // 尚未选择棋子
+                // 仅选择棋子，不判断所有权（服务器会判断）
+                selectedPiecePosition = new Point(clickedRow, clickedCol);
+                selectedPlateauType = clickedPlateauObj.getType();
+                nextActionType = null; // 选择新棋子时重置动作
+                statusMessage = "Pion (" + selectedPlateauType + " " + clickedRow + "," + clickedCol + ") sélectionné. Choisissez une action.";
+                needsRepaint = true;
+            } else { // 已经选择了棋子
+                if (nextActionType == null) { // 尚未通过按钮选择任何动作
                     if (clickedPlateauObj.getType().equals(selectedPlateauType) &&
                         clickedRow == selectedPiecePosition.x && clickedCol == selectedPiecePosition.y) {
-                        resetSelection(); // Click lại quân cũ -> bỏ chọn
+                        resetSelection(); // 点击同一个棋子 -> 取消选择
                         statusMessage = "Pion désélectionné.";
                         needsRepaint = true;
-                    } else if (pieceAtClick != null && pieceAtClick.getOwner().getId() == gameClient.getMyPlayerId()) {
-                        selectedPiecePosition = new Point(clickedRow, clickedCol); // Chọn quân khác của mình
+                    } else {
+                        // 选择新的棋子
+                        selectedPiecePosition = new Point(clickedRow, clickedCol);
                         selectedPlateauType = clickedPlateauObj.getType();
                         statusMessage = "Nouveau pion sélectionné. Choisissez une action.";
                         needsRepaint = true;
-                    } else {
-                        // Click vào ô trống/quân địch khi chưa có action -> không làm gì, chờ nút action
-                        statusMessage = "Pion ("+selectedPlateauType+" "+selectedPiecePosition.x+","+selectedPiecePosition.y+ ") sélectionné. Choisissez une ACTION.";
-                        needsRepaint = true;
-                    }
-                } else if (nextActionType == Coup.TypeCoup.MOVE) {
-                    if (!clickedPlateauObj.getType().equals(selectedPlateauType)) {
-                        statusMessage = "MOVE doit être sur le même plateau (" + selectedPlateauType + ").";
-                        needsRepaint = true;
-                    } else {
-                        // Tính toán dx, dy dựa trên vị trí nguồn và đích
-                        int dx = clickedRow - selectedPiecePosition.x;
-                        int dy = clickedCol - selectedPiecePosition.y;
-
-                        // Kiểm tra xem có phải là ô kề không (không cho phép di chuyển tới chính nó)
-                        if ( (Math.abs(dx) == 1 && dy == 0) || (dx == 0 && Math.abs(dy) == 1) ) {
-                             String command = "MOVE:" + selectedPlateauType.name() + ":" +
-                                         selectedPiecePosition.x + ":" + selectedPiecePosition.y + ":" +
-                                         dx + ":" + dy; // Gửi dx, dy tương đối
-                            gameClient.sendPlayerAction(command);
-                            statusMessage = "MOVE envoyé à ("+clickedRow+","+clickedCol+"). Attente serveur...";
-                            resetSelectionAfterAction();
-                            needsRepaint = true;
-                        } else {
-                            statusMessage = "Destination invalide pour MOVE. Doit être une case adjacente.";
-                            needsRepaint = true;
-                            // Không reset nextActionType, cho phép thử lại đích MOVE
-                        }
                     }
                 }
-                // JUMP và CLONE đã được xử lý bởi handleActionCommand() khi nhấn nút
+                // 删除了MOVE相关代码，现在通过方向按钮处理
             }
             
-            // Ne repeindre que si nécessaire
+            // 只在需要时重绘
             if (needsRepaint) {
                 repaintPanel();
             }
-        } else { // Click bên ngoài bàn cờ
+        } else { // 点击棋盘外
             boolean needsRepaint = false;
             
             if (selectedPiecePosition != null && nextActionType == null) {
-                resetSelection(); // Bỏ chọn nếu click ra ngoài khi chưa chọn action
+                resetSelection(); // 如果已选择棋子但未选择动作时点击外部则取消选择
                 statusMessage = "Pion désélectionné (clic extérieur).";
                 needsRepaint = true;
             } else if (selectedPiecePosition == null) {
-                statusMessage = "Cliquez sur un de vos pions.";
+                statusMessage = "Cliquez sur un pion.";
                 needsRepaint = true;
             }
             
@@ -965,7 +981,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int dynamicButtonY = height - 70; // Đồng bộ với render
         if (dynamicButtonY < 450) dynamicButtonY = 450;
 
-        int boardSize = Jeu.TAILLE;
+        int boardSize = jeu.getTAILLE();
         int topMargin = 70;
         int bottomMarginForButtons = height - dynamicButtonY + 30;
         int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
@@ -999,7 +1015,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int dynamicButtonY = height - 70; // Đồng bộ
         if (dynamicButtonY < 450) dynamicButtonY = 450;
 
-        int boardSize = Jeu.TAILLE;
+        int boardSize = jeu.getTAILLE();
         int topMargin = 70;
         int bottomMarginForButtons = height - dynamicButtonY + 30;
         int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
@@ -1059,7 +1075,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 this.statusMessage = "Tour de l'adversaire : " + opponentName + " (ID " + this.jeu.getJoueurCourant().getId() + ")";
             }
         } else if (isLoading) {
-             // Giữ statusMessage của SwingWorker nếu đang loading
+             // 如果正在加载则保留SwingWorker的statusMessage
         } else if (gameClient != null && gameClient.isConnected()){
             this.statusMessage = "En attente de l'état du jeu du serveur...";
         } else {
@@ -1071,25 +1087,25 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // --- GameStateUpdateListener Implementation ---
     @Override
     public void onGameStateUpdate(Jeu newGameState) {
-        // Được gọi từ GameClient, đã nằm trên EDT
-        System.out.println("GameScene: Nouvelle mise à jour d'état de jeu reçue.");
+        System.out.println("GameScene: 收到游戏状态更新");
         
         if (this.jeu == null && newGameState != null) {
-            System.out.println("GameScene: Premier état de jeu reçu.");
+            System.out.println("GameScene: 首次接收游戏状态");
         }
         
         this.jeu = newGameState;
-        isLoading = false; // Game state received, no longer "initial loading"
-        updateStatusFromCurrentGame(true);
-        gameHasEnded = false; // Chờ tin nhắn GAGNE/PERDU cụ thể
-        resetSelectionAfterAction(); // Xóa lựa chọn UI sau khi server cập nhật
+        isLoading = false;
         
         if (newGameState != null && newGameState.getJoueurCourant() != null) {
-            System.out.println("GameScene: Tour actuel - Joueur " + newGameState.getJoueurCourant().getId() 
-                + " (" + newGameState.getJoueurCourant().getNom() + ")");
+            System.out.println("GameScene: 当前玩家 - ID: " + newGameState.getJoueurCourant().getId());
         }
         
-        repaintPanel();
+        updateStatusFromCurrentGame(true);
+        gameHasEnded = false;
+        resetSelectionAfterAction();
+        
+        // 确保界面更新
+        SwingUtilities.invokeLater(this::repaintPanel);
     }
 
     @Override

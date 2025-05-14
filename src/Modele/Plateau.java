@@ -1,7 +1,7 @@
 package Modele;
 
 import java.awt.Point;
-
+import java.util.ArrayList;
 public class Plateau {
     public enum TypePlateau {
         PAST,
@@ -56,6 +56,18 @@ public class Plateau {
         return grille[lig][col];
     }
 
+    public ArrayList<Piece> getPieces() {
+        ArrayList<Piece> pieces = new ArrayList<>();
+        for (int lig = 0; lig < this.size; lig++) {
+            for (int col = 0; col < this.size; col++) {
+                if (grille[lig][col] != null) {
+                    pieces.add(grille[lig][col]);
+                }
+            }
+        }
+        return pieces;
+    }
+
     public TypePlateau getType() {
         return type;
     }
@@ -81,6 +93,12 @@ public class Plateau {
     public void incBlancs() { this.nbBlancs+=1; }
 
     public void incNoirs() { this.nbNoirs+=1; }
+
+    // 重置计数器
+    public void resetCounts() {
+        this.nbBlancs = 0;
+        this.nbNoirs = 0;
+    }
 
     public void appliquerCoup(Coup coup) {
         return;
@@ -114,5 +132,39 @@ public class Plateau {
             return null;
         }
 
+    }
+
+    // 清除棋盘上所有棋子
+    public void clearPieces() {
+        for (int i = 0; i < this.getSize(); i++) {
+            for (int j = 0; j < this.getSize(); j++) {
+                if (this.getPiece(i, j) != null) {
+                    this.removePiece(i, j);
+                }
+            }
+        }
+        this.nbBlancs = 0;
+        this.nbNoirs = 0;
+    }
+
+    // 重新计算棋盘上的棋子数量
+    public void updatePieceCount() {
+        int blancs = 0;
+        int noirs = 0;
+        for (int i = 0; i < this.getSize(); i++) {
+            for (int j = 0; j < this.getSize(); j++) {
+                Piece p = this.getPiece(i, j);
+                if (p != null) {
+                    if (p.getOwner().getId() == 1) {
+                        blancs++;
+                    } else {
+                        noirs++;
+                    }
+                }
+            }
+        }
+        this.nbBlancs = blancs;
+        this.nbNoirs = noirs;
+        System.out.println("棋盘" + this.getType() + "：白棋=" + blancs + "，黑棋=" + noirs);
     }
 }   

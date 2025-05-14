@@ -11,17 +11,17 @@ import java.awt.LayoutManager;
 import javax.swing.JPanel;
 
 /**
- * A Swing Layout that will shrink or enlarge keep the content of a container while keeping
- * it's aspect ratio. The caveat is that only a single component is supported or an exception
- * will be thrown.
- * This is the component's getPreferredSize() method that must return the correct ratio. The
- * preferredSize will not be preserved but the ratio will.
+ * Un Layout Swing qui va réduire ou agrandir le contenu d'un conteneur tout en
+ * gardant son ratio d'aspect. L'inconvénient est qu'un seul composant est supporté
+ * sinon une exception sera lancée.
+ * C'est la méthode getPreferredSize() du composant qui doit retourner le bon ratio.
+ * La taille préférée ne sera pas préservée mais le ratio le sera.
  * @author @francoismarot
  * @see https://gist.github.com/fmarot/f04346d0e989baef1f56ffd83bbf764d
  */
 public class AspectRatioKeeperLayout implements LayoutManager {
 
-	/** Will be used for calculus in case no real component is in the parent */
+	/** Sera utilisé pour les calculs au cas où aucun composant réel n'est dans le parent */
 	private static Component fakeComponent = new JPanel();
 
 	public AspectRatioKeeperLayout() {
@@ -48,7 +48,7 @@ public class AspectRatioKeeperLayout implements LayoutManager {
 		double hgap = (maxWidth - targetWidth) / 2;
 		double vgap = (maxHeight - targetHeight) / 2;
 
-		// Set the single component's size and position.
+		// Définir la taille et la position du composant unique.
 		component.setBounds((int) hgap, (int) vgap, (int) targetWidth, (int) targetHeight);
 	}
 
@@ -56,7 +56,7 @@ public class AspectRatioKeeperLayout implements LayoutManager {
 		int parentComponentCount = parent.getComponentCount();
 		if (parentComponentCount > 1) {
 			throw new IllegalArgumentException(this.getClass().getSimpleName()
-					+ " can not handle more than one component");
+					+ " ne peut pas gérer plus d'un composant");
 		}
 		Component comp = (parentComponentCount == 1) ? parent.getComponent(0) : fakeComponent;
 		return comp;

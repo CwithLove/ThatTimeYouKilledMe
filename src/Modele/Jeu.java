@@ -1,20 +1,20 @@
 package Modele;
 
 import java.awt.Point;
-import java.util.Scanner;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public class Jeu {
-    final static int TAILLE = 4;
-    private Plateau past; // plateau past
-    private Plateau present; // plateau present
-    private Plateau future; // plateau future
+    private final static int TAILLE = 4;
+    private Plateau past; // plateau passé
+    private Plateau present; // plateau présent
+    private Plateau future; // plateau futur
     private Joueur joueur1; // joueur 1
     private Joueur joueur2; // joueur 2
     private Joueur joueurCourant;
-    private Piece pieceCourante; // piece courante
+    private Piece pieceCourante; // pièce courante
     private Plateau plateauCourant; // plateau courant
-    private int etapeCoup; // etape du coup, 0 = choisir piece , 1 = coup 1, 2 = coup 2, 3 = choisir plateau
+    private int etapeCoup; // étape du coup, 0 = choisir pièce, 1 = coup 1, 2 = coup 2, 3 = choisir plateau
     private int gameState = 0; // 0 = en cours, 1 = joueur 1 gagne, 2 = joueur 2 gagne
     Scanner sc = new Scanner(System.in);
     private ArrayList<IAFields<Couple<Integer,Integer>,String,String,String>> historique = new ArrayList<>();
@@ -67,11 +67,11 @@ public class Jeu {
         }
     }
 
-    // Choisir la piece a deplacer => Fini
+    // Choisir la pièce à déplacer => Fini
     public boolean choisirPiece(int lig, int col) {
-        // Choisir la piece a deplacer
+        // Choisir la pièce à déplacer
         if  (etapeCoup != 0) {
-            System.err.println("Erreur: etapeCoup != 0 => vous ne pouvez pas choisir une piece maintenant.");
+            System.err.println("Erreur: etapeCoup != 0 => vous ne pouvez pas choisir une pièce maintenant.");
             return false;
         }
 
@@ -81,7 +81,7 @@ public class Jeu {
         }
 
         if (!plateauCourant.getPiece(lig, col).getOwner().equals(joueurCourant) ) {
-            System.out.println("Piece invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
+            System.out.println("Pièce invalide ou non possédée par le joueur courant. Veuillez réessayer : ");
             return false;
         }
         pieceCourante = plateauCourant.getPiece(lig, col);
@@ -90,7 +90,7 @@ public class Jeu {
     }
 
     private void deplacerPiece(Piece pieceactuelle, Point dir, Coup coup) {
-        //4 cas si la piece arrive sur une case vide, 
+        //4 cas si la pièce arrive sur une case vide, 
         //si elle arrive sur une case occupée par un pion de la meme couleur,
         // si elle arrive sur une case occupée par un pion de l'autre couleur,
         // si elle sort du plateau
@@ -137,7 +137,7 @@ public class Jeu {
     
     }
 
-    // // Deplacer la piece  => Fini
+    // // Deplacer la pièce  => Fini
     // private void deplacerPiece(Coup coup, Point dir, Piece piece) {
     //     Point src = piece.getPosition();
     //     // Position destination
@@ -275,7 +275,7 @@ public class Jeu {
         appliquerCoup(coup);
 
         // Mettre a jour l'etat du jeu
-        gameOver(joueurCourant);
+        // gameOver(joueurCourant);
 
         return true;
     }
@@ -336,14 +336,14 @@ public class Jeu {
                 }
             }
 
-            // Choisir la piece a deplacer
+            // Choisir la pièce à déplacer
             try {
                 int lig, col;
                 do {
                     if ((joueurCourant.equals(joueur1) && plateauCourant.getNbBlancs() == 0) || (joueurCourant.equals(joueur2) && plateauCourant.getNbNoirs() == 0)){
                         break;
                     }
-                    System.out.print("Veuillez entrez la piece que vous voulez deplacer (ligne colonne) : ");
+                    System.out.print("Veuillez entrez la pièce que vous voulez déplacer (ligne colonne) : ");
                     lig = sc.nextInt();
                     col = sc.nextInt();
                 } while (!choisirPiece(lig, col));
@@ -399,7 +399,11 @@ public class Jeu {
     }
 
     public boolean estCoupValide(Coup coup) {
+        System.out.println("Coup: " + coup.getTypeCoup());
         ArrayList<Coup> coupsPossibles = getCoupPossibles(coup.getPltCourant(), coup.getPiece());
+        for (Coup possibleCoup : coupsPossibles) {
+            System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
+        }
         for (Coup possibleCoup : coupsPossibles) {
             if (possibleCoup.equals(coup)) {
                 return true; //attention peut etre overide le equals
@@ -410,10 +414,9 @@ public class Jeu {
     }
     
     // condition d'arret
-    private int gameOver(Joueur joueur) {
-        //System.out.println("Nombre de blancs: passe "+past.getNbBlancs()+", present "+present.getNbBlancs()+", future "+future.getNbBlancs());
-        //System.out.println("Nombre de Noirs: passe "+past.getNbNoirs()+", present "+present.getNbNoirs()+", future "+future.getNbNoirs());
+    public int gameOver(Joueur joueur) {
         if (joueur.equals(joueur1)){
+            System.out.println("Joueur 1: " + past.getNbNoirs() + " " + present.getNbNoirs() + " " + future.getNbNoirs());
             if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0){
                 gameState = 1;
                 return 1; //joueur 1 a gagne
@@ -427,6 +430,7 @@ public class Jeu {
                 return 1;
             }
         } else if (joueur.equals(joueur2)){
+            System.out.println("Joueur 2: " + past.getNbBlancs() + " " + present.getNbBlancs() + " " + future.getNbBlancs());
             if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0){
                 gameState = 2;
                 return 2;
@@ -519,7 +523,7 @@ public class Jeu {
                 continue; // Si la nouvelle position est en dehors du plateau, passer à la direction suivante
             }
 
-            // il faut que le newPos est libre ou la piece qui se situe la est de l'autre joueur
+            // il faut que le newPos est libre ou la pièce qui se situe la est de l'autre joueur
             if (plateau.getPiece((int)newPos.getX(), (int)newPos.getY()) == null || !plateau.getPiece((int)newPos.getX(), (int)newPos.getY()).getOwner().equals(piece.getOwner())) {
                 Coup.TypeCoup typeCoup = null;
                 switch (i) {
@@ -574,5 +578,239 @@ public class Jeu {
         return coupsPossibles;
     }
     
+    public int getTAILLE() {
+        return TAILLE;
+    }
+
+    public Joueur getJoueurCourant() {
+        return joueurCourant;
+    }
     
+    public void setJoueurCourant(Joueur joueur) {
+        this.joueurCourant = joueur;
+    }
+    
+    public Plateau getPast() {
+        return past;
+    }
+    
+    public Plateau getPresent() {
+        return present;
+    }
+    
+    public Plateau getFuture() {
+        return future;
+    }
+    
+    public Plateau getPlateauByType(Plateau.TypePlateau type) {
+        switch (type) {
+            case PAST:
+                return past;
+            case PRESENT:
+                return present;
+            case FUTURE:
+                return future;
+            default:
+                return null;
+        }
+    }
+    
+    public Joueur getJoueur1() {
+        return joueur1;
+    }
+    
+    public Joueur getJoueur2() {
+        return joueur2;
+    }
+    
+    public int getGameState() {
+        return gameState;
+    }
+    
+    public void setPieceCourante(Piece piece) {
+        this.pieceCourante = piece;
+    }
+    
+    public Piece getPieceCourante() {
+        return pieceCourante;
+    }
+
+    public int getEtapeCoup() {
+        return etapeCoup;
+    }
+    
+    public void setEtapeCoup(int etape) {
+        this.etapeCoup = etape;
+    }
+
+    public Plateau getPlateauCourant() {
+        return plateauCourant;
+    }
+    /**
+     * 
+     * Process the command from the GameServerManager
+     * Command format: <TYPE_COUP>:<PLATEAU_TYPE>:<ROW>:<COL>[:<DIR_DX>:<DIR_DY>]
+     * @param command command string
+     * @param playerId joueur ID
+     * @return True commande valide sinon false
+     */
+    public boolean processPlayerCommand(String command, int playerId) {
+        if (command == null || command.isEmpty()) {
+            System.err.println("Jeu: Commande vide reçue.");
+            return false;
+        }
+
+        try {
+            // etudier la commande
+            String[] parts = command.split(":");
+            if (parts.length < 4) {
+                System.err.println("Jeu: Commande mal formatée: " + command);
+                return false;
+            }
+            
+            // etudier les parametres de la commande
+            Coup.TypeCoup typeCoup = Coup.TypeCoup.valueOf(parts[0]);
+            Plateau.TypePlateau plateauType = Plateau.TypePlateau.valueOf(parts[1]);
+            int row = Integer.parseInt(parts[2]);
+            int col = Integer.parseInt(parts[3]);
+            
+            // verifier si c'est le tour du joueur
+            if (joueurCourant.getId() != playerId) {
+                System.err.println("Jeu: Ce n'est pas le tour de joueur " + playerId);
+                return false;
+            }
+            
+            // obtenir le plateau et la piece correspondant
+            Plateau selectedPlateau = getPlateauByType(plateauType);
+            if (selectedPlateau == null) {
+                System.err.println("Jeu: Plateau invalide: " + plateauType);
+                return false;
+            }
+            
+            // obtenir la piece selectionnee
+            Piece selectedPiece = selectedPlateau.getPiece(row, col);
+            System.out.println("Jeu: pieces possible sur le plateau :");
+            for (Piece piece : selectedPlateau.getPieces()) {
+                System.out.println("Jeu: " + piece.getOwner().toString() + " " + piece.getPosition().toString());
+            }
+            if (selectedPiece == null) {
+                System.err.println("Jeu: Aucune pièce à la position " + selectedPlateau.getType() + " (" + row + "," + col + ")");
+                return false;
+            }
+            
+            Joueur currentPlayer = (playerId == 1) ? joueur1 : joueur2;
+            
+            // verifier si la piece appartient au joueur
+            if (!selectedPiece.getOwner().equals(currentPlayer)) {
+                System.err.println("Jeu: La pièce n'appartient pas au joueur " + playerId);
+                return false;
+            }
+            
+            // Maj l'etat
+            this.plateauCourant = selectedPlateau;
+            this.pieceCourante = selectedPiece;
+            
+            if (etapeCoup == 0) {
+                etapeCoup = 1; // 第一次选择棋子
+            }
+            
+            // 创建动作并使用jouerCoup方法
+            Coup playerCoup = new Coup(selectedPiece, selectedPlateau, typeCoup);
+            boolean isValid = jouerCoup(playerCoup);
+            
+            if (!isValid) {
+                System.err.println("Jeu: Coup invalide de type " + typeCoup);
+                return false;
+            }
+            
+            // // 如果玩家已经完成了两步操作，应该自动切换到下一个玩家
+            // if (etapeCoup >= 3) {
+            //     // 第三步选择新的棋盘
+            //     Plateau.TypePlateau nextPlateau = null;
+            //     if (plateauType != Plateau.TypePlateau.PAST) {
+            //         nextPlateau = Plateau.TypePlateau.PAST;
+            //     } else {
+            //         nextPlateau = Plateau.TypePlateau.PRESENT;
+            //     }
+                
+            //     joueurCourant.setProchainPlateau(nextPlateau);
+            //     etapeCoup = 0;
+            //     joueurSuivant(); // 切换到下一玩家
+            //     majPlateauCourant();
+                
+            //     // 添加明确的日志，显示当前轮到谁
+            //     System.out.println("Jeu: Joueur suivant - ID: " + joueurCourant.getId() + 
+            //                        " (" + (joueurCourant.equals(joueur1) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
+            // }
+            
+            return true;
+            
+        } catch (IllegalArgumentException e) {
+            System.err.println("Jeu: Erreur d'analyse ou valeur invalide: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            System.err.println("Jeu: Erreur lors du traitement du message: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // Convertit l'état du jeu en chaîne pour la sérialisation
+    public String getGameStateAsString() {
+        StringBuilder sb = new StringBuilder();
+        
+        // ID du joueur courant
+        sb.append("JC:").append(joueurCourant != null ? joueurCourant.getId() : 0).append(";");
+        
+        // Nombre de clones pour chaque joueur
+        sb.append("C1:").append(joueur1.getNbClones()).append(";");
+        sb.append("C2:").append(joueur2.getNbClones()).append(";");
+        
+        // État des plateaux (représenté par des matrices 4x4)
+        sb.append("P:"); // PAST
+        for (int i = 0; i < TAILLE; i++) {
+            for (int j = 0; j < TAILLE; j++) {
+                Piece p = past.getPiece(i, j);
+                if (p == null) {
+                    sb.append('0');
+                } else if (p.getOwner().equals(joueur1)) {
+                    sb.append('1');
+                } else {
+                    sb.append('2');
+                }
+            }
+        }
+        sb.append(";");
+        
+        sb.append("PR:"); // PRESENT
+        for (int i = 0; i < TAILLE; i++) {
+            for (int j = 0; j < TAILLE; j++) {
+                Piece p = present.getPiece(i, j);
+                if (p == null) {
+                    sb.append('0');
+                } else if (p.getOwner().equals(joueur1)) {
+                    sb.append('1');
+                } else {
+                    sb.append('2');
+                }
+            }
+        }
+        sb.append(";");
+        
+        sb.append("F:"); // FUTURE
+        for (int i = 0; i < TAILLE; i++) {
+            for (int j = 0; j < TAILLE; j++) {
+                Piece p = future.getPiece(i, j);
+                if (p == null) {
+                    sb.append('0');
+                } else if (p.getOwner().equals(joueur1)) {
+                    sb.append('1');
+                } else {
+                    sb.append('2');
+                }
+            }
+        }
+        
+        return sb.toString();
+    }
 }

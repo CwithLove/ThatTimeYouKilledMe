@@ -1,17 +1,14 @@
 package Network;
 
+import Modele.Jeu;
 import java.io.*;
 import java.net.*;
-// import java.util.*; // Ne pas utiliser util.* directement
-// import java.awt.Point; // Ne pas utiliser Point directement
-
-import Modele.Jeu;
 // import Modele.Plateau; // Ne pas utiliser Plateau directement
 // import Modele.Piece; // Ne pas utiliser Piece directement
 
 public class GameClient {
     private String serverIpAddress;
-    private int serverPort = 1234; // Port par défaut
+    private int serverPort = 12345; // Port par défaut
     private Jeu gameInstance;
     private ObjectOutputStream outputStream;
     private Socket socket;
@@ -31,18 +28,23 @@ public class GameClient {
     public void connect() throws IOException {
         System.out.println("GameClient: Tentative de connexion à " + serverIpAddress + ":" + serverPort + "...");
         try {
+            // Établir la connexion socket
             socket = new Socket(serverIpAddress, serverPort);
-            isConnected = true; // Marquer la socket comme connectée
+            isConnected = true;
+            
+            // L'ordre du protocole doit correspondre exactement au serveur:
+            // 1. Le serveur crée un flux de sortie et le vide
+            // 2. Le client crée un flux d'entrée
+            inputStream = new ObjectInputStream(socket.getInputStream());
+            
+            // 3. Le client crée un flux de sortie et le vide
             outputStream = new ObjectOutputStream(socket.getOutputStream());
-            outputStream.flush(); // Très important !
-
-            // InputStream doit être créé APRÈS que outputStream soit flush côté client
-            // et APRÈS que outputStream soit créé côté serveur.
-            InputStream socketInputStream = socket.getInputStream();
-            inputStream = new ObjectInputStream(socketInputStream);
-            System.out.println("GameClient: Connecté. En attente de l'ID du joueur...");
-
-            // 1. Lire le message d'ID attribué par le serveur
+            outputStream.flush();
+            
+            // 4. Le serveur crée un flux d'entrée
+            // 5. Le serveur envoie un message ID, le client le lit
+            System.out.println("GameClient: Flux établis. En attente de l'ID du joueur...");
+            
             try {
                 Object idMessageObj = inputStream.readObject();
                 if (idMessageObj instanceof String) {
@@ -51,7 +53,7 @@ public class GameClient {
                         this.myPlayerId = Integer.parseInt(idMessage.substring(3));
                         System.out.println("GameClient: Mon ID de joueur est: " + this.myPlayerId);
                     } else {
-                        disconnect(); // Fermer la connexion si le message d'ID est invalide
+                        disconnect();
                         throw new IOException("GameClient: Message d'ID initial invalide du serveur: " + idMessage);
                     }
                 } else {
@@ -66,97 +68,111 @@ public class GameClient {
                 throw new IOException("GameClient: Erreur de format de l'ID reçu.", e);
             }
 
-
-            // 2. Démarrer le thread de réception des données du jeu
-            receptionThread = new Thread(() -> {
-                try {
-                    while (isConnected && socket != null && !socket.isClosed()) {
-                        Object obj = inputStream.readObject(); // Lire les données du serveur
-                        if (obj instanceof String) {
-                            String data = (String) obj;
-                             // System.out.println("GameClient (ID: " + myPlayerId + ") - Server Raw: " + data); // Debug
-
-                            String[] parts = data.split(":", 2);
-                            if (parts.length < 2) {
-                                System.err.println("GameClient (ID: " + myPlayerId + "): Message serveur mal formaté: " + data);
-                                if (listener != null) listener.onGameMessage("ERROR", "Message serveur invalide.");
-                                continue;
-                            }
-                            Code code;
-                            try {
-                                code = Code.valueOf(parts[0].toUpperCase()); // Convertir en majuscules pour être sûr
-                            } catch (IllegalArgumentException e) {
-                                System.err.println("GameClient (ID: " + myPlayerId + "): Code inconnu du serveur: " + parts[0]);
-                                if (listener != null) listener.onGameMessage("UNKNOWN_CODE", "Code serveur inconnu: " + parts[0]);
-                                continue;
-                            }
-                            
-                            String content = parts[1];
-
-                            // Utiliser SwingUtilities pour s'assurer que le listener est mis à jour sur l'EDT
-                            final String finalContent = content; // Nécessaire pour utiliser dans une lambda
-                            final Code finalCode = code;
-
-                            javax.swing.SwingUtilities.invokeLater(() -> {
-                                if (listener == null) return;
-
-                                switch (finalCode) {
-                                    case ETAT:
-                                        GameStateParser.parseAndUpdateJeu(gameInstance, finalContent);
-                                        listener.onGameStateUpdate(gameInstance);
-                                        break;
-                                    case GAGNE:
-                                        listener.onGameMessage("WIN", finalContent); // "WIN" est le messageType
-                                        break;
-                                    case PERDU:
-                                        listener.onGameMessage("LOSE", finalContent);
-                                        break;
-                                    case ADVERSAIRE: // Exemple : "C'est le tour de l'adversaire", ou erreur "Pas votre tour"
-                                    case PIECE:      // Notification que le serveur attend la sélection d'une PIECE
-                                    case ACTION:     // Notification que le serveur attend la sélection d'une ACTION
-                                    case DIRECTION:  // Notification que le serveur attend la sélection d'une DIRECTION
-                                    case PLATEAU:    // Notification que le serveur attend la sélection d'un PLATEAU
-                                        listener.onGameMessage(finalCode.name(), finalContent); // Utiliser le nom du Code comme messageType
-                                        break;
-                                    default:
-                                        System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
-                                        listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);
-                                        break;
-                                }
-                            });
-                        }
-                    }
-                } catch (SocketException | EOFException se) {
-                    if (isConnected) { // Log uniquement si on attend une connexion
-                        System.out.println("GameClient (ID: " + myPlayerId + "): Connexion serveur perdue ou fermée. " + se.getMessage());
-                        final GameStateUpdateListener currentListener = listener;
-                        if (currentListener != null) {
-                             javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("DISCONNECTED", "Connexion au serveur perdue."));
-                        }
-                    }
-                } catch (IOException | ClassNotFoundException e) {
-                    if (isConnected) {
-                        System.err.println("GameClient (ID: " + myPlayerId + "): Erreur de réception des données: " + e.getMessage());
-                        e.printStackTrace();
-                        final GameStateUpdateListener currentListener = listener;
-                        if (currentListener != null) {
-                            final String errorMsg = e.getMessage();
-                             javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("ERROR", "Erreur de réception: " + errorMsg));
-                        }
-                    }
-                } finally {
-                    disconnect(); // Assurer la déconnexion lorsque le thread se termine
-                }
-            });
-            receptionThread.setName("GameClient-ReceptionThread-ID-" + myPlayerId);
-            receptionThread.start();
-            System.out.println("GameClient (ID: " + myPlayerId + "): Thread de réception démarré.");
-
+            // Démarrer le thread de réception
+            setupReceptionThread();
+            
         } catch (IOException e) {
-            isConnected = false; // Assurer que isConnected est false si la connexion échoue
+            isConnected = false;
             System.err.println("GameClient: Échec de la connexion initiale au serveur: " + e.getMessage());
-            throw e; // Relancer l'exception pour que l'appelant la gère
+            // S'assurer que les ressources sont nettoyées
+            try {
+                if (outputStream != null) outputStream.close();
+                if (inputStream != null) inputStream.close();
+                if (socket != null && !socket.isClosed()) socket.close();
+            } catch (IOException closeEx) {
+                // Ignorer les exceptions lors de la fermeture
+            }
+            throw e; // Relancer l'exception pour que l'appelant puisse la gérer
         }
+    }
+    
+    // Déplacer la configuration du thread de réception dans une méthode séparée pour améliorer la clarté du code
+    private void setupReceptionThread() {
+        receptionThread = new Thread(() -> {
+            try {
+                while (isConnected && socket != null && !socket.isClosed()) {
+                    Object obj = inputStream.readObject(); // Lire les données du serveur
+                    if (obj instanceof String) {
+                        String data = (String) obj;
+                        // System.out.println("GameClient (ID: " + myPlayerId + ") - Server Raw: " + data); // Debug
+
+                        String[] parts = data.split(":", 2);
+                        if (parts.length < 2) {
+                            System.err.println("GameClient (ID: " + myPlayerId + "): Message serveur mal formaté: " + data);
+                            if (listener != null) listener.onGameMessage("ERROR", "Message serveur invalide.");
+                            continue;
+                        }
+                        Code code;
+                        try {
+                            code = Code.valueOf(parts[0].toUpperCase()); // Convertir en majuscules pour assurer la correspondance
+                        } catch (IllegalArgumentException e) {
+                            System.err.println("GameClient (ID: " + myPlayerId + "): Code inconnu du serveur: " + parts[0]);
+                            if (listener != null) listener.onGameMessage("UNKNOWN_CODE", "Code serveur inconnu: " + parts[0]);
+                            continue;
+                        }
+                        
+                        String content = parts[1];
+
+                        // Utiliser SwingUtilities pour s'assurer que les mises à jour sont faites sur le thread EDT
+                        final String finalContent = content; // Variable finale nécessaire dans l'expression lambda
+                        final Code finalCode = code;
+
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            if (listener == null) return;
+
+                            System.out.println("GameClient (ID: " + myPlayerId + "): Received message from server: " + finalCode.name() + " " + finalContent);
+
+                            switch (finalCode) {
+                                case ETAT:
+                                    GameStateParser.parseAndUpdateJeu(gameInstance, finalContent);
+                                    listener.onGameStateUpdate(gameInstance);
+                                    break;
+                                case GAGNE:
+                                    listener.onGameMessage("WIN", finalContent);
+                                    break;
+                                case PERDU:
+                                    listener.onGameMessage("LOSE", finalContent);
+                                    break;
+                                case ADVERSAIRE: // Par exemple: "Tour de l'adversaire" ou erreur "Ce n'est pas votre tour"
+                                case PIECE:      // Le serveur notifie d'attendre la sélection d'une pièce
+                                case ACTION:     // Le serveur notifie d'attendre la sélection d'une action
+                                case DIRECTION:  // Le serveur notifie d'attendre la sélection d'une direction
+                                case PLATEAU:    // Le serveur notifie d'attendre la sélection d'un plateau
+                                    listener.onGameMessage(finalCode.name(), finalContent); // Utiliser le nom du code comme type de message
+                                    break;
+                                default:
+                                    System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
+                                    listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);
+                                    break;
+                            }
+                        });
+                    }
+                }
+            } catch (SocketException | EOFException se) {
+                if (isConnected) { // Enregistrer uniquement lorsque la connexion est attendue
+                    System.out.println("GameClient (ID: " + myPlayerId + "): Connexion serveur perdue ou fermée. " + se.getMessage());
+                    final GameStateUpdateListener currentListener = listener;
+                    if (currentListener != null) {
+                         javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("DISCONNECTED", "Connexion au serveur perdue."));
+                    }
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                if (isConnected) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): Erreur de réception des données: " + e.getMessage());
+                    e.printStackTrace();
+                    final GameStateUpdateListener currentListener = listener;
+                    if (currentListener != null) {
+                        final String errorMsg = e.getMessage();
+                         javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("ERROR", "Erreur de réception: " + errorMsg));
+                    }
+                }
+            } finally {
+                disconnect(); // S'assurer de se déconnecter lorsque le thread se termine
+            }
+        });
+        receptionThread.setName("GameClient-ReceptionThread-ID-" + myPlayerId);
+        receptionThread.start();
+        System.out.println("GameClient (ID: " + myPlayerId + "): Thread de réception démarré.");
     }
 
     public void sendPlayerAction(String actionString) {

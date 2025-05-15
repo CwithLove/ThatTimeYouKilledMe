@@ -73,7 +73,7 @@ public class GameServerManager {
                         out.flush();
 
                         // 2. Le client crée un flux d'entrée
-                       // 3. Le client crée un flux de sortie et le flush
+                        // 3. Le client crée un flux de sortie et le flush
                         // 4. Le serveur crée un flux d'entrée
                         ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 

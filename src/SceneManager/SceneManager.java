@@ -3,46 +3,77 @@ package SceneManager;
 import java.awt.*;
 import javax.swing.*;
 
+/**
+ * Gestionnaire de scènes permettant de contrôler l'affichage, la mise à jour,
+ * et le cycle de vie des différentes scènes d'un jeu ou d'une application graphique.
+ */
 public class SceneManager {
-    // Scène actuelle en cours d'utilisation
+    // Scène actuellement active
     private Scene currentScene;
-    // Panneau de jeu utilisé pour afficher les scènes
+
+    // Panneau graphique principal sur lequel les scènes sont rendues
     private JPanel gamePanel;
-    
-    // Constructeur qui initialise le gestionnaire de scènes avec un panneau de jeu
+
+    /**
+     * Constructeur du gestionnaire de scènes.
+     *
+     * @param gamePanel Le panneau Swing utilisé pour le rendu graphique.
+     */
     public SceneManager(JPanel gamePanel) {
         this.gamePanel = gamePanel;
     }
-    
-    // Définit une nouvelle scène et libère les ressources de l'ancienne scène si elle existe
+
+    /**
+     * Change la scène actuelle par une nouvelle scène.
+     * Libère les ressources de l'ancienne scène si nécessaire.
+     *
+     * @param scene La nouvelle scène à afficher.
+     */
     public void setScene(Scene scene) {
         if (currentScene != null) {
-            currentScene.dispose(); // Libère les ressources de la scène actuelle
+            currentScene.dispose(); // Nettoyage de l’ancienne scène
         }
-        currentScene = scene; // Définit la nouvelle scène
-        currentScene.init(); // Initialise la nouvelle scène
+        currentScene = scene;      // Affectation de la nouvelle scène
+        currentScene.init();       // Initialisation de la nouvelle scène
     }
 
-    // Met à jour la scène actuelle (appelée à chaque cycle de jeu)
+    /**
+     * Met à jour la logique de la scène actuelle.
+     * Cette méthode est appelée à chaque cycle du jeu.
+     */
     public void update() {
         if (currentScene != null) {
             currentScene.update();
         }
     }
 
-    // Rendu graphique de la scène actuelle
+    /**
+     * Effectue le rendu de la scène actuelle sur le contexte graphique fourni.
+     *
+     * @param g      Contexte graphique utilisé pour le dessin.
+     * @param width  Largeur disponible pour le rendu.
+     * @param height Hauteur disponible pour le rendu.
+     */
     public void render(Graphics g, int width, int height) {
         if (currentScene != null) {
             currentScene.render(g, width, height);
         }
     }
 
-    // Retourne le panneau de jeu associé au gestionnaire de scènes
+    /**
+     * Retourne le panneau de jeu utilisé par le gestionnaire de scènes.
+     *
+     * @return JPanel utilisé pour le rendu des scènes.
+     */
     public JPanel getPanel() {
         return gamePanel;
     }
 
-    // Retourne la scène actuelle
+    /**
+     * Retourne la scène actuellement active.
+     *
+     * @return Scène courante.
+     */
     public Scene getCurrentScene() {
         return currentScene;
     }

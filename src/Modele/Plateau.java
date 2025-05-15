@@ -164,7 +164,7 @@ public class Plateau {
         }
         this.nbBlancs = blancs;
         this.nbNoirs = noirs;
-        System.out.println("棋盘" + this.getType() + "：白棋=" + blancs + "，黑棋=" + noirs);
+        System.out.println("Plateau " + this.getType() + " : Blancs = " + blancs + ", Noirs = " + noirs);
     }
     public Plateau copie(Joueur joueur1, Joueur joueur2) {
         Plateau copie = new Plateau(this.type, joueur1, joueur2);

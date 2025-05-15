@@ -32,10 +32,10 @@ public class GameStateParser {
                     int joueurId = Integer.parseInt(part.substring(3));
                     if (joueurId == 1) {
                         jeuToUpdate.setJoueurCourant(jeuToUpdate.getJoueur1());
-                        System.out.println("GameStateParser: 设置当前玩家为玩家1");
+                        System.out.println("GameStateParser: Joueur courant défini sur Joueur 1");
                     } else if (joueurId == 2) {
                         jeuToUpdate.setJoueurCourant(jeuToUpdate.getJoueur2());
-                        System.out.println("GameStateParser: 设置当前玩家为玩家2");
+                        System.out.println("GameStateParser: Joueur courant défini sur Joueur 2");
                     }
                 } else if (part.startsWith("P:")) {
                     updatePlateau(jeuToUpdate.getPast(), part.substring(2), jeuToUpdate);
@@ -64,10 +64,10 @@ public class GameStateParser {
             // Les informations sur l'état du jeu (GS) et le gagnant (W) peuvent être traitées séparément
             // via un listener si le serveur envoie un code GAGNE/PERDU.
 
-            System.out.println("GameStateParser: 游戏状态解析完成，当前玩家ID: " + 
-                (jeuToUpdate.getJoueurCourant() != null ? jeuToUpdate.getJoueurCourant().getId() : "未设置"));
+            System.out.println("GameStateParser: Analyse de l'état du jeu terminée, ID du joueur courant : " + 
+                (jeuToUpdate.getJoueurCourant() != null ? jeuToUpdate.getJoueurCourant().getId() : "non défini"));
         } catch (Exception e) {
-            System.err.println("GameStateParser: 解析错误 - " + e.getMessage());
+            System.err.println("GameStateParser: Erreur d'analyse - " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -82,18 +82,18 @@ public class GameStateParser {
      */
     private static void updatePlateau(Plateau plateau, String data, Jeu jeu) {
         int size = plateau.getSize();
-        // 确保数据长度正确（对于4x4棋盘应为16）
+        // Vérifier que la longueur des données est correcte (16 pour un plateau 4x4)
         if (data.length() != size * size) {
-            System.err.println("GameStateParser: 棋盘数据长度错误 - " + 
-                              plateau.getType() + " 需要 " + (size * size) + 
-                              " 字符，但收到 " + data.length());
+            System.err.println("GameStateParser: Longueur des données du plateau incorrecte - " + 
+                              plateau.getType() + " nécessite " + (size * size) + 
+                              " caractères, mais reçu " + data.length());
             return;
         }
 
-        // 清空当前棋盘
+        // Vider le plateau actuel
         plateau.clearPieces();
         
-        // 根据数据重建棋盘
+        // Reconstruire le plateau à partir des données
         int index = 0;
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
@@ -108,9 +108,9 @@ public class GameStateParser {
             }
         }
         
-        // 更新棋盘上黑白棋子数量
+        // Mettre à jour le nombre de pièces sur le plateau
         plateau.updatePieceCount();
         
-        System.out.println("GameStateParser: 成功更新棋盘 " + plateau.getType());
+        System.out.println("GameStateParser: Plateau " + plateau.getType() + " mis à jour avec succès");
     }
 }

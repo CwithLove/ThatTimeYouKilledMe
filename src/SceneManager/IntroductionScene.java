@@ -27,7 +27,7 @@ public class IntroductionScene implements Scene {
 
     public IntroductionScene(SceneManager sceneManager) {
         try {
-            logo = ImageIO.read(new File("res/logo/logo.png")); // Load your image here
+            logo = ImageIO.read(new File("res/Logo.png")); 
         } catch (IOException e) {
             e.printStackTrace();
         }

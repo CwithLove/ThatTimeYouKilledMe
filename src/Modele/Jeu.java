@@ -173,41 +173,41 @@ public class Jeu {
 
     }
 
-    // // Deplacer la piece  => Fini
-    // private void deplacerPiece(Coup coup, Point dir, Piece piece) {
-    //     Point src = piece.getPosition();
-    //     // Position destination
-    //     int ligDes = src.x + dir.x;
-    //     int colDes = src.y + dir.y;
-    //     Piece pieceDestination = plateauCourant.getPiece(ligDes, colDes);
-    //     // Case vide
-    //     if (pieceDestination == null) {
-    //         plateauCourant.setPiece(pieceCourante, ligDes, colDes);
-    //         piece.setPosition(new Point(ligDes, colDes));
-    //         plateauCourant.removePiece(src.x, src.y);
-    //     }
-    //     // Case occupée par un pion de l'autre joueur
-    //     else if (!pieceDestination.getOwner().equals(piece.getOwner())) {
-    //         deplacerPiece(coup, dir, pieceDestination);
-    //         plateauCourant.removePiece(ligDes, colDes);
-    //         plateauCourant.setPiece(piece, ligDes, colDes);
-    //         piece.setPosition(new Point(ligDes, colDes));
-    //         plateauCourant.removePiece(src.x, src.y);
-    //     }
-    //     // Case occupée par un pion de la même couleur => Ce qui cause paradox
-    //     else {
-    //         plateauCourant.removePiece(src.x, src.y);
-    //         plateauCourant.removePiece(ligDes, colDes);
-    //         // Diminue le nombre de pions de l'autre joueur
-    //         if (coup.getPiece().getOwner().equals(joueur1)) {
-    //             coup.getPltCourant().decBlancs();
-    //             coup.getPltCourant().decBlancs();
-    //         } else if (coup.getPiece().getOwner().equals(joueur2)) {
-    //             coup.getPltCourant().decNoirs();
-    //             coup.getPltCourant().decNoirs();
-    //         }
-    //     }
-    // }
+    // Deplacer la piece  => Fini
+    private void deplacerPiece(Coup coup, Point dir, Piece piece) {
+        Point src = piece.getPosition();
+        // Position destination
+        int ligDes = src.x + dir.x;
+        int colDes = src.y + dir.y;
+        Piece pieceDestination = plateauCourant.getPiece(ligDes, colDes);
+        // Case vide
+        if (pieceDestination == null) {
+            plateauCourant.setPiece(pieceCourante, ligDes, colDes);
+            piece.setPosition(new Point(ligDes, colDes));
+            plateauCourant.removePiece(src.x, src.y);
+        }
+        // Case occupée par un pion de l'autre joueur
+        else if (!pieceDestination.getOwner().equals(piece.getOwner())) {
+            deplacerPiece(coup, dir, pieceDestination);
+            plateauCourant.removePiece(ligDes, colDes);
+            plateauCourant.setPiece(piece, ligDes, colDes);
+            piece.setPosition(new Point(ligDes, colDes));
+            plateauCourant.removePiece(src.x, src.y);
+        }
+        // Case occupée par un pion de la même couleur => Ce qui cause paradox
+        else {
+            plateauCourant.removePiece(src.x, src.y);
+            plateauCourant.removePiece(ligDes, colDes);
+            // Diminue le nombre de pions de l'autre joueur
+            if (coup.getPiece().getOwner().equals(joueur1)) {
+                coup.getPltCourant().decBlancs();
+                coup.getPltCourant().decBlancs();
+            } else if (coup.getPiece().getOwner().equals(joueur2)) {
+                coup.getPltCourant().decNoirs();
+                coup.getPltCourant().decNoirs();
+            }
+        }
+    }
     // Jump - Travel forward => Fini
     /**
      * Fait une action jump

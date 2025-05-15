@@ -141,7 +141,6 @@ public class GameServerManager {
         acceptConnectionsThread.setName("GSM-AcceptConnectionsThread");
         acceptConnectionsThread.start();
     }
-
     public synchronized void startGameEngine() { // synchronized pour éviter plusieurs appels
         if (gameEngineThread != null && gameEngineThread.isAlive()) {
             System.out.println("GameServerManager: Le moteur de jeu est déjà en cours d'exécution.");
@@ -149,37 +148,40 @@ public class GameServerManager {
         }
         if (connectedClientIds.size() == maxClients) {
             System.out.println("GameServerManager: Démarrage du moteur de jeu...");
-            // 初始化游戏实例
+            // Initialiser l'instance de jeu
             gameInstance = new Jeu();
 
-            // 设置第一个玩家（游戏开始时应该是玩家1）
+            // Définir le premier joueur (au début du jeu, cela devrait être le joueur 1)
             if (gameInstance.getJoueurCourant().getId() != 1) {
-                gameInstance.joueurSuivant(); // 确保第一个玩家是玩家1
+                System.out.println("GameServerManager: Le joueur courant n'est pas le joueur 1, changement...");
+                gameInstance.joueurSuivant(); // S'assurer que le premier joueur est le joueur 1
             }
             currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
+            System.out.println("GameServerManager: Joueur courant initialisé à " + currentTurnPlayerId);
 
-            // 开始游戏引擎线程
+            // Démarrer le thread du moteur de jeu
             gameEngineThread = new Thread(this::runGameEngine, "GameEngineThread");
             gameEngineThread.start();
 
             System.out.println("GameServerManager: Moteur de jeu démarré. Tour du joueur " + currentTurnPlayerId);
 
-            // 发送初始游戏状态给所有客户端
+            // Envoyer l'état initial du jeu à tous les clients
             sendGameStateToAllClients();
         } else {
             System.out.println("GameServerManager: Pas assez de joueurs (" + connectedClientIds.size() + "/" + maxClients + ") pour démarrer le moteur de jeu.");
         }
     }
 
-    // 游戏引擎逻辑，替代原来的GameEngineServer.run()
+    // Logique du moteur de jeu, remplaçant l'ancien GameEngineServer.run()
     private void runGameEngine() {
         System.out.println("GameServerManager: Boucle de jeu démarrée.");
         try {
-            // 等待一小段时间确保客户端已准备好
+            // Attendre un court instant pour s'assurer que les clients sont prêts
             Thread.sleep(500);
 
             while (isServerRunning) {
                 int etapeCoup = gameInstance.getEtapeCoup();
+                System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 Message msg = incomingMessages.take();
                 int clientId = msg.clientId;
@@ -191,25 +193,21 @@ public class GameServerManager {
                     return;
                 }
 
+                // Prendre le joueur courant
                 Joueur currentJoueur = gameInstance.getJoueurCourant();
-                if (currentJoueur.getId() == 1) {
-                    currentJoueur = gameInstance.getJoueur2();
-                } else {
-                    currentJoueur = gameInstance.getJoueur1();
-                }
 
-                // 首先检查是否是当前玩家的回合
+                // Vérifier d'abord si c'est le tour du joueur actuel
                 if (clientId != currentJoueur.getId()) {
                     System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
-                    System.out.println("GameServerManager: Current turn player ID: " + currentTurnPlayerId);
+                    System.out.println("GameServerManager: ID du joueur actuel: " + currentTurnPlayerId);
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
-                    return;
+                    continue; // Passer à la prochaine itération de la boucle
                 }
 
                 if (msg.contenu == null) {
-                    System.err.println("GameServerManager: Message de client " + clientId + " est null.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message de client null.");
-                    return;
+                    System.err.println("GameServerManager: Message du client " + clientId + " est null.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
+                    continue; // Passer à la prochaine itération de la boucle
                 }
 
                 Piece selectedPiece = null;
@@ -217,8 +215,8 @@ public class GameServerManager {
                     int x, y;
                     String[] parts = msg.contenu.split(":");
                     if (parts.length != 4) {
-                        System.err.println("GameServerManager: Message de client " + clientId + " ne contient pas 4 parties.");
-                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message de client invalide.");
+                        System.err.println("GameServerManager: Message du client " + clientId + " ne contient pas 4 parties.");
+                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client invalide.");
                         return;
                     }
                     x = Integer.parseInt(parts[2]);
@@ -232,16 +230,16 @@ public class GameServerManager {
 
                 if (selectedPiece == null) {
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
-                    return;
+                    continue; // Passer à la prochaine itération de la boucle
                 }
 
                 Plateau currentPlateau = gameInstance.getPlateauCourant();
 
-                // 重写代码，不使用processClientMessage
+                // Réécrire le code, sans utiliser processClientMessage
                 switch (etapeCoup) {
-                    case 0: // etapeCoupe == 0, 那么用户就能选择扔个当前Plateau的棋子; 服务器验证当前用户选择的棋子是否有效，如果有效那么就返回当前Plateau的棋子；如果无效那么就返回null
-                        // 处理消息
-                        // 验证选择的棋子是否有效
+                    case 0: // etapeCoup == 0, l'utilisateur peut choisir une pièce sur le Plateau actuel ; le serveur vérifie si la pièce choisie par l'utilisateur est valide. Si elle est valide, il renvoie la pièce actuelle du Plateau ; sinon, il renvoie null.
+                        // Traiter le message
+                        // Vérifier si la pièce choisie est valide
                         ArrayList<Piece> piecesPossibles = gameInstance.getPlateauCourant().getPieces(gameInstance.getJoueurCourant());
                         if (piecesPossibles.size() == 0) {
                             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
@@ -251,7 +249,7 @@ public class GameServerManager {
                         for (Piece piece : piecesPossibles) {
                             ArrayList<Coup> coupPossibles = gameInstance.getCoupPossibles(currentPlateau, piece);
                             if (coupPossibles.isEmpty()) {
-                                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, parce que pas de coup possible.");
+                                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, car aucun coup possible.");
                                 return;
                             } else {
                                 for (Coup coup : coupPossibles) {

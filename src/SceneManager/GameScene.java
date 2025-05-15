@@ -8,15 +8,15 @@ import Network.AIClient;
 import Network.GameClient;
 import Network.GameServerManager;
 import Network.GameStateUpdateListener;
-import java.awt.*; // Đảm bảo bạn đã tạo lớp này trong package AI
+import java.awt.*; 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage; // Sử dụng SwingWorker cho các tác vụ nền
+import java.awt.image.BufferedImage; 
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities; // Cần cho mouseMoved
+import javax.swing.SwingUtilities; 
 import javax.swing.SwingWorker;
 
 public class GameScene implements Scene, GameStateUpdateListener {
@@ -38,7 +38,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // Trạng thái lựa chọn của UI
     private Point selectedPiecePosition = null;
     private Plateau.TypePlateau selectedPlateauType = null;
-    private Coup.TypeCoup nextActionType = null; // Chủ yếu cho UI biết đang chờ click đích cho MOVE
+    private Coup.TypeCoup nextActionType = null; // On attend click to MOVE
 
     // UI Buttons
     private Button backButton;
@@ -51,36 +51,36 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     // Network and Game Mode
     private GameClient gameClient;
-    private String serverIpToConnectOnDemand; // IP để client kết nối (nếu không phải host/single)
-    private boolean isOperatingInSinglePlayerMode; // True nếu đây là chế độ Single Player tự host
+    private String serverIpToConnectOnDemand; // IP pour que le client se connecte (si ce n'est pas l'hôte/solo)
+    private boolean isOperatingInSinglePlayerMode; // True si c'est le mode Solo avec auto-hébergement
 
     private String statusMessage = "Initialisation...";
-    private volatile boolean gameHasEnded = false; // volatile vì có thể được cập nhật từ luồng khác (onGameMessage)
-    private volatile boolean isLoading = false; // Để hiển thị trạng thái loading
+    private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread (onGameMessage)
+    private volatile boolean isLoading = false; // Pour afficher l'état de chargement
 
-    // Server và AI cục bộ cho chế độ chơi đơn
-    // Static để đảm bảo chỉ có một instance nếu GameScene được tạo lại nhanh chóng (dù dispose nên xử lý)
+    // Serveur et IA locaux pour le mode solo
+    // Static pour garantir qu'il n'y a qu'une seule instance si GameScene est recréée rapidement (même si dispose devrait gérer cela)
     private static GameServerManager localSinglePlayerServerManager;
     private static Thread localAIClientThread;
-    private static AIClient aiClientInstance; // Giữ instance AI để có thể disconnect
+    private static AIClient aiClientInstance; // Conserve l'instance de l'IA pour pouvoir la déconnecter
 
     private MouseAdapter mouseAdapterInternal;
-    // MouseMotionListener được gộp vào MouseAdapter nếu mouseAdapterInternal kế thừa MouseAdapter và implement MouseMotionListener
-    // Hoặc tạo một biến riêng cho MouseMotionListener
+    // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal hérite de MouseAdapter et implémente MouseMotionListener
+    // Ou créer une variable séparée pour MouseMotionListener
 
     // Ajout pour la gestion du serveur en mode multijoueur
     private GameServerManager hostServerManager; // Instance du serveur reprise de HostingScene
 
-    // Constructor cho Single Player (tự host server và AI)
+    // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
         this.sceneManager = sceneManager;
         this.isOperatingInSinglePlayerMode = isSinglePlayer;
         if (isSinglePlayer) {
-            this.serverIpToConnectOnDemand = "127.0.0.1"; // UI client kết nối vào server local
-            this.statusMessage = "Mode Solo: Préparation...";
+            this.serverIpToConnectOnDemand = "127.0.0.1"; // Le client UI se connecte au serveur local
+            this.statusMessage = "Mode Solo : Préparation...";
         } else {
-            // Constructor này chỉ nên được gọi với isSinglePlayer = true
-            throw new IllegalArgumentException("Pour le mode multijoueur client, utilisez le constructeur avec server IP.");
+            // Ce constructeur ne doit être appelé qu'avec isSinglePlayer = true
+            throw new IllegalArgumentException("Pour le mode multijoueur client, utilisez le constructeur avec l'IP du serveur.");
         }
         loadResources();
         commonUIInit();
@@ -462,7 +462,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             return;
         }
         String command = jeu.getEtapeCoup() + ":" + selectedPlateauType.name() + ":" +
-                         selectedPiecePosition.x + "," + selectedPiecePosition.y;
+                         selectedPiecePosition.x + ":" + selectedPiecePosition.y;
 
         gameClient.sendPlayerAction(command);
         statusMessage = "Commande " + command + " envoyée...";
@@ -698,38 +698,38 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int boardSize = plateau.getSize();
         int boardPixelSize = boardSize * tileWidth;
 
-        // Title
+        // Titre
         g.setColor(Color.decode("#AAAAAA")); // Gris clair pour le titre
         g.setFont(new Font("Tahoma", Font.BOLD, Math.max(10, tileWidth / 2 - 2)));
         FontMetrics metrics = g.getFontMetrics();
         int titleWidth = metrics.stringWidth(title);
         g.drawString(title, x + (boardPixelSize - titleWidth) / 2, y - metrics.getDescent() - 5);
 
-        // Border
+        // Bordure
         g.setColor(new Color(80, 80, 80));
         g.drawRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1);
 
-        // 如果有裂缝图像且不是past棋盘，绘制裂缝背景
+        // Si une image de fissure est disponible et que ce n'est pas le plateau du passé, dessiner l'image de fond
         if (crackImage != null && !plateau.getType().equals(Plateau.TypePlateau.PAST)) {
             g.drawImage(crackImage, x, y, boardPixelSize, boardPixelSize, null);
         }
 
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
-                // Cell background (只有past棋盘保持原来的颜色)
+                // Fond de la cellule (seul le plateau du passé conserve sa couleur d'origine)
                 if (plateau.getType().equals(Plateau.TypePlateau.PAST)) {
-                    if ((row + col) % 2 == 0) g.setColor(new Color(75, 75, 85)); // Darker
-                    else g.setColor(new Color(75, 75, 85, 180)); // Darkest
+                    if ((row + col) % 2 == 0) g.setColor(new Color(75, 75, 85)); // Plus sombre
+                    else g.setColor(new Color(75, 75, 85, 180)); // Très sombre
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                 } else {
-                    // Present和Future棋盘使用半透明格子
+                    // Les plateaux présent et futur utilisent des cases semi-transparentes
                     if ((row + col) % 2 == 0) {
-                        g.setColor(new Color(75, 75, 85, 180)); // 半透明版本
+                        g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
                         g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                     }
                 }
                 
-                // Cell grid
+                // Grille de la cellule
                 g.setColor(new Color(100, 100, 110));
                 g.drawRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
 
@@ -740,12 +740,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     int pieceX = x + col * tileWidth + pieceMargin;
                     int pieceY = y + row * tileWidth + pieceMargin;
                     
-                    // 使用头像图片而不是颜色填充
+                    // Utiliser les images d'avatar au lieu de remplir avec une couleur
                     if (piece.getOwner().getId() == 1) { // Joueur 1 (Lemiel)
                         if (lemielAvatarImage != null) {
                             g.drawImage(lemielAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
                         } else {
-                            // 如果图片加载失败，使用原来的颜色填充
+                            // Si l'image n'est pas chargée, utiliser la couleur d'origine
                             g.setColor(new Color(220, 220, 240));
                             g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
                         }
@@ -753,23 +753,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         if (zarekAvatarImage != null) {
                             g.drawImage(zarekAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
                         } else {
-                            // 如果图片加载失败，使用原来的颜色填充
+                            // Si l'image n'est pas chargée, utiliser la couleur d'origine
                             g.setColor(new Color(70, 70, 100));
                             g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
                         }
                     }
                     
-                    // 添加棋子边框，突出显示当前棋子
+                    // Ajouter une bordure autour des pièces pour les mettre en évidence
                     Color borderColor = new Color(100, 100, 180);
                     if (gameClient != null && piece.getOwner().getId() == gameClient.getMyPlayerId()){
-                        borderColor = Color.GREEN; // 我方棋子绿色边框
+                        borderColor = Color.GREEN; // Bordure verte pour les pièces du joueur
                     }
                     
                     g.setColor(borderColor);
                     g.setStroke(new BasicStroke(Math.max(1.5f, tileWidth / 16f)));
                     g.drawRect(pieceX, pieceY, pieceSize, pieceSize);
 
-                    // 高亮选中的棋子
+                    // Mettre en surbrillance la pièce sélectionnée
                     if (selectedPiecePosition != null &&
                         selectedPiecePosition.x == row && selectedPiecePosition.y == col &&
                         plateau.getType().equals(selectedPlateauType)) {
@@ -777,7 +777,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         g.setStroke(new BasicStroke(Math.max(2.5f, tileWidth / 10f)));
                         g.drawRect(pieceX - 2, pieceY - 2, pieceSize + 4, pieceSize + 4);
                     }
-                    g.setStroke(new BasicStroke(1f)); // 重置线条宽度
+                    g.setStroke(new BasicStroke(1f)); // Réinitialiser l'épaisseur des lignes
                 }
             }
         }
@@ -899,46 +899,47 @@ public class GameScene implements Scene, GameStateUpdateListener {
         Plateau clickedPlateauObj = getPlateauFromMousePoint(mousePoint);
         Point boardCoords = getBoardCoordinates(mousePoint);
 
-        if (clickedPlateauObj != null && boardCoords != null) { // 有效的棋盘点击
+        if (clickedPlateauObj != null && boardCoords != null) { // Clic valide sur le plateau
             int clickedRow = boardCoords.x;
             int clickedCol = boardCoords.y;
             Piece pieceAtClick = clickedPlateauObj.getPiece(clickedRow, clickedCol);
-            boolean needsRepaint = false; // 是否需要重绘
+            boolean needsRepaint = false; // Indique si un rafraîchissement est nécessaire
 
-            if (selectedPiecePosition == null) { // 尚未选择棋子
-                // 仅选择棋子，不判断所有权（服务器会判断）
+            if (selectedPiecePosition == null) { // Aucun pion sélectionné pour le moment
+                // Sélectionne uniquement le pion, sans vérifier la propriété (le serveur le vérifiera)
                 selectedPiecePosition = new Point(clickedRow, clickedCol);
                 selectedPlateauType = clickedPlateauObj.getType();
-                nextActionType = null; // 选择新棋子时重置动作
+                nextActionType = null; // Réinitialise l'action lors de la sélection d'un nouveau pion
                 statusMessage = "Pion (" + selectedPlateauType + " " + clickedRow + "," + clickedCol + ") sélectionné. Choisissez une action.";
+                gameClient.sendPlayerAction("0:" + selectedPlateauType.name() + ":" + clickedRow + ":" + clickedCol);
                 needsRepaint = true;
-            } else { // 已经选择了棋子
-                if (nextActionType == null) { // 尚未通过按钮选择任何动作
+            } else { // Un pion est déjà sélectionné
+                if (nextActionType == null) { // Aucune action sélectionnée via les boutons
                     if (clickedPlateauObj.getType().equals(selectedPlateauType) &&
                         clickedRow == selectedPiecePosition.x && clickedCol == selectedPiecePosition.y) {
-                        resetSelection(); // 点击同一个棋子 -> 取消选择
+                        resetSelection(); // Clic sur le même pion -> Annule la sélection
                         statusMessage = "Pion désélectionné.";
                         needsRepaint = true;
                     } else {
-                        // 选择新的棋子
+                        // Sélectionne un nouveau pion
                         selectedPiecePosition = new Point(clickedRow, clickedCol);
                         selectedPlateauType = clickedPlateauObj.getType();
                         statusMessage = "Nouveau pion sélectionné. Choisissez une action.";
                         needsRepaint = true;
                     }
                 }
-                // 删除了MOVE相关代码，现在通过方向按钮处理
+                // Suppression du code lié au déplacement, désormais géré via les boutons de direction
             }
             
-            // 只在需要时重绘
+            // Rafraîchit uniquement si nécessaire
             if (needsRepaint) {
                 repaintPanel();
             }
-        } else { // 点击棋盘外
+        } else { // Clic en dehors du plateau
             boolean needsRepaint = false;
             
             if (selectedPiecePosition != null && nextActionType == null) {
-                resetSelection(); // 如果已选择棋子但未选择动作时点击外部则取消选择
+                resetSelection(); // Si un pion est sélectionné mais aucune action n'est choisie, annule la sélection
                 statusMessage = "Pion désélectionné (clic extérieur).";
                 needsRepaint = true;
             } else if (selectedPiecePosition == null) {
@@ -992,7 +993,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         int width = sceneManager.getPanel().getWidth();
         int height = sceneManager.getPanel().getHeight();
-        int dynamicButtonY = height - 70; // Đồng bộ
+        int dynamicButtonY = height - 70; // Synced with render
         if (dynamicButtonY < 450) dynamicButtonY = 450;
 
         int boardSize = jeu.getTAILLE();
@@ -1003,7 +1004,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int tileWidthByHeight = availableHeightForBoards / (boardSize + 1);
         int tileWidth = Math.max(15, Math.min(tileWidthByWidth, tileWidthByHeight));
 
-        if (tileWidth == 0) return null; // Tránh chia cho 0
+        if (tileWidth == 0) return null; // Eviter division par zéro
 
         int spacing = Math.max(10, tileWidth / 2);
         int boardRenderHeight = boardSize * tileWidth;
@@ -1039,10 +1040,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
         selectedPlateauType = null;
         nextActionType = null;
     }
-
     private void resetSelectionAfterAction() {
         resetSelection();
-        // statusMessage thường được cập nhật bởi logic gọi hàm này hoặc onGameStateUpdate
+        // statusMessage est généralement mis à jour par la logique appelant cette fonction ou par onGameStateUpdate
     }
 
     private void updateStatusFromCurrentGame(boolean fromServerUpdate) {
@@ -1055,36 +1055,35 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 this.statusMessage = "Tour de l'adversaire : " + opponentName + " (ID " + this.jeu.getJoueurCourant().getId() + ")";
             }
         } else if (isLoading) {
-             // 如果正在加载则保留SwingWorker的statusMessage
-        } else if (gameClient != null && gameClient.isConnected()){
-            this.statusMessage = "En attente de l'état du jeu du serveur...";
+            // Si en cours de chargement, conserver le statusMessage du SwingWorker
+        } else if (gameClient != null && gameClient.isConnected()) {
+            this.statusMessage = "En attente de l'état du jeu depuis le serveur...";
         } else {
             this.statusMessage = "Non connecté ou jeu non initialisé.";
         }
     }
 
-
-    // --- GameStateUpdateListener Implementation ---
+    // --- Implémentation de GameStateUpdateListener ---
     @Override
     public void onGameStateUpdate(Jeu newGameState) {
-        System.out.println("GameScene: 收到游戏状态更新");
+        System.out.println("GameScene : Mise à jour de l'état du jeu reçue");
         
         if (this.jeu == null && newGameState != null) {
-            System.out.println("GameScene: 首次接收游戏状态");
+            System.out.println("GameScene : Premier état du jeu reçu");
         }
         
         this.jeu = newGameState;
         isLoading = false;
         
         if (newGameState != null && newGameState.getJoueurCourant() != null) {
-            System.out.println("GameScene: 当前玩家 - ID: " + newGameState.getJoueurCourant().getId());
+            System.out.println("GameScene : Joueur actuel - ID : " + newGameState.getJoueurCourant().getId());
         }
         
         updateStatusFromCurrentGame(true);
         gameHasEnded = false;
         resetSelectionAfterAction();
         
-        // 确保界面更新
+        // Assurer la mise à jour de l'interface
         SwingUtilities.invokeLater(this::repaintPanel);
     }
 

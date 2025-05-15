@@ -904,7 +904,7 @@ public class Jeu {
     public String getGameStateAsString() {
         StringBuilder sb = new StringBuilder();
 
-        // 添加etapeCoup信息
+        // 添加etapeCoup
         sb.append("etapeCoup:").append(etapeCoup).append(";");
 
         // ID du joueur courant

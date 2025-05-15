@@ -447,15 +447,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private boolean isMyTurn() {
         if (jeu == null) {
-            System.out.println("isMyTurn: false, jeu est null");
+            // System.out.println("isMyTurn: false, jeu est null");
             return false;
         }
 
         if (jeu.getJoueurCourant() == null || gameClient == null || gameClient.getMyPlayerId() == -1) {
-            System.out.println("isMyTurn: false, jeu.getJoueurCourant(): "
-                    + (jeu.getJoueurCourant() == null ? "null" : jeu.getJoueurCourant())
-                    + ", gameClient: " + gameClient
-                    + ", gameClient.getMyPlayerId(): " + (gameClient != null ? gameClient.getMyPlayerId() : -1));
+            // System.out.println("isMyTurn: false, jeu.getJoueurCourant(): "
+            //         + (jeu.getJoueurCourant() == null ? "null" : jeu.getJoueurCourant())
+            //         + ", gameClient: " + gameClient
+            //         + ", gameClient.getMyPlayerId(): " + (gameClient != null ? gameClient.getMyPlayerId() : -1));
             return false;
         }
 
@@ -609,8 +609,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                     // Afficher le bouton "Choisir un plateau" lorsque etapeCoup est égal à 3
                     if (etapeCoup == 3) {
-                        System.out.println("Devrait afficher le bouton : Sélectionner le plateau");
-                        System.out.println("Position de la souris : " + mousePos.x + "," + mousePos.y);
+                        // System.out.println("Devrait afficher le bouton : Sélectionner le plateau");
+                        // System.out.println("Position de la souris : " + mousePos.x + "," + mousePos.y);
 
                         // Met à jour les trois boutons de sélection de plateau
                         choosePastButton.update(mousePos);
@@ -621,12 +621,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         // choosePlateauButton.update(mousePos);
 
                         // Vérifie si la zone des boutons est valide
-                        System.out.println("Position du bouton Past : " + choosePastButton.getX() + "," + choosePastButton.getY()
-                                + " largeur : " + choosePastButton.getWidth() + " hauteur : " + choosePastButton.getHeight());
-                        System.out.println("Position du bouton Present : " + choosePresentButton.getX() + "," + choosePresentButton.getY()
-                                + " largeur : " + choosePresentButton.getWidth() + " hauteur : " + choosePresentButton.getHeight());
-                        System.out.println("Position du bouton Future : " + chooseFutureButton.getX() + "," + chooseFutureButton.getY()
-                                + " largeur : " + chooseFutureButton.getWidth() + " hauteur : " + chooseFutureButton.getHeight());
+                        // System.out.println("Position du bouton Past : " + choosePastButton.getX() + "," + choosePastButton.getY()
+                        //         + " largeur : " + choosePastButton.getWidth() + " hauteur : " + choosePastButton.getHeight());
+                        // System.out.println("Position du bouton Present : " + choosePresentButton.getX() + "," + choosePresentButton.getY()
+                        //         + " largeur : " + choosePresentButton.getWidth() + " hauteur : " + choosePresentButton.getHeight());
+                        // System.out.println("Position du bouton Future : " + chooseFutureButton.getX() + "," + chooseFutureButton.getY()
+                        //         + " largeur : " + chooseFutureButton.getWidth() + " hauteur : " + chooseFutureButton.getHeight());
                     } else {
                         choosePlateauButton.update(new Point(-1, -1));
                         choosePastButton.update(new Point(-1, -1));
@@ -652,7 +652,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     public void render(Graphics g, int width, int height) {
         // Afficher la valeur actuelle de etapeCoup pour le débogage
         if (jeu != null) {
-            System.out.println("GameScene render: etapeCoup = " + etapeCoup);
+            // System.out.println("GameScene render: etapeCoup = " + etapeCoup);
         }
 
         // Calculer la position du bouton en fonction de la taille actuelle du panneau
@@ -776,10 +776,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau.TypePlateau myNextPlateau = (myPlayerId == 1) ? joueur1SelectedPlateau : joueur2SelectedPlateau;
             Plateau.TypePlateau opponentNextPlateau = (myPlayerId == 1) ? joueur2SelectedPlateau : joueur1SelectedPlateau;
 
-            System.out.println("Mon ID : " + myPlayerId +
-                    ", ID du joueur actuel : " + currentPlayerId +
-                    ", Plateau que j'ai sélectionné : " + myNextPlateau +
-                    ", Plateau sélectionné par l'adversaire : " + opponentNextPlateau);
+            // System.out.println("Mon ID : " + myPlayerId +
+            //         ", ID du joueur actuel : " + currentPlayerId +
+            //         ", Plateau que j'ai sélectionné : " + myNextPlateau +
+            //         ", Plateau sélectionné par l'adversaire : " + opponentNextPlateau);
 
             // Dessiner les trois plateaux avec des surbrillances différentes
             drawPlateau(g2d, past, pastX, offsetY, tileWidth, "PASSÉ", null,

@@ -183,21 +183,14 @@ public class GameServerManager {
             Thread.sleep(500);
 
             while (isServerRunning) {
-                int etapeCoup = gameInstance.getEtapeCoup();
-                System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
-
                 Message msg = incomingMessages.take();
                 int clientId = msg.clientId;
                 System.out.println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
 
-                if (gameInstance == null) {
-                    System.err.println("GameServerManager: Instance de jeu non initialisée.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur serveur: jeu non initialisé.");
-                    continue;
-                }
-
                 // Vérifier si c'est le tour du joueur actuel
                 Joueur joueurCourant = gameInstance.getJoueurCourant();
+                Plateau plateauCourant = gameInstance.getPlateauCourant();
+
                 if (clientId != joueurCourant.getId()) {
                     System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
@@ -209,6 +202,19 @@ public class GameServerManager {
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
                     continue;
                 }
+
+                if (joueurCourant.getId() != 1) {
+                    if (plateauCourant.getNbBlancs() == 0) {
+                        gameInstance.setEtapeCoup(3);
+                    }
+                } else {
+                    if (plateauCourant.getNbNoirs() == 0) {
+                        gameInstance.setEtapeCoup(3);
+                    }
+                }
+
+                int etapeCoup = gameInstance.getEtapeCoup();
+                System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
                 String[] parts = msg.contenu.split(":");
@@ -223,6 +229,7 @@ public class GameServerManager {
                 int undo = Integer.parseInt(parts[0]);
                 if (undo == 1) {
                     gameInstance.setEtapeCoup(0); // Réinitialiser l'étape à 0
+                    gameInstance.Undo();
                     System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Undo effectué, vous pouvez choisir une nouvelle pièce.");
                     sendGameStateToAllClients();
@@ -240,7 +247,6 @@ public class GameServerManager {
                     continue;
                 }
 
-                Plateau plateauCourant = gameInstance.getPlateauCourant();
                 Piece selectedPiece = plateauCourant.getPiece(x, y);
 
                 // Extraire le ProchainPlateau si spécifié
@@ -257,14 +263,15 @@ public class GameServerManager {
 
                 switch (etapeCoup) {
                     case 0: // Étape initiale: sélection d'une pièce
+                        
                         if (selectedPiece == null) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce à cette position.");
+                            sendMessageToClient(clientId, Code.ACTION.name() + ":" + "Aucune pièce à cette position.");
                             continue;
                         }
 
                         // Vérifier que la pièce appartient au joueur courant
                         if (!selectedPiece.getOwner().equals(joueurCourant)) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Cette pièce ne vous appartient pas.");
+                            sendMessageToClient(clientId, Code.ACTION.name() + ":" + "Cette pièce ne vous appartient pas.");
                             continue;
                         }
 

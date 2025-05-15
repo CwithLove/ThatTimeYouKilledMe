@@ -26,7 +26,7 @@ public class GameServerManager {
     private ServerSocket serverSocket;
     private Thread acceptConnectionsThread;
     private Thread gameEngineThread;
-    private Jeu gameInstance; // 游戏实例，替代原来的GameEngineServer
+    private Jeu gameInstance; // L'instance de Jeu
 
     private final BlockingQueue<Message> incomingMessages = new LinkedBlockingQueue<>();
     private final Map<Integer, BlockingQueue<String>> outgoingQueues = new ConcurrentHashMap<>();
@@ -67,17 +67,17 @@ public class GameServerManager {
                     System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
 
                     try {
-                        // 遵循客户端/服务器双方统一的协议顺序：
-                        // 1. 服务器创建输出流并刷新
+                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
+                       // 1. Le serveur crée un flux de sortie et le flush
                         ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                        out.flush(); // 立即发送流头部信息
+                        out.flush();
 
-                        // 2. 客户端创建输入流
-                        // 3. 客户端创建输出流并刷新
-                        // 4. 服务器创建输入流
+                        // 2. Le client crée un flux d'entrée
+                       // 3. Le client crée un flux de sortie et le flush
+                        // 4. Le serveur crée un flux d'entrée
                         ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 
-                        // 5. 服务器发送ID消息
+                        // 5. Le serveur envoie ID
                         out.writeObject("ID:" + newClientId);
                         out.flush();
                         System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
@@ -86,7 +86,8 @@ public class GameServerManager {
                         outgoingQueues.put(newClientId, clientOutgoingQueue);
                         connectedClientIds.add(newClientId);
 
-                        // 创建并启动带有客户端ID的ClientReceiver和ClientSender
+
+                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
                         Thread receiverThread = new Thread(
                                 new ClientReceiver(in, incomingMessages, newClientId),
                                 "ClientReceiver-" + newClientId
@@ -105,9 +106,9 @@ public class GameServerManager {
                         try {
                             clientSocket.close();
                         } catch (IOException closeEx) {
-                            // 忽略关闭错误
+                            // ignore les erreurs dans la fermeture
                         }
-                        continue; // 跳过当前迭代，继续接受下一个连接
+                        continue; // sortie d'iteration acutelle
                     }
 
                     if (connectedClientIds.size() == maxClients) {
@@ -327,7 +328,7 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // 验证所选棋盘与当前棋子所在棋盘是否一致
+                        // verifie si le piece choisi correspont au plateau actuel pour ce joueur
                         Plateau.TypePlateau selectedPlateauType = null;
                         try {
                             selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
@@ -337,21 +338,21 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // 获取当前棋子所在的棋盘类型
+                        // recuperer le plateau ou le piece se situe
                         Plateau.TypePlateau currentPieceBoard = plateauCourant.getType();
                         
-                        // 获取点击坐标和棋子位置
+                        // recuperer la coordonne de click et la position de piece
                         Point clickedPosition = new Point(x, y);
                         Point piecePosition = pieceCourante.getPosition();
                         
-                        // 使用辅助方法确定移动类型
+                        // un support pour verifier le type de movement
                         Coup.TypeCoup typeCoup = determineMovementType(piecePosition, clickedPosition, 
                                                                      currentPieceBoard, selectedPlateauType, clientId);
                         if (typeCoup == null) {
                             continue;
                         }
                         
-                        // 处理移动操作
+                        //traiter le mouvement
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
                             continue;
                         }
@@ -366,7 +367,7 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // 验证所选棋盘与当前棋子所在棋盘是否一致
+
                         selectedPlateauType = null;
                         try {
                             selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
@@ -376,21 +377,21 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // 获取当前棋子所在的棋盘类型
+
                         currentPieceBoard = plateauCourant.getType();
                         
-                        // 获取点击坐标和棋子位置
+
                         clickedPosition = new Point(x, y);
                         piecePosition = pieceCourante.getPosition();
                         
-                        // 使用辅助方法确定移动类型
+
                         typeCoup = determineMovementType(piecePosition, clickedPosition, 
                                                       currentPieceBoard, selectedPlateauType, clientId);
                         if (typeCoup == null) {
                             continue;
                         }
                         
-                        // 处理移动操作
+
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
                             continue;
                         }
@@ -432,38 +433,37 @@ public class GameServerManager {
         }
     }
 
-    // 辅助方法：处理棋子移动的通用逻辑
+
     private Coup.TypeCoup determineMovementType(Point piecePosition, Point clickedPosition, 
                                                Plateau.TypePlateau currentPieceBoard, Plateau.TypePlateau selectedPlateauType,
                                                int clientId) {
         
-        // 检查是否是同一位置但不同棋盘（可能是JUMP或CLONE）
+        // verifie si c'est jump ou clone
         boolean isSamePosition = (piecePosition.x == clickedPosition.x && piecePosition.y == clickedPosition.y);
         boolean isDifferentPlateau = (currentPieceBoard != selectedPlateauType);
         
-        // 自动判断操作类型
+
         Coup.TypeCoup typeCoup = null;
         
         if (isSamePosition && isDifferentPlateau) {
-            // 根据棋盘类型判断是JUMP还是CLONE
             if ((currentPieceBoard == Plateau.TypePlateau.PAST && selectedPlateauType == Plateau.TypePlateau.PRESENT) ||
                 (currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.FUTURE)) {
-                // PAST→PRESENT 或 PRESENT→FUTURE 是JUMP操作
+                // PAST→PRESENT ou PRESENT→FUTURE :JUMP
                 typeCoup = Coup.TypeCoup.JUMP;
                 System.out.println("GameServerManager: Détection automatique d'une opération JUMP");
             } else if ((currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.PAST) ||
                       (currentPieceBoard == Plateau.TypePlateau.FUTURE && selectedPlateauType == Plateau.TypePlateau.PRESENT)) {
-                // PRESENT→PAST 或 FUTURE→PRESENT 是CLONE操作
+                // PRESENT→PAST ou FUTURE→PRESENT : CLONE
                 typeCoup = Coup.TypeCoup.CLONE;
                 System.out.println("GameServerManager: Détection automatique d'une opération CLONE");
             } else {
-                // 不允许的棋盘切换
+                // cas ou le changement de plateau interdit
                 System.err.println("GameServerManager: Transition de plateau non autorisée: " + currentPieceBoard + " -> " + selectedPlateauType);
                 sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Transition de plateau non autorisée.");
                 return null;
             }
         } else if (currentPieceBoard == selectedPlateauType) {
-            // 同一棋盘上的移动，根据相对位置判断方向
+            //mouvement dans le meme plateau
             int dx = clickedPosition.x - piecePosition.x;
             int dy = clickedPosition.y - piecePosition.y;
             
@@ -476,13 +476,13 @@ public class GameServerManager {
             } else if (dx == 0 && dy == 1) {
                 typeCoup = Coup.TypeCoup.RIGHT;
             } else {
-                // 无效的移动方向
+                // direction invalide
                 System.err.println("GameServerManager: Déplacement invalide: dx=" + dx + ", dy=" + dy);
                 sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Déplacement invalide.");
                 return null;
             }
         } else {
-            // 不同棋盘上的不同位置，这是无效操作
+            // mouvemnt invalide dans le plateau different
             System.err.println("GameServerManager: Opération invalide entre plateaux différents à des positions différentes.");
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pour JUMP/CLONE, cliquez sur la même position dans un plateau adjacent.");
             return null;
@@ -491,13 +491,13 @@ public class GameServerManager {
         return typeCoup;
     }
     
-    // 处理移动操作并返回是否成功
+    // traitement de move et verifie si cela marche
     private boolean processMove(Piece pieceCourante, Plateau plateauCourant, Coup.TypeCoup typeCoup, 
                                int clientId, int nextEtape) {
-        // 创建移动操作
+
         Coup coup = new Coup(pieceCourante, plateauCourant, typeCoup);
         
-        // 验证移动是否合法
+
         ArrayList<Coup> possibleCoups = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
         boolean coupValide = false;
         
@@ -513,28 +513,28 @@ public class GameServerManager {
             return false;
         }
         
-        // 执行移动
+        // executer le mouvement
         boolean coupReussi = gameInstance.jouerCoup(coup);
         if (coupReussi) {
-            // 设置下一个阶段
+            // mise a jour de etape
             gameInstance.setEtapeCoup(nextEtape);
             
-            // 确认操作成功
+            // confirme la validation de move
             if (nextEtape == 3) {
                 System.out.println("GameServerManager: Deuxième coup réussi, etapeCoup passé à 3");
             }
             
-            // 获取当前棋子的新位置和当前棋盘
+            // recuperer la nouvelle position de piece et le plateau
             Point newPosition = pieceCourante.getPosition();
             Plateau currentPlateau = gameInstance.getPlateauCourant();
             
-            // 返回成功消息
+            //retourne le message de reussite
             String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":" 
                                    + newPosition.x + ":" + newPosition.y + ":" 
                                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
             
-            // 更新游戏状态
+            // mise a jour de l'instance du Jeu
             sendGameStateToAllClients();
             return true;
         } else {

@@ -859,10 +859,10 @@ public class Jeu {
             this.pieceCourante = selectedPiece;
 
             if (etapeCoup == 0) {
-                etapeCoup = 1; // 第一次选择棋子
+                etapeCoup = 1;
             }
 
-            // 创建动作并使用jouerCoup方法
+
             Coup playerCoup = new Coup(selectedPiece, selectedPlateau, typeCoup);
             boolean isValid = jouerCoup(playerCoup);
 
@@ -871,9 +871,9 @@ public class Jeu {
                 return false;
             }
 
-            // // 如果玩家已经完成了两步操作，应该自动切换到下一个玩家
+
             // if (etapeCoup >= 3) {
-            //     // 第三步选择新的棋盘
+
             //     Plateau.TypePlateau nextPlateau = null;
             //     if (plateauType != Plateau.TypePlateau.PAST) {
             //         nextPlateau = Plateau.TypePlateau.PAST;
@@ -882,9 +882,9 @@ public class Jeu {
             //     }
             //     joueurCourant.setProchainPlateau(nextPlateau);
             //     etapeCoup = 0;
-            //     joueurSuivant(); // 切换到下一玩家
+            //     joueurSuivant();
             //     majPlateauCourant();
-            //     // 添加明确的日志，显示当前轮到谁
+
             //     System.out.println("Jeu: Joueur suivant - ID: " + joueurCourant.getId() +
             //                        " (" + (joueurCourant.equals(joueur1) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
             // }

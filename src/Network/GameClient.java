@@ -124,14 +124,12 @@ public class GameClient {
 
                             switch (finalCode) {
                                 case ETAT:
-                                    // 服务器返回的状态消息已经包含etapeCoup
-                                    // 打印收到的状态消息以便调试
+                                    // dans la reponse du serveur on a deja etapeCoup
                                     System.out.println("GameClient: Received game state: " + finalContent);
                                     
-                                    // 解析游戏状态并更新游戏实例
+                                    // decoder l'etat du jeu et la mise a jour
                                     GameStateParser.parseAndUpdateJeu(gameInstance, finalContent);
-                                    
-                                    // 获取并打印etapeCoup
+
                                     System.out.println("GameClient: Current etapeCoup after parsing: " + gameInstance.getEtapeCoup());
                                     
                                     listener.onGameStateUpdate(gameInstance);
@@ -143,29 +141,29 @@ public class GameClient {
                                     listener.onGameMessage("LOSE", finalContent);
                                     break;
                                 case PIECE:
-                                    // 新格式：PIECE:x:y:possibleMoves
-                                    // possibleMoves格式为：TYPE_COUP:x:y;TYPE_COUP:x:y;...
+                                    // nouveau format：PIECE:x:y:possibleMoves
+                                    // possibleMoves format：TYPE_COUP:x:y;TYPE_COUP:x:y;...
                                     if (listener != null) {
                                         listener.onGameMessage("PIECE", finalContent);
                                     }
                                     break;
                                 case COUP:
-                                    // 新格式：COUP:TYPE_COUP:success
+                                    // nouveau format：COUP:TYPE_COUP:success
                                     if (listener != null) {
                                         listener.onGameMessage("COUP", finalContent);
                                     }
                                     break;
                                 case PLATEAU:
-                                    // 新格式：PLATEAU:TYPE_PLATEAU:success
+                                    // nouveau format：PLATEAU:TYPE_PLATEAU:success
                                     if (listener != null) {
                                         listener.onGameMessage("PLATEAU", finalContent);
                                     }
                                     break;                                
-                                case ADVERSAIRE: // 例如："Ce n'est pas votre tour"或错误消息
+                                case ADVERSAIRE: // Exemple："Ce n'est pas votre tour" ou d'autres messages d'erreurs
                                     listener.onGameMessage("ADVERSAIRE", finalContent);
                                     break;
-                                case ACTION:     // 服务器通知等待选择动作
-                                case DIRECTION:  // 服务器通知等待选择方向
+                                case ACTION:     //
+                                case DIRECTION:  // Le serveur en attente du choix de l'action et de la direction
                                     listener.onGameMessage(finalCode.name(), finalContent);
                                     break;
                                 default:
@@ -274,18 +272,14 @@ public class GameClient {
         this.listener = newListener;
     }
     
-    /**
-     * 从游戏状态字符串中提取etapeCoup值
-     * @param stateContent 游戏状态字符串
-     * @return etapeCoup值，如果找不到则返回null
-     */
+
     private String extractEtapeCoupFromState(String stateContent) {
         if (stateContent == null || stateContent.isEmpty()) {
             return null;
         }
         
         try {
-            // 新格式：etapeCoup:value;key1:value1;key2:value2;...
+            // etapeCoup:value;key1:value1;key2:value2;...
             String[] parts = stateContent.split(";");
             for (String part : parts) {
                 if (part.startsWith("etapeCoup:")) {
@@ -293,11 +287,11 @@ public class GameClient {
                 }
             }
             
-            // 如果没有找到etapeCoup，从gameInstance中获取
+            // si on arrive pas a trouver etapeCoup，on le recupere dans gameInstance
             return String.valueOf(gameInstance.getEtapeCoup());
         } catch (Exception e) {
-            System.err.println("GameClient: 提取etapeCoup时出错: " + e.getMessage());
-            return "0"; // 默认值
+            System.err.println("GameClient: erreur de recuperer etatpeCoup: " + e.getMessage());
+            return "0"; //valeur de default
         }
     }
 }

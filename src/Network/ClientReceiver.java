@@ -24,7 +24,6 @@ public class ClientReceiver implements Runnable {
                     if (obj instanceof String) {
                         String messageStr = (String) obj;
                         fileEntrante.put(new Message(clientId, messageStr));
-                        // 可以在这里添加调试日志
                         // System.out.println("ClientReceiver (" + clientId + "): Reçu -> " + messageStr);
                     }
                 } catch (ClassNotFoundException e) {
@@ -36,10 +35,10 @@ public class ClientReceiver implements Runnable {
                 }
             }
         } catch (SocketException e) {
-            // 正常断开连接时的处理
+            // traitement de deconexion normale
             System.out.println("ClientReceiver: Client " + clientId + " déconnecté: " + e.getMessage());
         } catch (EOFException e) {
-            // 对端关闭流时的处理
+            // traitement de femeture de port
             System.out.println("ClientReceiver: Client " + clientId + " a fermé la connexion");
         } catch (IOException e) {
             System.err.println("ClientReceiver: Erreur de lecture du client " + clientId + " - " + e.getMessage());

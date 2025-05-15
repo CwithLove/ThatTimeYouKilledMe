@@ -24,7 +24,7 @@ public class GameStateParser {
                 return;
             }
 
-            // 检查并处理特殊格式：etapeCoup:n|game_state
+            // Vérifier et traiter le format spécial : etapeCoup:n|game_state
             String processedGameState = gameStateString;
             if (gameStateString.startsWith("etapeCoup:")) {
                 int separatorIndex = gameStateString.indexOf('|');
@@ -38,7 +38,7 @@ public class GameStateParser {
                     } catch (NumberFormatException e) {
                         System.err.println("GameStateParser: Valeur d'etapeCoup invalide: " + etapeCoupValue);
                     }
-                    // 处理剩余的游戏状态部分
+                    // Traiter la partie restante de l'état du jeu
                     processedGameState = gameStateString.substring(separatorIndex + 1);
                 }
             }
@@ -47,7 +47,7 @@ public class GameStateParser {
             String[] parts = processedGameState.split(";");
             Map<String, String> gameStateMap = new HashMap<>();
             for (String part : parts) {
-                // 将每个部分添加到映射中
+
                 String[] keyValue = part.split(":", 2);
                 if (keyValue.length == 2) {
                     gameStateMap.put(keyValue[0], keyValue[1]);

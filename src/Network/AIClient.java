@@ -90,7 +90,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             System.out.println(aiName + " (ID: " + myPlayerId + "): Action envoyée -> " + actionString);
         } catch (IOException e) {
             System.err.println(aiName + ": Erreur envoi action: " + e.getMessage());
-            disconnect(); // Ngắt kết nối nếu có lỗi gửi
+            disconnect();
         }
     }
 
@@ -152,7 +152,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
     @Override
     public void onGameStateUpdate(Jeu newGameState) { // newGameState et this.gameInstance mis à jour
-        // this.gameInstance đã được cập nhật bởi GameStateParser trước khi gọi hàm này.
+        // this.gameInstance a été mis à jour par GameStateParser avant l'appel de cette fonction.
         if (this.gameInstance == null || this.gameInstance.getJoueurCourant() == null) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu invalide reçu pour décision.");
             return;
@@ -163,7 +163,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         if (this.gameInstance.getJoueurCourant().getId() == this.myPlayerId) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
             try {
-                Thread.sleep(500 + random.nextInt(1500)); // AI "suy nghĩ" 0.5-2 giây
+                Thread.sleep(500 + random.nextInt(1500)); // L'IA "réfléchit" pendant 0,5-2 secondes
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println(aiName + ": Thread interrompu pendant la réflexion.");
@@ -178,15 +178,16 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
         Joueur aiPlayer = (gameInstance.getJoueur1().getId() == myPlayerId) ? gameInstance.getJoueur1() : gameInstance.getJoueur2();
 
-        // Chiến lược AI rất cơ bản
+        // La stratégie de l'IA est très basique
         List<Piece> aiPiecesPresent = findMyPiecesOnBoard(gameInstance.getPresent(), aiPlayer);
         List<Piece> aiPiecesPast = findMyPiecesOnBoard(gameInstance.getPast(), aiPlayer);
         List<Piece> aiPiecesFuture = findMyPiecesOnBoard(gameInstance.getFuture(), aiPlayer);
 
-        // 1. Thử CLONE từ PRESENT
+        // 1. Essayer un CLONE depuis le PRESENT
         if (aiPlayer.getNbClones() > 0 && !aiPiecesPresent.isEmpty()) {
-            for (Piece p : aiPiecesPresent) { // Nên chọn ngẫu nhiên hoặc ưu tiên
-                 // Kiểm tra đơn giản: nếu ô đích trên PAST không có quân của AI
+            for (Piece p : aiPiecesPresent) {
+               // Devrait choisir aléatoirement ou par priorité
+               // Vérification simple : si la case cible sur PAST ne contient pas de pièce de l'IA
                 Piece destPiecePast = gameInstance.getPast().getPiece(p.getPosition().x, p.getPosition().y);
                 if (destPiecePast == null || destPiecePast.getOwner().getId() != myPlayerId) {
                     sendPlayerAction(Coup.TypeCoup.CLONE.name() + ":" + Plateau.TypePlateau.PRESENT.name() + ":" + p.getPosition().x + ":" + p.getPosition().y);
@@ -195,7 +196,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
         }
 
-        // 2. Thử JUMP từ PAST
+        // 2. Essayer un JUMP depuis le PAST
         if (!aiPiecesPast.isEmpty()) {
             for (Piece p : aiPiecesPast) {
                 Piece destPiecePresent = gameInstance.getPresent().getPiece(p.getPosition().x, p.getPosition().y);
@@ -206,7 +207,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
         }
         
-        // 3. Thử CLONE từ FUTURE
+        // 3. Essayer un CLONE depuis le FUTURE
         if (aiPlayer.getNbClones() > 0 && !aiPiecesFuture.isEmpty()) {
             for (Piece p : aiPiecesFuture) {
                 Piece destPiecePresent = gameInstance.getPresent().getPiece(p.getPosition().x, p.getPosition().y);
@@ -217,27 +218,26 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
         }
 
-        // 4. Thử MOVE ngẫu nhiên
+       // 4. Essayer un MOVE aléatoire
         List<Piece> allMyPieces = new ArrayList<>();
         allMyPieces.addAll(aiPiecesPresent);
         allMyPieces.addAll(aiPiecesPast);
         allMyPieces.addAll(aiPiecesFuture);
 
         if (!allMyPieces.isEmpty()) {
-            java.util.Collections.shuffle(allMyPieces); // Xáo trộn để có sự ngẫu nhiên hơn
+            java.util.Collections.shuffle(allMyPieces); // Mélanger pour avoir plus d'aléatoire
             for(Piece pieceToMove : allMyPieces){
                 Plateau.TypePlateau plateauOfPiece = getPlateauTypeOfPiece(pieceToMove, gameInstance);
                 if (plateauOfPiece != null) {
                     Point[] directions = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0)};
-                    java.util.Collections.shuffle(java.util.Arrays.asList(directions)); // Xáo trộn hướng
+                    java.util.Collections.shuffle(java.util.Arrays.asList(directions));
 
                     for(Point dir : directions){
-                        // AI có thể kiểm tra sơ bộ xem nước đi có ra ngoài bàn cờ không
+                       // L'IA peut vérifier préalablement si le mouvement sort de l'échiquier
                         int destX = pieceToMove.getPosition().x + dir.x;
                         int destY = pieceToMove.getPosition().y + dir.y;
-                        int boardSize = 4; // 使用固定棋盘大小而不是直接访问私有常量
+                        int boardSize = 4; //La taille de plateau est fixe
                         if (destX >= 0 && destX < boardSize && destY >= 0 && destY < boardSize) {
-                            // Kiểm tra xem ô đích có quân của mình không
                             Piece pieceAtDest = gameInstance.getPlateauByType(plateauOfPiece).getPiece(destX, destY);
                             // if (pieceAtDest == null || pieceAtDest.getOwner().getId() != myPlayerId) {
                             //     String command = Coup.TypeCoup.MOVE.name() + ":" + plateauOfPiece.name() + ":" +
@@ -252,14 +252,14 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
         }
         System.out.println(aiName + " (ID: " + myPlayerId + "): Pas d'action simple trouvée, passe son tour (ou devrait envoyer un NOP?).");
-        // Trong tương lai, nếu không có nước đi, AI có thể cần gửi một lệnh "SKIP" hoặc server tự xử lý timeout.
-        // Hiện tại, không gửi gì sẽ khiến server chờ.
+        // À l'avenir, si aucun mouvement n'est possible, l'IA pourrait devoir envoyer une commande "SKIP" ou le serveur devra gérer lui-même le timeout.
+        // Actuellement, ne rien envoyer fait que le serveur reste en attente.
     }
 
     private List<Piece> findMyPiecesOnBoard(Plateau board, Joueur myself) {
         List<Piece> myPieces = new ArrayList<>();
         if (board == null || myself == null) return myPieces;
-        int boardSize = 4; // 使用固定棋盘大小而不是直接访问私有常量
+        int boardSize = 4; //La taille du plateau est fixe
         for (int r = 0; r < boardSize; r++) {
             for (int c = 0; c < boardSize; c++) {
                 Piece p = board.getPiece(r, c);
@@ -274,7 +274,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private Plateau.TypePlateau getPlateauTypeOfPiece(Piece piece, Jeu currentGame) {
         if (currentGame == null || piece == null) return null;
         Point pos = piece.getPosition();
-        if (pos == null) return null; // Thêm kiểm tra null cho position
+        if (pos == null) return null; // Ajouter une vérification de null pour la position
 
         Plateau past = currentGame.getPast();
         Plateau present = currentGame.getPresent();
@@ -284,8 +284,8 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         if (present != null && present.getPiece(pos.x, pos.y) == piece) return Plateau.TypePlateau.PRESENT;
         if (future != null && future.getPiece(pos.x, pos.y) == piece) return Plateau.TypePlateau.FUTURE;
         
-        // Fallback nếu piece không được tìm thấy qua so sánh tham chiếu (do có thể là copy)
-        // Kiểm tra dựa trên owner và position
+        // Repli si la pièce n'est pas trouvée par comparaison de références (possiblement due à une copie)
+        // Vérification basée sur le propriétaire et la position
         if (past != null) {
             Piece p = past.getPiece(pos.x, pos.y);
             if (p != null && p.getOwner().getId() == myPlayerId && p.getPosition().equals(pos)) return Plateau.TypePlateau.PAST;
@@ -307,7 +307,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         System.out.println(aiName + " (ID: " + myPlayerId + "): Message Serveur - " + messageType + ": " + messageContent);
         if ("GAGNE".equalsIgnoreCase(messageType) || "PERDU".equalsIgnoreCase(messageType) || "DISCONNECTED".equalsIgnoreCase(messageType)) {
             System.out.println(aiName + ": Fin de partie ou déconnexion. Arrêt de l'AI.");
-            disconnect(); // Dừng AI
+            disconnect();
         }
     }
 

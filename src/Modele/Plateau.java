@@ -94,7 +94,7 @@ public class Plateau {
 
     public void incNoirs() { this.nbNoirs+=1; }
 
-    // 重置计数器
+
     public void resetCounts() {
         this.nbBlancs = 0;
         this.nbNoirs = 0;
@@ -146,7 +146,7 @@ public class Plateau {
         this.nbNoirs = 0;
     }
     
-    // 重新计算棋盘上的棋子数量
+    // recalcul le nb de piece dans le plateau
     public void updatePieceCount() {
         int blancs = 0;
         int noirs = 0;

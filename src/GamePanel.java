@@ -7,8 +7,8 @@ import javax.swing.*;
 
 public class GamePanel extends JPanel implements ActionListener {
     // Dimensions de base pour le ratio 16:9
-    private static final int BASE_WIDTH = 1280;
-    private static final int BASE_HEIGHT = 720; // 16:9
+    private static final int BASE_WIDTH = 640;
+    private static final int BASE_HEIGHT = 360; // 16:9
     // Images par seconde pour le jeu
     private static final int FPS = 60;
     

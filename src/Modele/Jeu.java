@@ -3,7 +3,6 @@ package Modele;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Scanner;
-import java.util.ArrayList;
 
 /**
  * La classe Jeu contient les méthodes pour intéragir avec le modèle du jeu.
@@ -905,12 +904,19 @@ public class Jeu {
     public String getGameStateAsString() {
         StringBuilder sb = new StringBuilder();
 
+        // 添加etapeCoup信息
+        sb.append("etapeCoup:").append(etapeCoup).append(";");
+
         // ID du joueur courant
         sb.append("JC:").append(joueurCourant != null ? joueurCourant.getId() : 0).append(";");
 
         // Nombre de clones pour chaque joueur
         sb.append("C1:").append(joueur1.getNbClones()).append(";");
         sb.append("C2:").append(joueur2.getNbClones()).append(";");
+
+        // Prochain plateau pour chaque joueur
+        sb.append("P1:").append(joueur1.getProchainPlateau()).append(";");
+        sb.append("P2:").append(joueur2.getProchainPlateau()).append(";");
 
         // État des plateaux (représenté par des matrices 4x4)
         sb.append("P:"); // PAST

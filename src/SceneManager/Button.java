@@ -129,4 +129,12 @@ public class Button {
     public boolean isEnabled() {
         return enabled;
     }
+
+    public void setHovering(boolean hovering) {
+        this.isHovered = hovering;
+    }
+    
+    public void setFontSize(int size) {
+        this.font = new Font(font.getName(), font.getStyle(), size);
+    }
 }

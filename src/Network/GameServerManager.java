@@ -6,18 +6,19 @@ import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
 import SceneManager.HostingScene;
+import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket; // Pour utiliser synchronizedList
+import java.net.ServerSocket; // Pour utiliser synchronizedList
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue; // Importer la classe Jeu
+import java.util.concurrent.ConcurrentHashMap; // Importer la classe Jeu
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class GameServerManager {
 
@@ -141,6 +142,7 @@ public class GameServerManager {
         acceptConnectionsThread.setName("GSM-AcceptConnectionsThread");
         acceptConnectionsThread.start();
     }
+
     public synchronized void startGameEngine() { // synchronized pour éviter plusieurs appels
         if (gameEngineThread != null && gameEngineThread.isAlive()) {
             System.out.println("GameServerManager: Le moteur de jeu est déjà en cours d'exécution.");
@@ -185,97 +187,241 @@ public class GameServerManager {
 
                 Message msg = incomingMessages.take();
                 int clientId = msg.clientId;
-                System.out.println("GameServerManager: Processing message from client " + clientId + ": " + msg.contenu);
+                System.out.println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
 
                 if (gameInstance == null) {
                     System.err.println("GameServerManager: Instance de jeu non initialisée.");
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur serveur: jeu non initialisé.");
-                    return;
+                    continue;
                 }
 
-                // Prendre le joueur courant
-                Joueur currentJoueur = gameInstance.getJoueurCourant();
-
-                // Vérifier d'abord si c'est le tour du joueur actuel
-                if (clientId != currentJoueur.getId()) {
+                // Vérifier si c'est le tour du joueur actuel
+                Joueur joueurCourant = gameInstance.getJoueurCourant();
+                if (clientId != joueurCourant.getId()) {
                     System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
-                    System.out.println("GameServerManager: ID du joueur actuel: " + currentTurnPlayerId);
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
-                    continue; // Passer à la prochaine itération de la boucle
+                    continue;
                 }
 
                 if (msg.contenu == null) {
                     System.err.println("GameServerManager: Message du client " + clientId + " est null.");
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
-                    continue; // Passer à la prochaine itération de la boucle
+                    continue;
                 }
 
-                Piece selectedPiece = null;
+                // Traiter le message en fonction de l'étape du coup
+                String[] parts = msg.contenu.split(":");
+                System.out.println("GameServerManager: Message du client " + clientId + ": " + msg.contenu);
+                if (parts.length < 5) {
+                    System.err.println("GameServerManager: Format du message invalide: " + msg.contenu);
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Format de message invalide.");
+                    continue;
+                }
+
+                // Vérifier si c'est une commande Undo
+                int undo = Integer.parseInt(parts[0]);
+                if (undo == 1) {
+                    gameInstance.setEtapeCoup(0); // Réinitialiser l'étape à 0
+                    System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Undo effectué, vous pouvez choisir une nouvelle pièce.");
+                    sendGameStateToAllClients();
+                    continue;
+                }
+
+                // Extraire les coordonnées
+                int x, y;
                 try {
-                    int x, y;
-                    String[] parts = msg.contenu.split(":");
-                    if (parts.length != 4) {
-                        System.err.println("GameServerManager: Message du client " + clientId + " ne contient pas 4 parties.");
-                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client invalide.");
-                        return;
-                    }
-                    x = Integer.parseInt(parts[2]);
-                    y = Integer.parseInt(parts[3]);
-                    selectedPiece = gameInstance.getPlateauCourant().getPiece(x, y);
+                    x = Integer.parseInt(parts[3]);
+                    y = Integer.parseInt(parts[4]);
                 } catch (NumberFormatException e) {
-                    System.err.println("GameServerManager: Erreur lors de la conversion des coordonnées: " + e.getMessage());
+                    System.err.println("GameServerManager: Erreur de conversion des coordonnées: " + e.getMessage());
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Coordonnées invalides.");
-                    return;
+                    continue;
                 }
 
-                if (selectedPiece == null) {
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
-                    continue; // Passer à la prochaine itération de la boucle
+                Plateau plateauCourant = gameInstance.getPlateauCourant();
+                Piece selectedPiece = plateauCourant.getPiece(x, y);
+
+                // Extraire le ProchainPlateau si spécifié
+                Plateau.TypePlateau prochainPlateau = null;
+                if (!parts[1].equals("null")) {
+                    try {
+                        prochainPlateau = Plateau.TypePlateau.valueOf(parts[1]);
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("GameServerManager: Type de plateau invalide: " + parts[1]);
+                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
+                        continue;
+                    }
                 }
 
-                Plateau currentPlateau = gameInstance.getPlateauCourant();
-
-                // Réécrire le code, sans utiliser processClientMessage
                 switch (etapeCoup) {
-                    case 0: // etapeCoup == 0, l'utilisateur peut choisir une pièce sur le Plateau actuel ; le serveur vérifie si la pièce choisie par l'utilisateur est valide. Si elle est valide, il renvoie la pièce actuelle du Plateau ; sinon, il renvoie null.
-                        // Traiter le message
-                        // Vérifier si la pièce choisie est valide
-                        ArrayList<Piece> piecesPossibles = gameInstance.getPlateauCourant().getPieces(gameInstance.getJoueurCourant());
-                        if (piecesPossibles.size() == 0) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce disponible.");
-                            return;
+                    case 0: // Étape initiale: sélection d'une pièce
+                        if (selectedPiece == null) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Aucune pièce à cette position.");
+                            continue;
                         }
 
-                        for (Piece piece : piecesPossibles) {
-                            ArrayList<Coup> coupPossibles = gameInstance.getCoupPossibles(currentPlateau, piece);
-                            if (coupPossibles.isEmpty()) {
-                                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, car aucun coup possible.");
-                                return;
-                            } else {
-                                for (Coup coup : coupPossibles) {
-                                    if (coup.getPiece().equals(selectedPiece)) {
-                                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + "Pièce valide.");
-                                        return;
-                                    }
-                                }
+                        // Vérifier que la pièce appartient au joueur courant
+                        if (!selectedPiece.getOwner().equals(joueurCourant)) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Cette pièce ne vous appartient pas.");
+                            continue;
+                        }
+
+                        // Vérifier s'il y a des coups possibles pour cette pièce
+                        ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+                        if (coupsPossibles.isEmpty()) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pas de coup possible pour cette pièce.");
+                            continue;
+                        }
+
+                        // Pièce valide avec des coups possibles
+                        StringBuilder possibleMovesStr = new StringBuilder();
+                        for (Coup coup : coupsPossibles) {
+                            Point currentPos = selectedPiece.getPosition();
+                            Point targetPos = new Point(currentPos.x, currentPos.y);
+
+                            // Calculer la position cible selon le type de coup
+                            switch (coup.getTypeCoup()) {
+                                case UP:
+                                    targetPos.x -= 1;
+                                    break;
+                                case DOWN:
+                                    targetPos.x += 1;
+                                    break;
+                                case LEFT:
+                                    targetPos.y -= 1;
+                                    break;
+                                case RIGHT:
+                                    targetPos.y += 1;
+                                    break;
+                                case JUMP:
+                                case CLONE:
+                                    // Pour les mouvements à travers le temps, la position reste la même
+                                    break;
                             }
+
+                            // Ajouter à la chaîne des mouvements possibles
+                            possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
                         }
 
-                        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide.");
+                        // Définir la pièce sélectionnée
+                        gameInstance.setPieceCourante(selectedPiece);
+                        gameInstance.setEtapeCoup(1); // Passer à l'étape suivante
+                        
+                        System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
+                                          " sur plateau " + plateauCourant.getType());
+
+                        // Envoyer les informations de la pièce et ses mouvements possibles
+                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr.toString());
+
+                        // Mettre à jour l'état du jeu
+                        sendGameStateToAllClients();
                         break;
-                    case 1:
-                    case 2:
-                        // getCoupPossibles
-                        ArrayList<Coup> coupPossibles = gameInstance.getCoupPossibles(currentPlateau, selectedPiece);
-                        if (coupPossibles.isEmpty()) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pièce invalide, parce que pas de coup possible.");
-                            return;
-                        }
-                        // get current TypeCoup
 
+                    case 1: // Premier coup: déplacement ou action spéciale
+                        Piece pieceCourante = gameInstance.getPieceCourante();
+                        if (pieceCourante == null) {
+                            System.err.println("GameServerManager: Pièce courante null à l'étape 1");
+                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
+                            continue;
+                        }
+
+                        // 验证所选棋盘与当前棋子所在棋盘是否一致
+                        Plateau.TypePlateau selectedPlateauType = null;
+                        try {
+                            selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
+                        } catch (IllegalArgumentException e) {
+                            System.err.println("GameServerManager: Type de plateau invalide: " + parts[2]);
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
+                            continue;
+                        }
+
+                        // 获取当前棋子所在的棋盘类型
+                        Plateau.TypePlateau currentPieceBoard = plateauCourant.getType();
+                        
+                        // 获取点击坐标和棋子位置
+                        Point clickedPosition = new Point(x, y);
+                        Point piecePosition = pieceCourante.getPosition();
+                        
+                        // 使用辅助方法确定移动类型
+                        Coup.TypeCoup typeCoup = determineMovementType(piecePosition, clickedPosition, 
+                                                                     currentPieceBoard, selectedPlateauType, clientId);
+                        if (typeCoup == null) {
+                            continue;
+                        }
+                        
+                        // 处理移动操作
+                        if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
+                            continue;
+                        }
+                        break;
+
+                    case 2: // Deuxième coup: déplacement ou action spéciale
+                        pieceCourante = gameInstance.getPieceCourante();
+                        if (pieceCourante == null) {
+                            System.err.println("GameServerManager: Pièce courante null à l'étape 2");
+                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
+                            continue;
+                        }
+
+                        // 验证所选棋盘与当前棋子所在棋盘是否一致
+                        selectedPlateauType = null;
+                        try {
+                            selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
+                        } catch (IllegalArgumentException e) {
+                            System.err.println("GameServerManager: Type de plateau invalide: " + parts[2]);
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
+                            continue;
+                        }
+
+                        // 获取当前棋子所在的棋盘类型
+                        currentPieceBoard = plateauCourant.getType();
+                        
+                        // 获取点击坐标和棋子位置
+                        clickedPosition = new Point(x, y);
+                        piecePosition = pieceCourante.getPosition();
+                        
+                        // 使用辅助方法确定移动类型
+                        typeCoup = determineMovementType(piecePosition, clickedPosition, 
+                                                      currentPieceBoard, selectedPlateauType, clientId);
+                        if (typeCoup == null) {
+                            continue;
+                        }
+                        
+                        // 处理移动操作
+                        if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
+                            continue;
+                        }
+                        break;
+
+                    case 3: // Sélection du prochain plateau
+                        if (prochainPlateau == null) {
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Vous devez sélectionner un plateau (PAST, PRESENT ou FUTURE).");
+                            continue;
+                        }
+
+                        System.out.println("GameServerManager: Sélection du prochain plateau: " + prochainPlateau);
+
+                        // Définir le prochain plateau pour le joueur
+                        joueurCourant.setProchainPlateau(prochainPlateau);
+
+                        // Réinitialiser pour le prochain joueur
+                        gameInstance.setEtapeCoup(0);
+                        gameInstance.joueurSuivant();
+                        gameInstance.majPlateauCourant();
+
+                        // Mettre à jour le joueur courant
+                        currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
+
+                        sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
+                        sendGameStateToAllClients();
+
+                        // Vérifier si la partie est terminée
+                        checkGameOver();
+                        break;
                 }
-                // 处理消息
-                // processClientMessage(msg);
             }
         } catch (InterruptedException e) {
             System.err.println("GameServerManager: Thread de jeu interrompu: " + e.getMessage());
@@ -286,65 +432,114 @@ public class GameServerManager {
         }
     }
 
-    // 处理客户端消息
-    private void processClientMessage(Message msg) {
-        int clientId = msg.clientId;
-        System.out.println("GameServerManager: Processing message from client " + clientId + ": " + msg.contenu);
-
-        if (gameInstance == null) {
-            System.err.println("GameServerManager: Instance de jeu non initialisée.");
-            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur serveur: jeu non initialisé.");
-            return;
-        }
-
-        // 首先检查是否是当前玩家的回合
-        if (clientId != gameInstance.getJoueurCourant().getId()) {
-            System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
-            System.out.println("GameServerManager: Current turn player ID: " + currentTurnPlayerId);
-            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
-            return;
-        }
-
-        // 将命令传递给Jeu类处理
-        boolean actionSuccess = gameInstance.processPlayerCommand(msg.contenu, clientId);
-
-        if (actionSuccess) {
-            // 从Jeu获取当前步骤信息
-            int etapeCoup = gameInstance.getEtapeCoup();
-
-            // 检查游戏是否结束
-            checkGameOver();
-
-            // 如果玩家已经完成了两步操作，应该自动切换到下一个玩家
-            if (etapeCoup >= 3) {
-                // 第三步选择新的棋盘
-                Plateau.TypePlateau plateauType = gameInstance.getPlateauCourant().getType();
-                Plateau.TypePlateau nextPlateau = null;
-                if (plateauType != Plateau.TypePlateau.PAST) {
-                    nextPlateau = Plateau.TypePlateau.PAST;
-                } else {
-                    nextPlateau = Plateau.TypePlateau.PRESENT;
-                }
-
-                gameInstance.getJoueurCourant().setProchainPlateau(nextPlateau);
-                gameInstance.setEtapeCoup(0);
-                gameInstance.joueurSuivant(); // 切换到下一玩家
-                gameInstance.majPlateauCourant();
-
-                // 添加明确的日志，显示当前轮到谁
-                System.out.println("GameServerManager: Joueur suivant - ID: " + gameInstance.getJoueurCourant().getId()
-                        + " (" + (gameInstance.getJoueurCourant().equals(gameInstance.getJoueur1()) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
+    // 辅助方法：处理棋子移动的通用逻辑
+    private Coup.TypeCoup determineMovementType(Point piecePosition, Point clickedPosition, 
+                                               Plateau.TypePlateau currentPieceBoard, Plateau.TypePlateau selectedPlateauType,
+                                               int clientId) {
+        
+        // 检查是否是同一位置但不同棋盘（可能是JUMP或CLONE）
+        boolean isSamePosition = (piecePosition.x == clickedPosition.x && piecePosition.y == clickedPosition.y);
+        boolean isDifferentPlateau = (currentPieceBoard != selectedPlateauType);
+        
+        // 自动判断操作类型
+        Coup.TypeCoup typeCoup = null;
+        
+        if (isSamePosition && isDifferentPlateau) {
+            // 根据棋盘类型判断是JUMP还是CLONE
+            if ((currentPieceBoard == Plateau.TypePlateau.PAST && selectedPlateauType == Plateau.TypePlateau.PRESENT) ||
+                (currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.FUTURE)) {
+                // PAST→PRESENT 或 PRESENT→FUTURE 是JUMP操作
+                typeCoup = Coup.TypeCoup.JUMP;
+                System.out.println("GameServerManager: Détection automatique d'une opération JUMP");
+            } else if ((currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.PAST) ||
+                      (currentPieceBoard == Plateau.TypePlateau.FUTURE && selectedPlateauType == Plateau.TypePlateau.PRESENT)) {
+                // PRESENT→PAST 或 FUTURE→PRESENT 是CLONE操作
+                typeCoup = Coup.TypeCoup.CLONE;
+                System.out.println("GameServerManager: Détection automatique d'une opération CLONE");
+            } else {
+                // 不允许的棋盘切换
+                System.err.println("GameServerManager: Transition de plateau non autorisée: " + currentPieceBoard + " -> " + selectedPlateauType);
+                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Transition de plateau non autorisée.");
+                return null;
             }
-
-            // 游戏状态更新成功，更新当前玩家
-            currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
-            System.out.println("GameServerManager: Action validée. Nouveau tour pour le joueur: " + currentTurnPlayerId);
-
-            // 发送更新后的游戏状态给所有客户端
-            sendGameStateToAllClients();
+        } else if (currentPieceBoard == selectedPlateauType) {
+            // 同一棋盘上的移动，根据相对位置判断方向
+            int dx = clickedPosition.x - piecePosition.x;
+            int dy = clickedPosition.y - piecePosition.y;
+            
+            if (dx == -1 && dy == 0) {
+                typeCoup = Coup.TypeCoup.UP;
+            } else if (dx == 1 && dy == 0) {
+                typeCoup = Coup.TypeCoup.DOWN;
+            } else if (dx == 0 && dy == -1) {
+                typeCoup = Coup.TypeCoup.LEFT;
+            } else if (dx == 0 && dy == 1) {
+                typeCoup = Coup.TypeCoup.RIGHT;
+            } else {
+                // 无效的移动方向
+                System.err.println("GameServerManager: Déplacement invalide: dx=" + dx + ", dy=" + dy);
+                sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Déplacement invalide.");
+                return null;
+            }
         } else {
-            System.out.println("GameServerManager: Action invalide du joueur " + clientId);
-            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Action invalide.");
+            // 不同棋盘上的不同位置，这是无效操作
+            System.err.println("GameServerManager: Opération invalide entre plateaux différents à des positions différentes.");
+            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pour JUMP/CLONE, cliquez sur la même position dans un plateau adjacent.");
+            return null;
+        }
+        
+        return typeCoup;
+    }
+    
+    // 处理移动操作并返回是否成功
+    private boolean processMove(Piece pieceCourante, Plateau plateauCourant, Coup.TypeCoup typeCoup, 
+                               int clientId, int nextEtape) {
+        // 创建移动操作
+        Coup coup = new Coup(pieceCourante, plateauCourant, typeCoup);
+        
+        // 验证移动是否合法
+        ArrayList<Coup> possibleCoups = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
+        boolean coupValide = false;
+        
+        for (Coup possibleCoup : possibleCoups) {
+            if (possibleCoup.getTypeCoup() == typeCoup) {
+                coupValide = true;
+                break;
+            }
+        }
+        
+        if (!coupValide) {
+            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Coup invalide.");
+            return false;
+        }
+        
+        // 执行移动
+        boolean coupReussi = gameInstance.jouerCoup(coup);
+        if (coupReussi) {
+            // 设置下一个阶段
+            gameInstance.setEtapeCoup(nextEtape);
+            
+            // 确认操作成功
+            if (nextEtape == 3) {
+                System.out.println("GameServerManager: Deuxième coup réussi, etapeCoup passé à 3");
+            }
+            
+            // 获取当前棋子的新位置和当前棋盘
+            Point newPosition = pieceCourante.getPosition();
+            Plateau currentPlateau = gameInstance.getPlateauCourant();
+            
+            // 返回成功消息
+            String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":" 
+                                   + newPosition.x + ":" + newPosition.y + ":" 
+                                   + currentPlateau.getType().name() + ":success";
+            sendMessageToClient(clientId, responseMessage);
+            
+            // 更新游戏状态
+            sendGameStateToAllClients();
+            return true;
+        } else {
+            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur lors de l'application du coup.");
+            return false;
         }
     }
 
@@ -403,10 +598,16 @@ public class GameServerManager {
         }
 
         String gameStateString = gameInstance.getGameStateAsString();
+
+        // 确保etapeCoup包含在游戏状态中
+        int etapeCoup = gameInstance.getEtapeCoup();
         String messageToSend = Code.ETAT.name() + ":" + gameStateString;
 
+        System.out.println("GameServerManager: Sending game state with etapeCoup=" + etapeCoup
+                + ", Game state begins with: " + gameStateString.substring(0, Math.min(20, gameStateString.length())));
+
         sendStateToAllClients(messageToSend);
-        System.out.println("GameServerManager: État du jeu envoyé à tous les clients");
+        System.out.println("GameServerManager: État du jeu envoyé à tous les clients (etapeCoup=" + gameInstance.getEtapeCoup() + ")");
     }
 
     public synchronized void stopServer() {

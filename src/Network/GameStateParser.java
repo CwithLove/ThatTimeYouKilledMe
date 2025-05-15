@@ -24,11 +24,44 @@ public class GameStateParser {
                 return;
             }
 
-            // Format attendu de la chaîne : CP:1;C1:4;C2:4;GS:IN_PROGRESS;W:0;P:________;PR:________;F:________
-            String[] parts = gameStateString.split(";");
+            // 检查并处理特殊格式：etapeCoup:n|game_state
+            String processedGameState = gameStateString;
+            if (gameStateString.startsWith("etapeCoup:")) {
+                int separatorIndex = gameStateString.indexOf('|');
+                if (separatorIndex > 0) {
+                    String etapeCoupPart = gameStateString.substring(0, separatorIndex);
+                    String etapeCoupValue = etapeCoupPart.substring("etapeCoup:".length());
+                    try {
+                        int etapeCoup = Integer.parseInt(etapeCoupValue);
+                        jeuToUpdate.setEtapeCoup(etapeCoup);
+                        System.out.println("GameStateParser: etapeCoup mis à jour à " + etapeCoup + " (format spécial)");
+                    } catch (NumberFormatException e) {
+                        System.err.println("GameStateParser: Valeur d'etapeCoup invalide: " + etapeCoupValue);
+                    }
+                    // 处理剩余的游戏状态部分
+                    processedGameState = gameStateString.substring(separatorIndex + 1);
+                }
+            }
+
+            // Format attendu de la chaîne : etapeCoup:2;P1:PAST|PRESENT|FUTURE;P2:PAST|PRESENT|FUTURE;JC:1;C1:4;C2:4;P:...;PR:...;F:...
+            String[] parts = processedGameState.split(";");
             Map<String, String> gameStateMap = new HashMap<>();
             for (String part : parts) {
-                if (part.startsWith("JC:")) {
+                // 将每个部分添加到映射中
+                String[] keyValue = part.split(":", 2);
+                if (keyValue.length == 2) {
+                    gameStateMap.put(keyValue[0], keyValue[1]);
+                }
+                
+                if (part.startsWith("etapeCoup:")) {
+                    try {
+                        int etapeCoup = Integer.parseInt(part.substring("etapeCoup:".length()));
+                        jeuToUpdate.setEtapeCoup(etapeCoup);
+                        System.out.println("GameStateParser: etapeCoup mis à jour à " + etapeCoup + " (format standard)");
+                    } catch (NumberFormatException e) {
+                        System.err.println("GameStateParser: Valeur d'etapeCoup invalide dans: " + part);
+                    }
+                } else if (part.startsWith("JC:")) {
                     int joueurId = Integer.parseInt(part.substring(3));
                     if (joueurId == 1) {
                         jeuToUpdate.setJoueurCourant(jeuToUpdate.getJoueur1());
@@ -37,6 +70,11 @@ public class GameStateParser {
                         jeuToUpdate.setJoueurCourant(jeuToUpdate.getJoueur2());
                         System.out.println("GameStateParser: Joueur courant défini sur Joueur 2");
                     }
+                }
+                else if (part.startsWith("P1:")) {
+                    jeuToUpdate.getJoueur1().setProchainPlateau(Plateau.TypePlateau.valueOf(part.substring(3)));
+                } else if (part.startsWith("P2:")) {
+                    jeuToUpdate.getJoueur2().setProchainPlateau(Plateau.TypePlateau.valueOf(part.substring(3)));
                 } else if (part.startsWith("P:")) {
                     updatePlateau(jeuToUpdate.getPast(), part.substring(2), jeuToUpdate);
                 } else if (part.startsWith("PR:")) {

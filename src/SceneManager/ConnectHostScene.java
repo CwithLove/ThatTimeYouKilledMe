@@ -3,11 +3,9 @@ package SceneManager;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
-import javax.swing.JOptionPane;
 
 public class ConnectHostScene implements Scene {
     private SceneManager sceneManager;
@@ -34,7 +32,7 @@ public class ConnectHostScene implements Scene {
                 return;
             }
             System.out.println("ConnectHostScene: Passage à GameScene avec IP: " + ip);
-            // GameScene sẽ tự tạo GameClient và thử kết nối
+            
             GameScene gameScene = new GameScene(sceneManager, ip);
             sceneManager.setScene(gameScene);
         });
@@ -54,15 +52,15 @@ public class ConnectHostScene implements Scene {
         if (sceneManager.getPanel() != null) {
             int panelWidth = sceneManager.getPanel().getWidth();
             int panelHeight = sceneManager.getPanel().getHeight();
-            int fieldWidth = Math.max(200, panelWidth / 3); // Tăng chiều rộng một chút
-            int fieldHeight = 35; // Tăng chiều cao một chút
+            int fieldWidth = Math.max(200, panelWidth / 3); // Augmenter légèrement la largeur
+            int fieldHeight = 35; // Augmenter légèrement la hauteur
             ipAddressField.setBounds(panelWidth / 2 - fieldWidth / 2, panelHeight / 2 - 60, fieldWidth, fieldHeight);
-            ipAddressField.setFont(new Font("Arial", Font.PLAIN, 18)); // Tăng font
-            ipAddressField.setHorizontalAlignment(JTextField.CENTER); // Căn giữa text
+            ipAddressField.setFont(new Font("Arial", Font.PLAIN, 18)); // Augmenter la taille de la police
+            ipAddressField.setHorizontalAlignment(JTextField.CENTER); // Centrer le texte
             sceneManager.getPanel().setLayout(null);
             sceneManager.getPanel().add(ipAddressField);
             ipAddressField.setVisible(true);
-            SwingUtilities.invokeLater(() -> ipAddressField.requestFocusInWindow()); // Yêu cầu focus sau khi panel hiển thị
+            SwingUtilities.invokeLater(() -> ipAddressField.requestFocusInWindow()); // Demander le focus après l'affichage du panel
         }
 
         setupMouseListeners();
@@ -98,7 +96,7 @@ public class ConnectHostScene implements Scene {
                 repaintPanel();
             }
              @Override
-            public void mouseMoved(MouseEvent e) { // Thêm mouseMoved để cập nhật hover
+            public void mouseMoved(MouseEvent e) { // Ajouter mouseMoved pour mettre à jour le hover
                 if (fadeComplete) {
                     Point mousePoint = e.getPoint();
                     connectButton.update(mousePoint);
@@ -127,7 +125,7 @@ public class ConnectHostScene implements Scene {
             alpha = Math.min(1f, elapsed / 1000f);
             if (alpha >= 1f) fadeComplete = true;
         }
-        // Cập nhật hover đã được xử lý trong mouseMoved
+        // Mettre à jour le hover et le clic des boutons
     }
 
     @Override
@@ -154,7 +152,7 @@ public class ConnectHostScene implements Scene {
             g2d.drawString(statusMessage, (width - statusWidth) / 2, height / 2 - 90);
         }
 
-        // ipAddressField được vẽ bởi Swing
+        // ipAddressField 
 
         int btnWidth = width / 4;
         int btnHeight = height / 12;
@@ -162,7 +160,7 @@ public class ConnectHostScene implements Scene {
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
 
         connectButton.setSize(btnWidth, btnHeight);
-        connectButton.setLocation(width / 2 - btnWidth / 2, height / 2 + 30); // Dưới trường IP
+        connectButton.setLocation(width / 2 - btnWidth / 2, height / 2 + 30); 
         connectButton.setFont(commonBtnFont);
 
         backButton.setSize(btnWidth * 3/4, btnHeight * 3/4);
@@ -186,9 +184,9 @@ public class ConnectHostScene implements Scene {
     public void dispose() {
         clearMouseListeners();
         if (sceneManager.getPanel() != null && ipAddressField != null) {
-            ipAddressField.setVisible(false); // Ẩn trước khi xóa
+            ipAddressField.setVisible(false); 
             sceneManager.getPanel().remove(ipAddressField);
-            sceneManager.getPanel().revalidate(); // Cần thiết sau khi xóa component
+            sceneManager.getPanel().revalidate(); 
             sceneManager.getPanel().repaint();
         }
         System.out.println("ConnectHostScene disposée.");

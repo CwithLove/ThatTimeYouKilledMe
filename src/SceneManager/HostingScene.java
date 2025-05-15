@@ -18,11 +18,11 @@ import Modele.Jeu;
 public class HostingScene implements Scene, GameStateUpdateListener {
 
     private SceneManager sceneManager;
-    private GameServerManager gameServerManager; // Chỉ được quản lý bởi HostingScene
+    private GameServerManager gameServerManager; 
     private Button startGameButton;
     private Button backButton;
 
-    private GameClient hostClient; // Client của Host, kết nối vào server của chính Host
+    private GameClient hostClient; 
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean playerTwoConfirmedConnected = false;
     private volatile boolean hostClientConnected = false; // Indique si le client hôte est connecté
@@ -285,7 +285,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         repaintPanel();
     }
 
-    public void onPlayerTwoConnected() { // Callback từ GameServerManager
+    public void onPlayerTwoConnected() { // Callback depuis GameServerManager
         SwingUtilities.invokeLater(() -> {
             if (!playerTwoConfirmedConnected) {
                 playerTwoConfirmedConnected = true;
@@ -323,7 +323,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     }
                 }
                 backButton.update(mousePos);
-                repaintPanel(); // Repaint khi có di chuyển chuột để hover button chính xác
+                repaintPanel(); 
             }
         }
     }
@@ -483,11 +483,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         System.out.println("HostingScene disposée.");
     }
 
-    // GameStateUpdateListener (cho client của host)
+    // GameStateUpdateListener
     @Override
     public void onGameStateUpdate(Jeu newGameState) {
-        // HostingScene không trực tiếp hiển thị game, GameScene sẽ làm điều đó.
-        // Phương thức này được gọi khi client của host nhận được trạng thái game.
+        // HostingScene ne gère pas directement l'affichage du jeu, c'est GameScene qui s'en charge.
+        // Cette méthode est appelée lorsque le client hôte reçoit l'état du jeu.
         System.out.println("HostingScene (listener): État du jeu reçu par le client hôte.");
     }
 
@@ -501,7 +501,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                         "Problème avec le client hôte interne: " + messageContent,
                         "Erreur Client Hôte", JOptionPane.ERROR_MESSAGE);
                 repaintPanel();
-                // Có thể cần xử lý thêm, ví dụ quay về MultiplayerScene
+                
             }
         });
     }

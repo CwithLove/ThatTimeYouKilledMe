@@ -3,8 +3,6 @@ package SceneManager;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 
 public class MultiplayerScene implements Scene {
 
@@ -19,8 +17,7 @@ public class MultiplayerScene implements Scene {
 
     public MultiplayerScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
-
-        // Vị trí và kích thước sẽ được điều chỉnh trong render()
+        // La position et la taille seront ajustées dans render()
         hostButton = new Button(0,0,0,0, "Devenir Hôte", () -> {
             sceneManager.setScene(new HostingScene(sceneManager));
         });
@@ -146,7 +143,7 @@ public class MultiplayerScene implements Scene {
         int backButtonWidth = Math.max(120, width / 6);
         int backButtonHeight = Math.max(40, height / 15);
         backButton.setSize(backButtonWidth, backButtonHeight);
-        backButton.setLocation(50, height - backButtonHeight - 30); // Góc dưới bên trái
+        backButton.setLocation(50, height - backButtonHeight - 30); 
         backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(14, buttonFontSize * 3/4)));
         backButton.setNormalColor(new Color(200,100,100));
 

@@ -6,7 +6,7 @@ import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
 import java.awt.Point;
-import java.io.EOFException; // Sử dụng GameStateParser
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -24,27 +24,26 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private ObjectInputStream inputStream;
     private volatile boolean isRunning = false;
     private int myPlayerId = -1;
-    private Jeu gameInstance; // AI cũng sẽ có một gameInstance được cập nhật
+    private Jeu gameInstance; 
     private Random random = new Random();
-    private final String aiName = "Bot Adversaire"; // Thêm final
+    private final String aiName = "Bot Adversaire"; 
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;
-        this.gameInstance = new Jeu(); // Khởi tạo game instance cho AI
+        this.gameInstance = new Jeu(); // Initialiser l'instance de jeu
     }
 
     public void connect() throws IOException {
         System.out.println(aiName + ": Tentative de connexion à " + serverIpAddress + ":" + serverPort);
         try {
             socket = new Socket(serverIpAddress, serverPort);
-            // 确保按照正确的顺序创建流
+            // Assurez-vous de créer les flux dans le bon ordre
             outputStream = new ObjectOutputStream(socket.getOutputStream());
-            outputStream.flush(); // 必须刷新输出流
+            outputStream.flush(); // Il est nécessaire de vider le flux de sortie
             
-            // 在刷新输出流后创建输入流
+            // Créez le flux d'entrée après avoir vidé le flux de sortie
             inputStream = new ObjectInputStream(socket.getInputStream());
             System.out.println(aiName + ": Connecté au serveur.");
-            
             try {
                 Object idMessageObj = inputStream.readObject();
                 if (idMessageObj instanceof String) {
@@ -126,7 +125,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                     switch (code) {
                         case ETAT:
                             GameStateParser.parseAndUpdateJeu(this.gameInstance, content);
-                            onGameStateUpdate(this.gameInstance); // Truyền gameInstance đã được cập nhật
+                            onGameStateUpdate(this.gameInstance); // Mettre à jour l'état du jeu
                             break;
                         case GAGNE:
                         case PERDU:
@@ -152,7 +151,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     }
 
     @Override
-    public void onGameStateUpdate(Jeu newGameState) { // newGameState là this.gameInstance đã được cập nhật
+    public void onGameStateUpdate(Jeu newGameState) { // newGameState et this.gameInstance mis à jour
         // this.gameInstance đã được cập nhật bởi GameStateParser trước khi gọi hàm này.
         if (this.gameInstance == null || this.gameInstance.getJoueurCourant() == null) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu invalide reçu pour décision.");

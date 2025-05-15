@@ -7,9 +7,9 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.RenderingHints;
 
 public class MenuScene implements Scene {
 
@@ -21,24 +21,23 @@ public class MenuScene implements Scene {
     private long startTime;
     private float alpha = 0f;
     private boolean fadeComplete = false;
-
     public MenuScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
 
-        // Vị trí và kích thước sẽ được điều chỉnh trong render()
-        singleButton = new Button(0, 0, 0, 0, "Single Player (vs AI)", () -> {
-            // GameScene sẽ tự khởi động server local và AI client
+        // La position et la taille seront ajustées dans render()
+        singleButton = new Button(0, 0, 0, 0, "Joueur seul (contre IA)", () -> {
+            // GameScene démarrera automatiquement un serveur local et un client IA
             GameScene gameScene = new GameScene(sceneManager, true /* isSelfHostAndRunAI = true */);
             sceneManager.setScene(gameScene);
         });
 
-        multiButton = new Button(0, 0, 0, 0, "Multi Player", () -> {
+        multiButton = new Button(0, 0, 0, 0, "Multijoueur", () -> {
             sceneManager.setScene(new MultiplayerScene(sceneManager));
         });
 
         quitButton = new Button(0, 0, 0, 0, "Quitter", () -> {
-            // Trước khi thoát, có thể muốn dừng server nếu có server nào đang chạy (ví dụ từ single player trước đó)
-            // Tuy nhiên, GameScene.dispose() nên xử lý việc dừng server của nó.
+            // Avant de quitter, il peut être nécessaire d'arrêter un serveur s'il y en a un en cours d'exécution (par exemple, depuis un joueur seul précédent)
+            // Cependant, GameScene.dispose() devrait gérer l'arrêt de son serveur.
             System.exit(0);
         });
     }

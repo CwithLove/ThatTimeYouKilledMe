@@ -14,10 +14,13 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
+
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import java.util.ArrayList;
 
 public class GameScene implements Scene, GameStateUpdateListener {
 
@@ -59,7 +62,13 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private String statusMessage = "Initialisation...";
     private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread (onGameMessage)
     private volatile boolean isLoading = false; // Pour afficher l'état de chargement
-    private int etapeCoup = 0; // Stocker directement la valeur etapeCoup dans GameScene
+    private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
+
+    Point mousePoint;
+
+    ArrayList<Point> casesPasse = new ArrayList<>();
+    ArrayList<Point> casesPresent = new ArrayList<>();
+    ArrayList<Point> casesFutur = new ArrayList<>();
 
     // Serveur et IA locaux pour le mode solo
     // Static pour garantir qu'il n'y a qu'une seule instance si GameScene est recréée rapidement (même si dispose devrait gérer cela)
@@ -70,6 +79,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private MouseAdapter mouseAdapterInternal;
     // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal hérite de MouseAdapter et implémente MouseMotionListener
     // Ou créer une variable séparée pour MouseMotionListener
+
+    private MouseAdapter mouseAdapterFeedForward;
 
     // Ajout pour la gestion du serveur en mode multijoueur
     private GameServerManager hostServerManager; // Instance du serveur reprise de HostingScene
@@ -791,12 +802,38 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     opponentNextPlateau == Plateau.TypePlateau.PRESENT);
 
             drawPlateau(g2d, future, futureX, offsetY, tileWidth, "FUTUR", crackFutureImage,
-                    myNextPlateau == Plateau.TypePlateau.FUTURE,
-                    opponentNextPlateau == Plateau.TypePlateau.FUTURE);
+                      myNextPlateau == Plateau.TypePlateau.FUTURE,
+                      opponentNextPlateau == Plateau.TypePlateau.FUTURE);
 
-            // Lorsque etapeCoup=3, afficher les boutons de sélection de plateau
+            
+            // 在etapeCoup=3时，显示棋盘选择按钮
             if (etapeCoup == 3 && isMyTurn()) {
-                // Calculer la largeur et la position des boutons
+                // Feedforward des plateaux
+                g2d.setColor(Color.WHITE);
+
+                Stroke originalStroke = g2d.getStroke();
+                g2d.setStroke(new BasicStroke(4f));
+
+                Plateau p;
+                if (mousePoint != null) {
+                    p = getPlateauFromMousePoint(mousePoint);
+                    if (p != null && p.getType() != activePlateau) {
+                        if (p.getType() == Plateau.TypePlateau.PAST) {
+                            g2d.drawRoundRect(pastX-2, offsetY-2, tileWidth*past.getSize()+4, tileWidth*past.getSize()+4,
+                            10, 10);
+                        }
+                        else if (p.getType() == Plateau.TypePlateau.PRESENT) {
+                            g2d.drawRect(presentX-2, offsetY-2, tileWidth*present.getSize()+4, tileWidth*present.getSize()+4);
+                        }
+                        else {
+                            g2d.drawRoundRect(futureX-2, offsetY-2, tileWidth*future.getSize()+4, 
+                            tileWidth*future.getSize()+4, 5, 5);
+                        }
+                    }
+                }
+                g2d.setStroke(originalStroke);
+
+                // 计算按钮宽度和位置
                 int buttonWidth = Math.min(boardSize * tileWidth, 120);
                 int buttonHeight = 40;
                 int buttonY = offsetY + boardRenderHeight + 10;
@@ -1059,7 +1096,62 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 // Les boutons d'action ne sont traités que si c'est le tour du joueur
                 if (isMyTurn()) {
-                    // Gérer le bouton Annuler
+                    if (etapeCoup == 0) {
+                        ArrayList<Coup> coupsPossibles = jeu.getCoupPossibles(jeu.getPlateauCourant(), jeu.getPieceCourante());
+                        casesPasse = new ArrayList<>();
+                        casesPresent = new ArrayList<>();
+                        casesFutur = new ArrayList<>();
+                        Coup coup = null;
+                        Point point = null;
+                        int x;
+                        int y;
+                        for (int i = 0; i < coupsPossibles.size(); i++) {
+                            coup = coupsPossibles.get(i);
+                            x = (int) coup.getPiece().getPosition().getX();
+                            y = (int) coup.getPiece().getPosition().getY();
+                            if (coup.getTypeCoup() == Coup.TypeCoup.UP) {
+                                point = new Point(x - 1, y);
+                            }
+                            else if (coup.getTypeCoup() == Coup.TypeCoup.DOWN) {
+                                point = new Point(x + 1, y);
+                            }
+                            else if (coup.getTypeCoup() == Coup.TypeCoup.LEFT) {
+                                point = new Point(x, y - 1);
+                            }
+                            else if (coup.getTypeCoup() == Coup.TypeCoup.RIGHT) {
+                                point = new Point(x, y + 1);
+                            }
+                            if (coup.getPltCourant().getType() == Plateau.TypePlateau.PAST) {
+                                if (coup.getTypeCoup() == Coup.TypeCoup.JUMP) {
+                                    casesPresent.add(coup.getPiece().getPosition());
+                                }
+                                else {
+                                    System.out.println("point : " + point.getX() + ", " + point.getY());
+                                    casesPasse.add(point);
+                                }
+                            }
+                            else if (coup.getPltCourant().getType() == Plateau.TypePlateau.PRESENT) {
+                                if (coup.getTypeCoup() == Coup.TypeCoup.JUMP) {
+                                    casesFutur.add(coup.getPiece().getPosition());
+                                }
+                                else if (coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
+                                    casesPasse.add(coup.getPiece().getPosition());
+                                }
+                                else {
+                                    casesPresent.add(point);
+                                }
+                            }
+                            else {
+                                if (coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
+                                    casesPresent.add(coup.getPiece().getPosition());
+                                }
+                                else {
+                                    casesFutur.add(point);
+                                }
+                            }
+                        }
+                    }
+                    // 处理撤销按钮
                     if (undoButton.contains(mousePoint) && (etapeCoup == 1 || etapeCoup == 2)) {
                         undoButton.onClick();
                         return;
@@ -1131,6 +1223,20 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             chooseFutureButton.setClicked(true);
                             needsRepaint = true;
                         }
+
+                        Plateau p;
+                        p = getPlateauFromMousePoint(mousePoint);
+                        if (p != null && p.getType() != activePlateau) {
+                            if (p.getType() == Plateau.TypePlateau.PAST) {
+                                handleChoosePastAction();
+                            }
+                            else if (p.getType() == Plateau.TypePlateau.PRESENT) {
+                                handleChoosePresentAction();
+                            }
+                            else {
+                                handleChooseFutureAction();
+                            }
+                        }
                     }
                 }
 
@@ -1156,8 +1262,16 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
         };
 
+        mouseAdapterFeedForward = new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                mousePoint = e.getPoint();
+            }
+        };
+
         if (sceneManager.getPanel() != null) {
             sceneManager.getPanel().addMouseListener(mouseAdapterInternal);
+            sceneManager.getPanel().addMouseMotionListener(mouseAdapterFeedForward);
         }
     }
 
@@ -1165,6 +1279,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
         if (sceneManager.getPanel() != null) {
             if (mouseAdapterInternal != null) {
                 sceneManager.getPanel().removeMouseListener(mouseAdapterInternal);
+            }
+            if (mouseAdapterFeedForward != null) {
+                sceneManager.getPanel().removeMouseListener(mouseAdapterFeedForward);
             }
         }
     }
@@ -1412,6 +1529,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                         // Analyser la partie des mouvements possibles
                         String possibleMovesStr = parts.length > 1 ? parts[1] : "";
+
+                        
 
                         System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y + " avec mouvements possibles: " + possibleMovesStr);
 

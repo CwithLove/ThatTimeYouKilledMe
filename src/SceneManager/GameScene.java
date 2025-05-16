@@ -20,7 +20,9 @@ import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class GameScene implements Scene, GameStateUpdateListener {
 
@@ -1009,7 +1011,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
             for (int col = 0; col < boardSize; col++) {
                 // Fond de la cellule (seul le plateau du passé conserve sa couleur d'origine)
                 if (plateau.getType().equals(Plateau.TypePlateau.PAST)) {
-                    if ((row + col) % 2 == 0) {
+                    if (casesPasse.contains(new Point(row, col))) {
+                        g.setColor(Color.GREEN);
+                    }
+                    else if ((row + col) % 2 == 0) {
                         g.setColor(new Color(75, 75, 85)); // Plus sombre
                     } else {
                         g.setColor(new Color(75, 75, 85, 180)); // Très sombre
@@ -1017,7 +1022,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                 } else {
                     // Les plateaux présent et futur utilisent des cases semi-transparentes
-                    if ((row + col) % 2 == 0) {
+                    if (casesPasse.contains(new Point(row, col))) {
+                        g.setColor(Color.GREEN);
+                    }
+                    else if ((row + col) % 2 == 0) {
                         g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
                         g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                     }
@@ -1096,61 +1104,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 // Les boutons d'action ne sont traités que si c'est le tour du joueur
                 if (isMyTurn()) {
-                    if (etapeCoup == 0) {
-                        ArrayList<Coup> coupsPossibles = jeu.getCoupPossibles(jeu.getPlateauCourant(), jeu.getPieceCourante());
-                        casesPasse = new ArrayList<>();
-                        casesPresent = new ArrayList<>();
-                        casesFutur = new ArrayList<>();
-                        Coup coup = null;
-                        Point point = null;
-                        int x;
-                        int y;
-                        for (int i = 0; i < coupsPossibles.size(); i++) {
-                            coup = coupsPossibles.get(i);
-                            x = (int) coup.getPiece().getPosition().getX();
-                            y = (int) coup.getPiece().getPosition().getY();
-                            if (coup.getTypeCoup() == Coup.TypeCoup.UP) {
-                                point = new Point(x - 1, y);
-                            }
-                            else if (coup.getTypeCoup() == Coup.TypeCoup.DOWN) {
-                                point = new Point(x + 1, y);
-                            }
-                            else if (coup.getTypeCoup() == Coup.TypeCoup.LEFT) {
-                                point = new Point(x, y - 1);
-                            }
-                            else if (coup.getTypeCoup() == Coup.TypeCoup.RIGHT) {
-                                point = new Point(x, y + 1);
-                            }
-                            if (coup.getPltCourant().getType() == Plateau.TypePlateau.PAST) {
-                                if (coup.getTypeCoup() == Coup.TypeCoup.JUMP) {
-                                    casesPresent.add(coup.getPiece().getPosition());
-                                }
-                                else {
-                                    System.out.println("point : " + point.getX() + ", " + point.getY());
-                                    casesPasse.add(point);
-                                }
-                            }
-                            else if (coup.getPltCourant().getType() == Plateau.TypePlateau.PRESENT) {
-                                if (coup.getTypeCoup() == Coup.TypeCoup.JUMP) {
-                                    casesFutur.add(coup.getPiece().getPosition());
-                                }
-                                else if (coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
-                                    casesPasse.add(coup.getPiece().getPosition());
-                                }
-                                else {
-                                    casesPresent.add(point);
-                                }
-                            }
-                            else {
-                                if (coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
-                                    casesPresent.add(coup.getPiece().getPosition());
-                                }
-                                else {
-                                    casesFutur.add(point);
-                                }
-                            }
-                        }
-                    }
                     // 处理撤销按钮
                     if (undoButton.contains(mousePoint) && (etapeCoup == 1 || etapeCoup == 2)) {
                         undoButton.onClick();
@@ -1529,8 +1482,48 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                         // Analyser la partie des mouvements possibles
                         String possibleMovesStr = parts.length > 1 ? parts[1] : "";
-
                         
+                        List<List<String>> result = new ArrayList<>();
+
+                        // Supprimer le dernier point-virgule si présent
+                        if (possibleMovesStr.endsWith(";")) {
+                            possibleMovesStr = possibleMovesStr.substring(0, possibleMovesStr.length() - 1);
+                        }
+
+                        // Séparer les groupes par ";"
+                        String[] groupes = possibleMovesStr.split(";");
+
+                        for (String groupe : groupes) {
+                            // Séparer les éléments du groupe par ":"
+                            String[] elements = groupe.split(":");
+                            result.add(Arrays.asList(elements));
+                        }
+
+                        for (int i = 0; i < result.size(); i++) {
+                            System.out.println("Case possible " + (i + 1) + " : " + result.get(i));
+
+                            //System.err.println(result.get(i).get(0));
+
+                            if (result.get(i).get(0).equals("PAST")) {
+                                //System.out.println("Salut");
+                                casesPasse.add(new Point(Integer.parseInt(result.get(i).get(1)), 
+                                Integer.parseInt(result.get(i).get(2))));
+                            }
+                            else if (result.get(i).get(0).equals("PRESENT")) {
+                                casesPresent.add(new Point(Integer.parseInt(result.get(i).get(1)), 
+                                Integer.parseInt(result.get(i).get(2))));
+                            }
+                            else {
+                                casesFutur.add(new Point(Integer.parseInt(result.get(i).get(1)), 
+                                Integer.parseInt(result.get(i).get(2))));
+                            }
+                        }
+
+                        System.out.println(casesPasse.size());
+
+                        for(int i = 0; i < casesPasse.size(); i++) {
+                            System.out.println("casesPasse : " + casesPasse.get(i));
+                        }
 
                         System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y + " avec mouvements possibles: " + possibleMovesStr);
 

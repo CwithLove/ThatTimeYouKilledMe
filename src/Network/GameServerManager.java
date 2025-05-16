@@ -17,8 +17,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap; // Importer la classe Jeu
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue; // Importer la classe Jeu
 
 public class GameServerManager {
 
@@ -276,6 +276,16 @@ public class GameServerManager {
                     }
                 }
 
+                // verifie si le piece choisi correspont au plateau actuel pour ce joueur
+                Plateau.TypePlateau selectedPlateauType = null;
+                try {
+                    selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("GameServerManager: Type de plateau invalide: " + parts[2]);
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
+                    continue;
+                }
+
                 switch (etapeCoup) {
                     case 0: // Étape initiale: sélection d'une pièce
                         
@@ -293,7 +303,7 @@ public class GameServerManager {
                         // Vérifier s'il y a des coups possibles pour cette pièce
                         ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
                         if (coupsPossibles.isEmpty()) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pas de coup possible pour cette pièce.");
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";null" );
                             continue;
                         }
 
@@ -342,6 +352,10 @@ public class GameServerManager {
                         break;
 
                     case 1: // Premier coup: déplacement ou action spéciale
+                        Plateau.TypePlateau currentPieceBoard = null;
+                        Point piecePosition; 
+                        Point clickedPosition = new Point(x, y);
+                        Coup.TypeCoup typeCoup ;
                         Piece pieceCourante = gameInstance.getPieceCourante();
                         if (pieceCourante == null) {
                             System.err.println("GameServerManager: Pièce courante null à l'étape 1");
@@ -350,35 +364,118 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // verifie si le piece choisi correspont au plateau actuel pour ce joueur
-                        Plateau.TypePlateau selectedPlateauType = null;
-                        try {
-                            selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
-                        } catch (IllegalArgumentException e) {
-                            System.err.println("GameServerManager: Type de plateau invalide: " + parts[2]);
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
+                        // Si le joueur click sur la meme piece ou celle de l'adversaire
+                        // => deselectionner la piece courante
+                        if (selectedPiece != null && (selectedPiece.getOwner() != joueurCourant || selectedPiece.getPosition() == pieceCourante.getPosition())) {
+                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                            gameInstance.setPieceCourante(null);
+                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendGameStateToAllClients();
+                            continue;
+                        } 
+
+                        // Si le joueur click sur un autre pion de son équipe
+                        // => selectionner la piece courante
+                        if (selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
+                            // Deselectionner la pièce courante
+                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            
+                            // Sélectionner la nouvelle pièce
+                            gameInstance.setPieceCourante(selectedPiece);
+                            gameInstance.setEtapeCoup(1); // Rester à l'étape 1
+
+                            System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
+                                          " sur plateau " + plateauCourant.getType());
+
+                            coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+
+                            possibleMovesStr = new StringBuilder();
+                            for (Coup coup : coupsPossibles) {
+                                Point currentPos = selectedPiece.getPosition();
+                                Point targetPos = new Point(currentPos.x, currentPos.y); 
+    
+                                // Calculer la position cible selon le type de coup
+                                switch (coup.getTypeCoup()) {
+                                    case UP -> targetPos.x -= 1;
+                                    case DOWN -> targetPos.x += 1;
+                                    case LEFT -> targetPos.y -= 1;
+                                    case RIGHT -> targetPos.y += 1;
+                                    case JUMP, CLONE -> {
+                                    }
+                                }
+                                // Pour les mouvements à travers le temps, la position reste la même
+    
+                                // Ajouter à la chaîne des mouvements possibles
+                                possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+                            }
+
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr.toString());
+
+                            sendGameStateToAllClients();
+                            
                             continue;
                         }
 
-                        // recuperer le plateau ou le piece se situe
-                        Plateau.TypePlateau currentPieceBoard = plateauCourant.getType();
-                        
-                        // recuperer la coordonne de click et la position de piece
-                        Point clickedPosition = new Point(x, y);
-                        Point piecePosition = pieceCourante.getPosition();
-                        
-                        // un support pour verifier le type de movement
-                        Coup.TypeCoup typeCoup = determineMovementType(piecePosition, clickedPosition, 
-                                                                     currentPieceBoard, selectedPlateauType, clientId);
-                        if (typeCoup == null) {
-                            continue;
-                        }
-                        
-                        //traiter le mouvement
-                        if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
-                            continue;
+                        boolean movedSuccessfully = false;
+                        if (selectedPiece == null) {
+                            coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
+                            boolean continueFlag = true;
+                            for (int i = 0; i < coupsPossibles.size() && continueFlag; i++) {
+                                Coup c = coupsPossibles.get(i);
+                                Point currentPos = pieceCourante.getPosition();
+                                Point targetPos = new Point(currentPos.x, currentPos.y); 
+
+                                // Calculer la position cible selon le type de coup
+                                switch (c.getTypeCoup()) {
+                                    case UP -> targetPos.x -= 1;
+                                    case DOWN -> targetPos.x += 1;
+                                    case LEFT -> targetPos.y -= 1;
+                                    case RIGHT -> targetPos.y += 1;
+                                    case JUMP, CLONE -> {
+                                        // Pour les mouvements à travers le temps, la position reste la même
+                                    }
+                                }
+
+                                if (clickedPosition.equals(targetPos)) {
+                                    // recuperer le plateau ou le piece se situe
+                                    currentPieceBoard = plateauCourant.getType();
+                                    
+                                    // recuperer la coordonne de click et la position de pieceS
+                                    piecePosition = pieceCourante.getPosition();
+                                    
+                                    // un support pour verifier le type de movement
+                                    typeCoup = determineMovementType(piecePosition, clickedPosition, 
+                                                                                 currentPieceBoard, selectedPlateauType, clientId);
+                                    if (typeCoup == null) {
+                                        continue;
+                                    }
+                                    
+                                    //traiter le mouvement
+                                    if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
+                                        // Si le coup n'est pas valide, ne pas changer d'étape
+                                        gameInstance.setEtapeCoup(1); // Rester à l'étape 1
+                                    } else {
+                                        // Si le coup est valide, passer à l'étape 2
+                                        gameInstance.setEtapeCoup(2);
+                                        System.out.println("GameServerManager: Coup réussi, étape du coup passée à 2");
+                                        
+                                        movedSuccessfully = true;
+                                    }
+                                    continueFlag = false; // Sortir de la boucle si le coup a été traité
+                                }
+                            }
+                            // Si aucun coup possible n'a été trouvé, deselectionner la pièce
+                            if (!movedSuccessfully) {
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null);
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                sendGameStateToAllClients();
+                                break;
+                            }
                         }
                         break;
+
+
 
                     case 2: // Deuxième coup: déplacement ou action spéciale
                         pieceCourante = gameInstance.getPieceCourante();
@@ -386,16 +483,6 @@ public class GameServerManager {
                             System.err.println("GameServerManager: Pièce courante null à l'étape 2");
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
-                            continue;
-                        }
-
-
-                        selectedPlateauType = null;
-                        try {
-                            selectedPlateauType = Plateau.TypePlateau.valueOf(parts[2]);
-                        } catch (IllegalArgumentException e) {
-                            System.err.println("GameServerManager: Type de plateau invalide: " + parts[2]);
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Type de plateau invalide.");
                             continue;
                         }
 
@@ -415,7 +502,6 @@ public class GameServerManager {
                         
 
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
-                            continue;
                         }
                         break;
 

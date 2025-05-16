@@ -1,7 +1,5 @@
 package Modele;
 
-import java.awt.Point;
-
 public class Coup {
     private Piece piece;
     private Plateau pltCourant;
@@ -21,14 +19,6 @@ public class Coup {
         this.piece = piece;
         this.pltCourant = pltCourant;  
         this.typeCoup = typeCoup;
-    }
-
-    // 添加接收四个参数的构造函数（支持direction参数）
-    public Coup(Piece piece, Point direction, Plateau pltCourant, TypeCoup typeCoup) {
-        this.piece = piece;
-        this.pltCourant = pltCourant;  
-        this.typeCoup = typeCoup;
-        // direction参数在这里被忽略，因为TypeCoup已经包含了方向信息
     }
 
     public Plateau getPltCourant() {

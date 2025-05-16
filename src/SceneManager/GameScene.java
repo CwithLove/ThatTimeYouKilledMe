@@ -1390,7 +1390,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         System.out.println("GameScene: Message reçu: " + messageType + " -> " + messageContent);
 
-        // Maintenant, etapeCoup est transmis via onGameStateUpdate, pas besoin de le gérer ici
         switch (messageType) {
             case "PIECE":
                 // Gérer le message de succès de la sélection de pièce
@@ -1416,7 +1415,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y + " avec mouvements possibles: " + possibleMovesStr);
 
                         // La réception du message PIECE indique l'entrée dans etapeCoup=1
-                        this.etapeCoup = 1;
+                        this.etapeCoup = jeu.getEtapeCoup(); // Deja a 1
 
                         // Mettre à jour l'affichage de l'interface utilisateur pour les mouvements possibles
                         statusMessage = "Pion sélectionné (" + x + "," + y + ") sur plateau " + selectedPlateauType + ". Choisissez une destination sur ce plateau.";
@@ -1437,6 +1436,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     statusMessage = "Message PIECE vide ou incorrect.";
                 }
                 break;
+
+            case "DESELECT":
+                this.etapeCoup = jeu.getEtapeCoup(); // Réinitialiser l'étape de coup
+
+                // Mettre a jour l'affichage
+                statusMessage = "Sélection annulée. Choisissez un pion sur le plateau actif.";
+
+                // Réinitialiser la sélection
+                selectedPiecePosition = null;
+                selectedPlateauType = null;
+                nextActionType = null;
+                break;
+
 
             case "COUP":
                 // Gérer le message de succès du mouvement
@@ -1537,8 +1549,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 statusMessage = modifiedContent;
                 break;
 
-            case "WIN":
-            case "LOSE":
+
             case "GAGNE":
             case "PERDU":
                 gameHasEnded = true;
@@ -1563,6 +1574,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 gameHasEnded = true;
                 statusMessage = "Déconnecté: " + messageContent;
                 JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, "DÉCONNECTÉ", JOptionPane.WARNING_MESSAGE);
+                
                 break;
 
             default:

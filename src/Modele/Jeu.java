@@ -120,7 +120,6 @@ public class Jeu {
             return false;
         }
         pieceCourante = plateauCourant.getPiece(lig, col);
-        etapeCoup = 1; // Passer à l'étape 1 (choisir le coup)
         return true;
     }
 
@@ -449,6 +448,8 @@ public class Jeu {
                 sc.nextLine(); // Clear the scanner buffer
                 continue; // Re-demander l'entrée
             }
+
+            setEtapeCoup(1);
 
             // Chaque tour le joueur doit faire 2 coups
             do {

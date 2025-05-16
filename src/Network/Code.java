@@ -2,7 +2,9 @@ package Network;
 
 public enum Code {
     ETAT,           // Mise à jour de l'état du jeu
-    PIECE,          // Le serveur attend qu'une pièce soit sélectionné
+    PIECE,          // Les coups possibles a partir de la pièce choisie
+    DESELECT,       // Le joueur deselectionne une pièce
+
     ACTION,        // Le serveur attend l'action choisie par le joueur
     DIRECTION,       // Le serveur attend une direction si MOVE a été sélectionné
     PLATEAU,        // Le serveur attend que le joueur choisisse le plateau

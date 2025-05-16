@@ -1,7 +1,7 @@
 package Modele;
 
 // Définition d'une classe générique Couple pour représenter un couple de valeurs
-class Couple<T, U> {
+public class Couple<T, U> {
     private T premier;
     private U second;
 

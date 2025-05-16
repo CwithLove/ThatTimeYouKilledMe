@@ -307,37 +307,8 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // Pièce valide avec des coups possibles
-                        StringBuilder possibleMovesStr = new StringBuilder();
-                        for (Coup coup : coupsPossibles) {
-                            Point currentPos = selectedPiece.getPosition();
-                            Point targetPos = new Point(currentPos.x, currentPos.y); 
+                        String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
 
-                            // Calculer la position cible selon le type de coup
-                            switch (coup.getTypeCoup()) {
-                                case UP:
-                                    targetPos.x -= 1;
-                                    break;
-                                case DOWN:
-                                    targetPos.x += 1;
-                                    break;
-                                case LEFT:
-                                    targetPos.y -= 1;
-                                    break;
-                                case RIGHT:
-                                    targetPos.y += 1;
-                                    break;
-                                case JUMP:
-                                case CLONE:
-                                    // Pour les mouvements à travers le temps, la position reste la même
-                                    break;
-                            }
-
-                            // Ajouter à la chaîne des mouvements possibles
-                            possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
-                        }
-
-                        // Définir la pièce sélectionnée
                         gameInstance.setPieceCourante(selectedPiece);
                         gameInstance.setEtapeCoup(1); // Passer à l'étape suivante
                         
@@ -387,29 +358,8 @@ public class GameServerManager {
                             System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
                                           " sur plateau " + plateauCourant.getType());
 
-                            coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
-
-                            possibleMovesStr = new StringBuilder();
-                            for (Coup coup : coupsPossibles) {
-                                Point currentPos = selectedPiece.getPosition();
-                                Point targetPos = new Point(currentPos.x, currentPos.y); 
-    
-                                // Calculer la position cible selon le type de coup
-                                switch (coup.getTypeCoup()) {
-                                    case UP -> targetPos.x -= 1;
-                                    case DOWN -> targetPos.x += 1;
-                                    case LEFT -> targetPos.y -= 1;
-                                    case RIGHT -> targetPos.y += 1;
-                                    case JUMP, CLONE -> {
-                                    }
-                                }
-                                // Pour les mouvements à travers le temps, la position reste la même
-    
-                                // Ajouter à la chaîne des mouvements possibles
-                                possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
-                            }
-
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr.toString());
+                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
 
                             sendGameStateToAllClients();
                             
@@ -455,10 +405,10 @@ public class GameServerManager {
                                         // Si le coup n'est pas valide, ne pas changer d'étape
                                         gameInstance.setEtapeCoup(1); // Rester à l'étape 1
                                     } else {
-                                        // Si le coup est valide, passer à l'étape 2
-                                        gameInstance.setEtapeCoup(2);
+                                        // Si le coup est valide, passer à l'étape 2W
                                         System.out.println("GameServerManager: Coup réussi, étape du coup passée à 2");
-                                        
+                                        possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                                         movedSuccessfully = true;
                                     }
                                     continueFlag = false; // Sortir de la boucle si le coup a été traité
@@ -472,8 +422,9 @@ public class GameServerManager {
                                 sendGameStateToAllClients();
                                 break;
                             }
+                            break;
+
                         }
-                        break;
 
 
 
@@ -788,5 +739,41 @@ public class GameServerManager {
 
     public boolean isServerRunning() {
         return isServerRunning && serverSocket != null && !serverSocket.isClosed();
+    }
+
+    private String getPossibleMovesString(Jeu gameInstance, Plateau plateauCourant, Piece selectedPiece) {
+        ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+        StringBuilder possibleMovesStr = new StringBuilder();
+        
+        for (Coup coup : coupsPossibles) {
+            Point currentPos = selectedPiece.getPosition();
+            Point targetPos = new Point(currentPos.x, currentPos.y); 
+            Plateau.TypePlateau nextPlateau = null;
+
+            switch (coup.getTypeCoup()) {
+                case UP:
+                    targetPos.x -= 1;
+                    break;
+                case DOWN:
+                    targetPos.x += 1;
+                    break;
+                case LEFT:
+                    targetPos.y -= 1;
+                    break;
+                case RIGHT:
+                    targetPos.y += 1;
+                    break;
+                case JUMP:
+                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.PAST ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.FUTURE;
+                case CLONE:
+                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.FUTURE ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.PAST;
+                    break;
+            }
+            String plt = nextPlateau != null ? nextPlateau.name() : coup.getPltCourant().plateauToString() ;
+
+            possibleMovesStr.append(plt).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+        }
+        
+        return possibleMovesStr.toString();
     }
 }

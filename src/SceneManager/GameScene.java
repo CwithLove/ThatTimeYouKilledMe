@@ -1022,7 +1022,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                 } else {
                     // Les plateaux présent et futur utilisent des cases semi-transparentes
-                    if (casesPasse.contains(new Point(row, col))) {
+                    if (casesPresent.contains(new Point(row, col))) {
                         g.setColor(Color.GREEN);
                     }
                     else if ((row + col) % 2 == 0) {

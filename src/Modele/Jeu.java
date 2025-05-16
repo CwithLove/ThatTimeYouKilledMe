@@ -699,22 +699,22 @@ public class Jeu {
         switch (plateau.getType()) {
             case PAST:
                 if (present.getPiece(piece.getPosition().x, piece.getPosition().y) == null) {
-                    coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.JUMP));
+                    coupsPossibles.add(new Coup(piece, present, Coup.TypeCoup.JUMP));
                 }
                 break;
 
             case FUTURE:
                 if (present.getPiece(piece.getPosition().x, piece.getPosition().y) == null && joueurCourant.getNbClones() > 0) {
-                    coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.CLONE));
+                    coupsPossibles.add(new Coup(piece, present, Coup.TypeCoup.CLONE));
                 }
                 break;
 
             case PRESENT:
                 if (past.getPiece(piece.getPosition().x, piece.getPosition().y) == null && joueurCourant.getNbClones() > 0) {
-                    coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.CLONE));
+                    coupsPossibles.add(new Coup(piece, past, Coup.TypeCoup.CLONE));
                 }
                 if (future.getPiece(piece.getPosition().x, piece.getPosition().y) == null) {
-                    coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.JUMP));
+                    coupsPossibles.add(new Coup(piece, future, Coup.TypeCoup.JUMP));
                 }
 
             default:

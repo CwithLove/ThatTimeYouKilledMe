@@ -297,37 +297,8 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // Pièce valide avec des coups possibles
-                        StringBuilder possibleMovesStr = new StringBuilder();
-                        for (Coup coup : coupsPossibles) {
-                            Point currentPos = selectedPiece.getPosition();
-                            Point targetPos = new Point(currentPos.x, currentPos.y); 
+                        String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
 
-                            // Calculer la position cible selon le type de coup
-                            switch (coup.getTypeCoup()) {
-                                case UP:
-                                    targetPos.x -= 1;
-                                    break;
-                                case DOWN:
-                                    targetPos.x += 1;
-                                    break;
-                                case LEFT:
-                                    targetPos.y -= 1;
-                                    break;
-                                case RIGHT:
-                                    targetPos.y += 1;
-                                    break;
-                                case JUMP:
-                                case CLONE:
-                                    // Pour les mouvements à travers le temps, la position reste la même
-                                    break;
-                            }
-
-                            // Ajouter à la chaîne des mouvements possibles
-                            possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
-                        }
-
-                        // Définir la pièce sélectionnée
                         gameInstance.setPieceCourante(selectedPiece);
                         gameInstance.setEtapeCoup(1); // Passer à l'étape suivante
                         
@@ -377,6 +348,9 @@ public class GameServerManager {
                         //traiter le mouvement
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
                             continue;
+                        } else {
+                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                         }
                         break;
 
@@ -702,5 +676,37 @@ public class GameServerManager {
 
     public boolean isServerRunning() {
         return isServerRunning && serverSocket != null && !serverSocket.isClosed();
+    }
+
+    private String getPossibleMovesString(Jeu gameInstance, Plateau plateauCourant, Piece selectedPiece) {
+        ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+        StringBuilder possibleMovesStr = new StringBuilder();
+        
+        for (Coup coup : coupsPossibles) {
+            Point currentPos = selectedPiece.getPosition();
+            Point targetPos = new Point(currentPos.x, currentPos.y); 
+
+            switch (coup.getTypeCoup()) {
+                case UP:
+                    targetPos.x -= 1;
+                    break;
+                case DOWN:
+                    targetPos.x += 1;
+                    break;
+                case LEFT:
+                    targetPos.y -= 1;
+                    break;
+                case RIGHT:
+                    targetPos.y += 1;
+                    break;
+                case JUMP:
+                case CLONE:
+                    break;
+            }
+
+            possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+        }
+        
+        return possibleMovesStr.toString();
     }
 }

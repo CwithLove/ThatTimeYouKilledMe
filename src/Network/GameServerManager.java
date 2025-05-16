@@ -152,7 +152,7 @@ public class GameServerManager {
         if (connectedClientIds.size() == maxClients) {
             System.out.println("GameServerManager: Démarrage du moteur de jeu...");
             // Initialiser l'instance de jeu
-            gameInstance = new Jeu();
+            gameInstance = new Jeu(); // => Liaison entre le reseau et le modèle Jeu  
 
             // Définir le premier joueur (au début du jeu, cela devrait être le joueur 1)
             if (gameInstance.getJoueurCourant().getId() != 1) {
@@ -183,14 +183,30 @@ public class GameServerManager {
             Thread.sleep(500);
 
             while (isServerRunning) {
+                int etapeCoup = gameInstance.getEtapeCoup();
+                System.out.println("GameServerManager: En attente de messages des clients (étape du coup: " + etapeCoup + ")...");
+                Joueur joueurCourant = gameInstance.getJoueurCourant();
+                Plateau plateauCourant = gameInstance.getPlateauCourant();
+
+                // Verifier si l'etapeCoup est 0, si oui, verifier si sur le plateau il y a des pieces de joueurCourant
+                if (etapeCoup == 0) {
+                    if (joueurCourant.getId() == 1 && plateauCourant.getNbBlancs() == 0  || joueurCourant.getId() == 2 && plateauCourant.getNbNoirs() == 0) {
+                        // Si le joueur n'a plus de pièces, passer à l'étape 3
+                        gameInstance.setEtapeCoup(3);
+                        System.out.println("GameServerManager: Aucun coup possible pour le joueur " + joueurCourant.getId() + ", passage à l'étape 3.");
+                        sendMessageToClient(joueurCourant.getId(), Code.ETAT.name() + ":" + gameInstance.getGameStateAsString());
+                        continue; // Passer à l'étape suivante sans attendre de message
+                    } else {
+                        // Attendre un message du joueur courant
+                        System.out.println("GameServerManager: En attente du message du joueur " + joueurCourant.getId() + "...");
+                    }
+                }
+
                 Message msg = incomingMessages.take();
                 int clientId = msg.clientId;
                 System.out.println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
 
                 // Vérifier si c'est le tour du joueur actuel
-                Joueur joueurCourant = gameInstance.getJoueurCourant();
-                Plateau plateauCourant = gameInstance.getPlateauCourant();
-
                 if (clientId != joueurCourant.getId()) {
                     System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
@@ -213,7 +229,6 @@ public class GameServerManager {
                     }
                 }
 
-                int etapeCoup = gameInstance.getEtapeCoup();
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
@@ -286,7 +301,7 @@ public class GameServerManager {
                         StringBuilder possibleMovesStr = new StringBuilder();
                         for (Coup coup : coupsPossibles) {
                             Point currentPos = selectedPiece.getPosition();
-                            Point targetPos = new Point(currentPos.x, currentPos.y);
+                            Point targetPos = new Point(currentPos.x, currentPos.y); 
 
                             // Calculer la position cible selon le type de coup
                             switch (coup.getTypeCoup()) {
@@ -550,23 +565,23 @@ public class GameServerManager {
         }
     }
 
-    // 检查游戏是否结束
+    // Vérifie si le jeu est terminé et envoie les messages appropriés aux clients
     private void checkGameOver() {
         if (gameInstance == null) {
             return;
         }
 
-        // 获取游戏状态
+        // Vérifier l'état du jeu
         int gameState = gameInstance.gameOver(gameInstance.getJoueurCourant());
         int winnerId = 0;
 
         System.out.println("GameServerManager: Game state: " + gameState);
 
-        // 通过game state确定获胜者ID
+        // Déterminer le gagnant en fonction de l'état du jeu
         if (gameState == 1) {
-            winnerId = gameInstance.getJoueur1().getId(); // 玩家1赢
+            winnerId = gameInstance.getJoueur1().getId();  
         } else if (gameState == 2) {
-            winnerId = gameInstance.getJoueur2().getId(); // 玩家2赢
+            winnerId = gameInstance.getJoueur2().getId(); 
         }
 
         System.out.println("GameServerManager: Winner ID: " + winnerId);
@@ -585,7 +600,7 @@ public class GameServerManager {
                 loserMsg += ":" + joueur2.getNom() + " a gagné la partie!";
             }
 
-            // 给赢家和输家发送不同消息
+            // Envoyer les messages de victoire et de défaite à tous les clients connectés
             for (Integer clientId : connectedClientIds) {
                 if (clientId == winnerId) {
                     sendMessageToClient(clientId, winnerMsg);
@@ -598,7 +613,7 @@ public class GameServerManager {
         }
     }
 
-    // 发送游戏状态给所有客户端
+    // Envoie l'état du jeu à tous les clients connectés
     private void sendGameStateToAllClients() {
         if (gameInstance == null) {
             return;
@@ -606,7 +621,7 @@ public class GameServerManager {
 
         String gameStateString = gameInstance.getGameStateAsString();
 
-        // 确保etapeCoup包含在游戏状态中
+        // etapeCoup
         int etapeCoup = gameInstance.getEtapeCoup();
         String messageToSend = Code.ETAT.name() + ":" + gameStateString;
 
@@ -652,7 +667,7 @@ public class GameServerManager {
         clientIdCounter = 0;
     }
 
-    // 发送消息给所有客户端
+    // Envoie l'état du jeu à tous les clients connectés
     private void sendStateToAllClients(String message) {
         for (Integer clientId : connectedClientIds) {
             BlockingQueue<String> queue = outgoingQueues.get(clientId);
@@ -668,7 +683,7 @@ public class GameServerManager {
         }
     }
 
-    // 发送消息给指定客户端
+    // Envoie un message spécifique à un client
     private void sendMessageToClient(int clientId, String message) {
         BlockingQueue<String> clientQueue = outgoingQueues.get(clientId);
         if (clientQueue != null) {

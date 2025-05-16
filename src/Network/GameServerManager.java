@@ -390,6 +390,9 @@ public class GameServerManager {
 
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
                             continue;
+                        } else {
+                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                         }
                         break;
 
@@ -704,7 +707,7 @@ public class GameServerManager {
                     break;
             }
 
-            possibleMovesStr.append(coup.getTypeCoup()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+            possibleMovesStr.append(coup.getPltCourant().plateauToString()).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
         }
         
         return possibleMovesStr.toString();

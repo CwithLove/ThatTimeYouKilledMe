@@ -1468,6 +1468,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // Format de mouvementsPossibles : TYPE_COUP:x:y;TYPE_COUP:x:y;...
                 String[] parts = messageContent.split(";", 2); // Diviser en 2 parties au maximum : coordonnées et mouvements possibles
 
+                casesPasse.clear();
+                casesPresent.clear();
+                casesFutur.clear();
+
                 if (parts.length > 0) {
                     try {
                         // Analyser la partie coordonnées

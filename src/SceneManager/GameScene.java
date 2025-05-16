@@ -1011,19 +1011,32 @@ public class GameScene implements Scene, GameStateUpdateListener {
             for (int col = 0; col < boardSize; col++) {
                 // Fond de la cellule (seul le plateau du passé conserve sa couleur d'origine)
                 if (plateau.getType().equals(Plateau.TypePlateau.PAST)) {
+                    int v = 0;
                     if (casesPasse.contains(new Point(row, col))) {
-                        g.setColor(Color.GREEN);
+                        //g.setColor(Color.GREEN);
+                        v = 100;
                     }
-                    else if ((row + col) % 2 == 0) {
-                        g.setColor(new Color(75, 75, 85)); // Plus sombre
+                    if ((row + col) % 2 == 0) {
+                        g.setColor(new Color(75-v/2, 75+v, 85-v/2)); // Plus sombre
                     } else {
-                        g.setColor(new Color(75, 75, 85, 180)); // Très sombre
+                        g.setColor(new Color(75-v/2, 75+v, 85-v/2, 180)); // Très sombre
                     }
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                } else {
+                } else if (plateau.getType().equals(Plateau.TypePlateau.PRESENT)) {
                     // Les plateaux présent et futur utilisent des cases semi-transparentes
                     if (casesPresent.contains(new Point(row, col))) {
                         g.setColor(Color.GREEN);
+                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                    }
+                    else if ((row + col) % 2 == 0) {
+                        g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
+                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+                    }
+                } else {
+                    // Les plateaux présent et futur utilisent des cases semi-transparentes
+                    if (casesFutur.contains(new Point(row, col))) {
+                        g.setColor(Color.GREEN);
+                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                     }
                     else if ((row + col) % 2 == 0) {
                         g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
@@ -1463,13 +1476,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
         switch (messageType) {
             case "PIECE":
                 // Gérer le message de succès de la sélection de pièce
-                // Format : x:y;mouvementsPossibles
-                // Format de mouvementsPossibles : TYPE_COUP:x:y;TYPE_COUP:x:y;...
-                String[] parts = messageContent.split(";", 2); // Diviser en 2 parties au maximum : coordonnées et mouvements possibles
-
                 casesPasse.clear();
                 casesPresent.clear();
                 casesFutur.clear();
+                // Format : x:y;mouvementsPossibles
+                // Format de mouvementsPossibles : TYPE_COUP:x:y;TYPE_COUP:x:y;...
+                String[] parts = messageContent.split(";", 2); // Diviser en 2 parties au maximum : coordonnées et mouvements possibles
 
                 if (parts.length > 0) {
                     try {
@@ -1554,6 +1566,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 break;
 
             case "DESELECT":
+                casesPasse.clear();
+                casesPresent.clear();
+                casesFutur.clear();
+
                 this.etapeCoup = jeu.getEtapeCoup(); // Réinitialiser l'étape de coup
 
                 // Mettre a jour l'affichage
@@ -1567,6 +1583,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
 
             case "COUP":
+                casesPasse.clear();
+                casesPresent.clear();
+                casesFutur.clear();
                 // Gérer le message de succès du mouvement
                 // Format : TYPE_COUP:succes:newX:newY:newPlateauType
                 String[] coupParts = messageContent.split(":");

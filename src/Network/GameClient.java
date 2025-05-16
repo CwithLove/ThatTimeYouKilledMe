@@ -166,6 +166,9 @@ public class GameClient {
                                 case DIRECTION:  // Le serveur en attente du choix de l'action et de la direction
                                     listener.onGameMessage(finalCode.name(), finalContent);
                                     break;
+                                case DESELECT:   // Le joueur a désélectionné une pièce
+                                    listener.onGameMessage("DESELECT", finalContent);
+                                    break;
                                 default:
                                     System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
                                     listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);

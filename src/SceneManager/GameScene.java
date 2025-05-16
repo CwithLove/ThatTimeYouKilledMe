@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class GameScene implements Scene, GameStateUpdateListener {
+    private boolean clicked = true; // Pour éviter les clics multiples
 
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
@@ -480,6 +481,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     private void handleBoardClick(Point mousePoint) {
+        clicked = true; // Réinitialiser le clic pour éviter les clics multiples
         if (jeu == null || gameClient == null || !gameClient.isConnected() || gameHasEnded) {
             statusMessage = "Jeu non prêt ou déconnecté.";
             repaintPanel();
@@ -1085,9 +1087,16 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     g.drawRect(pieceX, pieceY, pieceSize, pieceSize);
 
                     // Mettre en surbrillance la pièce sélectionnée
+                    if (clicked) {
+
+                        System.out.println("Selected piece position: " + selectedPiecePosition +
+                                ", row: " + row + ", col: " + col + ", selectedPlateauType: " + selectedPlateauType);
+                        System.out.println("Plateau type: " + plateau.getType());
+                        clicked = false; // Réinitialiser le clic après le rendu
+                    }
                     if (selectedPiecePosition != null
                             && selectedPiecePosition.x == row && selectedPiecePosition.y == col
-                            && plateau.getType().equals(selectedPlateauType)) {
+                            && plateau.getType() == selectedPlateauType) {
                         g.setColor(Color.ORANGE);
                         g.setStroke(new BasicStroke(Math.max(2.5f, tileWidth / 10f)));
                         g.drawRect(pieceX - 2, pieceY - 2, pieceSize + 4, pieceSize + 4);
@@ -1543,7 +1552,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y + " avec mouvements possibles: " + possibleMovesStr);
 
                         // La réception du message PIECE indique l'entrée dans etapeCoup=1
-                        this.etapeCoup = jeu.getEtapeCoup(); // Deja a 1
+                        this.etapeCoup = 1; // Deja a 1
 
                         // Mettre à jour l'affichage de l'interface utilisateur pour les mouvements possibles
                         statusMessage = "Pion sélectionné (" + x + "," + y + ") sur plateau " + selectedPlateauType + ". Choisissez une destination sur ce plateau.";
@@ -1576,7 +1585,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 statusMessage = "Sélection annulée. Choisissez un pion sur le plateau actif.";
 
                 // Réinitialiser la sélection
-                selectedPiecePosition = null;
                 selectedPlateauType = null;
                 nextActionType = null;
                 break;
@@ -1595,9 +1603,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     // Vérifier si le serveur a retourné la nouvelle position de la pièce et le nouveau plateau
                     if (coupParts.length >= 5) {
                         try {
-                            int newX = Integer.parseInt(coupParts[2]);
-                            int newY = Integer.parseInt(coupParts[3]);
-                            Plateau.TypePlateau newPlateauType = Plateau.TypePlateau.valueOf(coupParts[4]);
+                            int newX = Integer.parseInt(coupParts[1]);
+                            int newY = Integer.parseInt(coupParts[2]);
+                            Plateau.TypePlateau newPlateauType = Plateau.TypePlateau.valueOf(coupParts[3]);
 
                             // Mettre à jour selectedPiecePosition et selectedPlateauType
                             selectedPiecePosition = new Point(newX, newY);

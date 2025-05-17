@@ -5,6 +5,7 @@ import Modele.Jeu;
 import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
+import Modele.Plateau.TypePlateau;
 import SceneManager.HostingScene;
 import java.awt.Point;
 import java.io.IOException;
@@ -478,7 +479,6 @@ public class GameServerManager {
                                 break;
                             }
                             break;
-
                         }
 
 
@@ -519,6 +519,15 @@ public class GameServerManager {
 
                         System.out.println("GameServerManager: Sélection du prochain plateau: " + prochainPlateau);
 
+                        // Vérifier si le prochain plateau est valide
+                        TypePlateau currentPlateauJoueur = joueurCourant.getProchainPlateau();
+
+                        if (prochainPlateau == currentPlateauJoueur) {
+                            System.err.println("GameServerManager: Le prochain plateau sélectionné est le même que le plateau actuel.");
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Le prochain plateau doit être différent du plateau actuel.");
+                            continue;
+                        }
+
                         // Définir le prochain plateau pour le joueur
                         joueurCourant.setProchainPlateau(prochainPlateau);
 
@@ -531,6 +540,7 @@ public class GameServerManager {
                         currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
 
                         sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
+                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
                         sendGameStateToAllClients();
 
                         // Vérifier si la partie est terminée

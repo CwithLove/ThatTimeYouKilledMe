@@ -14,7 +14,6 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
 
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
@@ -25,22 +24,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class GameScene implements Scene, GameStateUpdateListener {
-    private boolean clicked = true; // Pour éviter les clics multiples
 
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
 
     // Ressources pour le fond et les images
     private BufferedImage backgroundImage;
-    private BufferedImage lemielImage;
-    private BufferedImage zarekImage;
     private BufferedImage crackPresentImage;
     private BufferedImage crackFutureImage;
     private BufferedImage lemielAvatarImage;
     private BufferedImage zarekAvatarImage;
-    private int zarekAnimationFrame = 0;
     private long lastFrameUpdateTime = 0;
-    private BufferedImage[] zarekAnimationFrames;
+    private BufferedImage[][] zarekAnimation;
+    private BufferedImage[][] lemielAnimation;
+    private int frame = 0; // Pour l'animation
 
     // État de sélection de l'interface utilisateur
     private Point selectedPiecePosition = null;
@@ -63,7 +60,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private boolean isOperatingInSinglePlayerMode; // True si c'est le mode Solo avec auto-hébergement
 
     private String statusMessage = "Initialisation...";
-    private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread (onGameMessage)
+    private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread
+                                                   // (onGameMessage)
     private volatile boolean isLoading = false; // Pour afficher l'état de chargement
     private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
 
@@ -74,13 +72,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
     ArrayList<Point> casesFutur = new ArrayList<>();
 
     // Serveur et IA locaux pour le mode solo
-    // Static pour garantir qu'il n'y a qu'une seule instance si GameScene est recréée rapidement (même si dispose devrait gérer cela)
+    // Static pour garantir qu'il n'y a qu'une seule instance si GameScene est
+    // recréée rapidement (même si dispose devrait gérer cela)
     private static GameServerManager localSinglePlayerServerManager;
     private static Thread localAIClientThread;
     private static AIClient aiClientInstance; // Conserve l'instance de l'IA pour pouvoir la déconnecter
 
     private MouseAdapter mouseAdapterInternal;
-    // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal hérite de MouseAdapter et implémente MouseMotionListener
+    // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal
+    // hérite de MouseAdapter et implémente MouseMotionListener
     // Ou créer une variable séparée pour MouseMotionListener
 
     private MouseAdapter mouseAdapterFeedForward;
@@ -102,7 +102,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             this.statusMessage = "Mode Solo : Préparation...";
         } else {
             // Ce constructeur ne doit être appelé qu'avec isSinglePlayer = true
-            throw new IllegalArgumentException("Pour le mode multijoueur client, utilisez le constructeur avec l'IP du serveur.");
+            throw new IllegalArgumentException(
+                    "Pour le mode multijoueur client, utilisez le constructeur avec l'IP du serveur.");
         }
         loadResources();
         commonUIInit();
@@ -118,8 +119,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
         commonUIInit();
     }
 
-    // Constructeur pour l'hôte en mode multijoueur (avec un GameClient déjà connecté depuis HostingScene)
-    public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient, GameServerManager serverManager) {
+    // Constructeur pour l'hôte en mode multijoueur (avec un GameClient déjà
+    // connecté depuis HostingScene)
+    public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient,
+            GameServerManager serverManager) {
         this.sceneManager = sceneManager;
         this.isOperatingInSinglePlayerMode = false;
         this.gameClient = alreadyConnectedHostClient; // Utilise le client déjà connecté
@@ -155,7 +158,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 this.statusMessage = "En attente de l'état du jeu...";
             } else {
                 System.out.println("GameScene: Instance de jeu reçue (Joueur courant: "
-                        + (this.jeu.getJoueurCourant() != null ? this.jeu.getJoueurCourant().getId() : "non défini") + ")");
+                        + (this.jeu.getJoueurCourant() != null ? this.jeu.getJoueurCourant().getId() : "non défini")
+                        + ")");
                 updateStatusFromCurrentGame(false); // Met à jour le message de statut initial
             }
         }
@@ -167,20 +171,27 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // Charger les ressources graphiques
     private void loadResources() {
         try {
-            backgroundImage = ImageIO.read(new File("res/Background.png"));
-            lemielImage = ImageIO.read(new File("res/Lemiel/Lemiel_Idle.png"));
+            backgroundImage = ImageIO.read(new File("res/Background/Background.png"));
             crackPresentImage = ImageIO.read(new File("res/Plateau/Crack_Present.png"));
             crackFutureImage = ImageIO.read(new File("res/Plateau/Crack_Future.png"));
-            lemielAvatarImage = ImageIO.read(new File("res/Avatar/Lemiel_Avatar.png"));
-            zarekAvatarImage = ImageIO.read(new File("res/Avatar/Zarek_Avatar.png"));
+            lemielAvatarImage = ImageIO.read(new File("res/Character/Lemiel/Lemiel_Avatar.png"));
+            zarekAvatarImage = ImageIO.read(new File("res/Character/Zarek/Zarek_Avatar.png"));
+
+            // Charger les images d'animation de Zarek et Lemiel
+            zarekAnimation = new BufferedImage[2][8]; // Idling and Aura
+            lemielAnimation = new BufferedImage[2][8]; // Idling and Aura
 
             // Charger les images d'animation de Zarek
-            zarekAnimationFrames = new BufferedImage[4];
-            zarekAnimationFrames[0] = ImageIO.read(new File("res/Zarek/Zarek_Idle_1.png"));
-            zarekAnimationFrames[1] = ImageIO.read(new File("res/Zarek/Zarek_Idle_2.png"));
-            zarekAnimationFrames[2] = ImageIO.read(new File("res/Zarek/Zarek_Idle_3.png"));
-            zarekAnimationFrames[3] = ImageIO.read(new File("res/Zarek/Zarek_Idle_4.png"));
-            zarekImage = zarekAnimationFrames[0]; // Initialiser avec la première image
+            for (int i = 0; i < 8; i++) {
+                zarekAnimation[0][i] = ImageIO
+                        .read(new File("res/Character/Zarek/Idle/Zarek_Idle_" + (i + 1) + ".png"));
+                zarekAnimation[1][i] = ImageIO.read(new File("res/Character/Zarek/Aura/Aura-" + (i + 1) + ".png"));
+
+                lemielAnimation[0][i] = ImageIO
+                        .read(new File("res/Character/Lemiel/Idle/Lemiel_Idle_" + (i + 1) + ".png"));
+                lemielAnimation[1][i] = ImageIO.read(new File("res/Character/Lemiel/Aura/Aura-" + (i + 1) + ".png"));
+                // zarekImage = zarekAnimationIdle[0]; // Initialiser avec la première image
+            }
         } catch (IOException e) {
             System.err.println("Error loading resources: " + e.getMessage());
             e.printStackTrace();
@@ -191,6 +202,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient) {
         this(sceneManager, alreadyConnectedHostClient, null);
     }
+
     private void commonUIInit() {
         // La position des boutons sera mise à jour dans render()
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
@@ -214,8 +226,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     sceneManager.getPanel(),
                     "Quitter la partie en cours ?",
                     "Confirmation de sortie",
-                    JOptionPane.YES_NO_OPTION
-            );
+                    JOptionPane.YES_NO_OPTION);
         }
         if (confirmation == JOptionPane.YES_OPTION) {
             cleanUpAndGoToMenu();
@@ -236,7 +247,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             hostServerManager = null;
         }
 
-        // En mode solo, arrête le serveur et l'IA seulement si cette GameScene les a créés
+        // En mode solo, arrête le serveur et l'IA seulement si cette GameScene les a
+        // créés
         if (isOperatingInSinglePlayerMode) {
             if (localAIClientThread != null && localAIClientThread.isAlive()) {
                 if (aiClientInstance != null) {
@@ -249,7 +261,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
             if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
                 localSinglePlayerServerManager.stopServer();
-                // Ne pas définir localSinglePlayerServerManager = null pour pouvoir vérifier isServerRunning plus tard
+                // Ne pas définir localSinglePlayerServerManager = null pour pouvoir vérifier
+                // isServerRunning plus tard
                 System.out.println("GameScene (Solo): Serveur local arrêté.");
             }
         }
@@ -268,7 +281,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Cas où l'hôte entre dans GameScene, le client est déjà connecté et transmis
             System.out.println("GameScene: Utilisation du GameClient déjà connecté.");
 
-            // Ajoute un mécanisme de timeout pour éviter d'attendre indéfiniment l'état du jeu
+            // Ajoute un mécanisme de timeout pour éviter d'attendre indéfiniment l'état du
+            // jeu
             if (this.jeu == null) {
                 System.out.println("GameScene: Attente de l'état initial du jeu avec timeout...");
                 new SwingWorker<Boolean, Void>() {
@@ -320,7 +334,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             statusMessage = "Erreur: Configuration GameScene invalide.";
             System.err.println(statusMessage);
             isLoading = false;
-            // On peut ajouter une action pour revenir à MenuScene ici si l'erreur est critique
+            // On peut ajouter une action pour revenir à MenuScene ici si l'erreur est
+            // critique
             SwingUtilities.invokeLater(this::cleanUpAndGoToMenu);
         }
         repaintPanel();
@@ -332,10 +347,13 @@ public class GameScene implements Scene, GameStateUpdateListener {
             @Override
             protected Boolean doInBackground() throws Exception {
                 publish("Démarrage du serveur solo...");
-                // Assurez-vous d'arrêter le serveur précédent s'il existe et qu'il appartient à ce mode solo
+                // Assurez-vous d'arrêter le serveur précédent s'il existe et qu'il appartient à
+                // ce mode solo
                 if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
-                    System.out.println("GameScene (Solo Worker): Serveur local solo déjà actif, tentative de réutilisation ou redémarrage.");
-                    // Il peut être nécessaire de l'arrêter et de le réinitialiser pour garantir un état propre
+                    System.out.println(
+                            "GameScene (Solo Worker): Serveur local solo déjà actif, tentative de réutilisation ou redémarrage.");
+                    // Il peut être nécessaire de l'arrêter et de le réinitialiser pour garantir un
+                    // état propre
                     localSinglePlayerServerManager.stopServer();
                 }
                 localSinglePlayerServerManager = new GameServerManager(null); // null pour le callback
@@ -364,17 +382,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     throw new IOException("Échec de la connexion du client IA.");
                 }
 
-                // GameServerManager appellera automatiquement startGameEngine lorsqu'il y aura 2 clients
+                // GameServerManager appellera automatiquement startGameEngine lorsqu'il y aura
+                // 2 clients
                 // (Joueur UI et Client IA) si configuré correctement.
-                // Nous pouvons attendre un peu pour nous assurer que le serveur a le temps de traiter.
+                // Nous pouvons attendre un peu pour nous assurer que le serveur a le temps de
+                // traiter.
                 Thread.sleep(500); // Attendre que le serveur traite la connexion de l'IA
                 if (localSinglePlayerServerManager.areAllPlayersConnected()) {
                     // startGameEngine a été appelé automatiquement par GameServerManager
                     publish("Moteur de jeu solo prêt.");
                 } else {
                     publish("En attente que le serveur démarre le moteur ("
-                            + (localSinglePlayerServerManager.areAllPlayersConnected() ? "OK" : "Pas encore assez de joueurs") + ")");
-                    // On peut ajouter une boucle d'attente ici si nécessaire, mais idéalement GameServerManager gère cela
+                            + (localSinglePlayerServerManager.areAllPlayersConnected() ? "OK"
+                                    : "Pas encore assez de joueurs")
+                            + ")");
+                    // On peut ajouter une boucle d'attente ici si nécessaire, mais idéalement
+                    // GameServerManager gère cela
                 }
                 return true;
             }
@@ -404,7 +427,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 } catch (Exception e) {
                     e.printStackTrace();
                     statusMessage = "Erreur critique mode solo: " + e.getMessage();
-                    JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Solo", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Solo",
+                            JOptionPane.ERROR_MESSAGE);
                     cleanUpAndGoToMenu();
                 }
                 repaintPanel();
@@ -444,12 +468,14 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                 "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
                         cleanUpAndGoToMenu();
                     }
-                    // Si la connexion réussit, le premier onGameStateUpdate définira correctement le statusMessage
+                    // Si la connexion réussit, le premier onGameStateUpdate définira correctement
+                    // le statusMessage
                 } catch (Exception e) {
                     e.printStackTrace();
                     statusMessage = "Erreur de connexion: " + e.getMessage();
                     JOptionPane.showMessageDialog(sceneManager.getPanel(),
-                            "Impossible de se connecter au serveur : " + e.getMessage() + "\nIP : " + serverIpToConnectOnDemand,
+                            "Impossible de se connecter au serveur : " + e.getMessage() + "\nIP : "
+                                    + serverIpToConnectOnDemand,
                             "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
                     cleanUpAndGoToMenu();
                 }
@@ -467,9 +493,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         if (jeu.getJoueurCourant() == null || gameClient == null || gameClient.getMyPlayerId() == -1) {
             // System.out.println("isMyTurn: false, jeu.getJoueurCourant(): "
-            //         + (jeu.getJoueurCourant() == null ? "null" : jeu.getJoueurCourant())
-            //         + ", gameClient: " + gameClient
-            //         + ", gameClient.getMyPlayerId(): " + (gameClient != null ? gameClient.getMyPlayerId() : -1));
+            // + (jeu.getJoueurCourant() == null ? "null" : jeu.getJoueurCourant())
+            // + ", gameClient: " + gameClient
+            // + ", gameClient.getMyPlayerId(): " + (gameClient != null ?
+            // gameClient.getMyPlayerId() : -1));
             return false;
         }
 
@@ -481,7 +508,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
 
     private void handleBoardClick(Point mousePoint) {
-        clicked = true; // Réinitialiser le clic pour éviter les clics multiples
         if (jeu == null || gameClient == null || !gameClient.isConnected() || gameHasEnded) {
             statusMessage = "Jeu non prêt ou déconnecté.";
             repaintPanel();
@@ -503,7 +529,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int clickedCol = boardCoords.y;
             Plateau.TypePlateau clickedPlateauType = clickedPlateauObj.getType();
 
-            // Version simplifiée : quel que soit l'étape, envoyez simplement les coordonnées du clic et le type de plateau au serveur
+            // Version simplifiée : quel que soit l'étape, envoyez simplement les
+            // coordonnées du clic et le type de plateau au serveur
             // Le serveur déterminera l'action en fonction de l'étape du jeu (etapeCoup)
             String command = "0:null:" + clickedPlateauType.name() + ":" + clickedRow + ":" + clickedCol;
 
@@ -511,18 +538,21 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     ", Position : (" + clickedRow + "," + clickedCol +
                     "), etapeCoup : " + etapeCoup);
 
-            // Si c'est le premier clic, enregistrez-le comme selectedPiecePosition (uniquement pour afficher l'effet de sélection dans l'interface utilisateur)
+            // Si c'est le premier clic, enregistrez-le comme selectedPiecePosition
+            // (uniquement pour afficher l'effet de sélection dans l'interface utilisateur)
             if (etapeCoup == 0) {
                 selectedPiecePosition = new Point(clickedRow, clickedCol);
                 selectedPlateauType = clickedPlateauType;
-                statusMessage = "Sélection du pion (" + clickedPlateauType + " " + clickedRow + "," + clickedCol + ")...";
+                statusMessage = "Sélection du pion (" + clickedPlateauType + " " + clickedRow + "," + clickedCol
+                        + ")...";
             } else {
-                statusMessage = "Action sur plateau " + clickedPlateauType + " à la position (" + clickedRow + "," + clickedCol + ")...";
+                statusMessage = "Action sur plateau " + clickedPlateauType + " à la position (" + clickedRow + ","
+                        + clickedCol + ")...";
             }
 
             gameClient.sendPlayerAction(command);
             repaintPanel();
-        // Clic en dehors du plateau
+            // Clic en dehors du plateau
             if (etapeCoup == 3) {
                 statusMessage = "Veuillez sélectionner un plateau (PASSÉ, PRÉSENT ou FUTUR).";
             } else if (etapeCoup == 0) {
@@ -559,7 +589,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             return;
         }
 
-        // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau: null>:<PlateauSélectionné>:<x>:<y>
+        // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau:
+        // null>:<PlateauSélectionné>:<x>:<y>
         String command = "0:null:" + selectedPlateauType.name() + ":" + targetPosition.x + ":" + targetPosition.y;
         gameClient.sendPlayerAction(command);
         statusMessage = "Commande envoyée: déplacement vers " + targetPosition.x + "," + targetPosition.y;
@@ -581,8 +612,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
         // Utiliser le champ etapeCoup de GameScene
         if (etapeCoup == 1 || etapeCoup == 2) {
             // L'annulation n'a de sens que lorsque etapeCoup est égal à 1 ou 2
-            // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau: null>:<PlateauSélectionné>:<x>:<y>
-            String command = "1:null:" + selectedPlateauType.name() + ":" + selectedPiecePosition.x + ":" + selectedPiecePosition.y;
+            // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau:
+            // null>:<PlateauSélectionné>:<x>:<y>
+            String command = "1:null:" + selectedPlateauType.name() + ":" + selectedPiecePosition.x + ":"
+                    + selectedPiecePosition.y;
             gameClient.sendPlayerAction(command);
             statusMessage = "Demande d'annulation envoyée...";
             resetSelection();
@@ -595,12 +628,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
         // Mettre à jour l'animation de Zarek
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastFrameUpdateTime > 250) { // Mettre à jour une image toutes les 250 ms
-            zarekAnimationFrame = (zarekAnimationFrame + 1) % 4;
-            zarekImage = zarekAnimationFrames[zarekAnimationFrame];
+            frame = (frame + 1) % 8;
             lastFrameUpdateTime = currentTime;
         }
 
-        // Mettre à jour le survol uniquement si le jeu n'est pas en cours de chargement et n'est pas terminé
+        // Mettre à jour le survol uniquement si le jeu n'est pas en cours de chargement
+        // et n'est pas terminé
         if (!isLoading && !gameHasEnded && sceneManager != null && sceneManager.getPanel() != null) {
             Point mousePos = sceneManager.getPanel().getMousePosition();
             if (mousePos != null) {
@@ -625,7 +658,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     // Afficher le bouton "Choisir un plateau" lorsque etapeCoup est égal à 3
                     if (etapeCoup == 3) {
                         // System.out.println("Devrait afficher le bouton : Sélectionner le plateau");
-                        // System.out.println("Position de la souris : " + mousePos.x + "," + mousePos.y);
+                        // System.out.println("Position de la souris : " + mousePos.x + "," +
+                        // mousePos.y);
 
                         // Met à jour les trois boutons de sélection de plateau
                         choosePastButton.update(mousePos);
@@ -636,12 +670,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         // choosePlateauButton.update(mousePos);
 
                         // Vérifie si la zone des boutons est valide
-                        // System.out.println("Position du bouton Past : " + choosePastButton.getX() + "," + choosePastButton.getY()
-                        //         + " largeur : " + choosePastButton.getWidth() + " hauteur : " + choosePastButton.getHeight());
-                        // System.out.println("Position du bouton Present : " + choosePresentButton.getX() + "," + choosePresentButton.getY()
-                        //         + " largeur : " + choosePresentButton.getWidth() + " hauteur : " + choosePresentButton.getHeight());
-                        // System.out.println("Position du bouton Future : " + chooseFutureButton.getX() + "," + chooseFutureButton.getY()
-                        //         + " largeur : " + chooseFutureButton.getWidth() + " hauteur : " + chooseFutureButton.getHeight());
+                        // System.out.println("Position du bouton Past : " + choosePastButton.getX() +
+                        // "," + choosePastButton.getY()
+                        // + " largeur : " + choosePastButton.getWidth() + " hauteur : " +
+                        // choosePastButton.getHeight());
+                        // System.out.println("Position du bouton Present : " +
+                        // choosePresentButton.getX() + "," + choosePresentButton.getY()
+                        // + " largeur : " + choosePresentButton.getWidth() + " hauteur : " +
+                        // choosePresentButton.getHeight());
+                        // System.out.println("Position du bouton Future : " + chooseFutureButton.getX()
+                        // + "," + chooseFutureButton.getY()
+                        // + " largeur : " + chooseFutureButton.getWidth() + " hauteur : " +
+                        // chooseFutureButton.getHeight());
                     } else {
                         choosePlateauButton.update(new Point(-1, -1));
                         choosePastButton.update(new Point(-1, -1));
@@ -665,6 +705,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     @Override
     public void render(Graphics g, int width, int height) {
+        int centerX = width / 2;
+        int centerY = height / 2;
+
         // Afficher la valeur actuelle de etapeCoup pour le débogage
         if (jeu != null) {
             // System.out.println("GameScene render: etapeCoup = " + etapeCoup);
@@ -672,39 +715,37 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Calculer la position du bouton en fonction de la taille actuelle du panneau
         int dynamicButtonY = height - 70;
-        if (dynamicButtonY < 450) {
-            dynamicButtonY = 450; // Position Y minimale
-        }
+        // if (dynamicButtonY < 450) {
+        // dynamicButtonY = 450; // Position Y minimale
+        // }
 
-        int buttonCommonHeight = Math.max(40, height / 18);
-        int backButtonWidth = Math.max(130, width / 7);
-        int actionButtonWidth = Math.max(90, width / 9);
+        // int buttonCommonHeight = Math.max(40, height / 18);
+        // int backButtonWidth = Math.max(130, width / 7);
+        // int actionButtonWidth = Math.max(90, width / 9);
 
-        backButton.setSize(backButtonWidth, buttonCommonHeight);
-        backButton.setLocation(30, dynamicButtonY);
+        // backButton.setSize(backButtonWidth, buttonCommonHeight);
+        // backButton.setLocation(30, dynamicButtonY);
 
-        int actionButtonXStart = backButton.getX() + backButton.getWidth() + 20;
+        // int actionButtonXStart = backButton.getX() + backButton.getWidth() + 20;
 
-        // Définir la position du bouton "Annuler"
-        undoButton.setSize(actionButtonWidth, buttonCommonHeight);
-        undoButton.setLocation(actionButtonXStart + actionButtonWidth / 2, dynamicButtonY);
+        // // Définir la position du bouton "Annuler"
+        // undoButton.setSize(actionButtonWidth, buttonCommonHeight);
+        // undoButton.setLocation(actionButtonXStart + actionButtonWidth / 2,
+        // dynamicButtonY);
 
-        // Définir la position du bouton "Choisir un plateau" - plus grand et centré
-        int choosePlateauWidth = Math.max(200, width / 5); // Augmenter la largeur
-        int choosePlateauHeight = Math.max(50, height / 15); // Augmenter la hauteur
-        choosePlateauButton.setSize(choosePlateauWidth, choosePlateauHeight);
-        // Centrer le bouton
-        choosePlateauButton.setLocation(width / 2 - choosePlateauWidth / 2, height / 2);
-        // Modifier la couleur du bouton pour le rendre plus visible
-        choosePlateauButton.setNormalColor(new Color(50, 150, 50)); // Vert
-        choosePlateauButton.setHoverColor(new Color(100, 200, 100)); // Vert clair
-        choosePlateauButton.setClickColor(new Color(30, 100, 30)); // Vert foncé
+        // // Centrer le bouton
+        // choosePlateauButton.setLocation(width / 2 - choosePlateauWidth / 2, height /
+        // 2);
+        // // Modifier la couleur du bouton pour le rendre plus visible
+        // choosePlateauButton.setNormalColor(new Color(50, 150, 50)); // Vert
+        // choosePlateauButton.setHoverColor(new Color(100, 200, 100)); // Vert clair
+        // choosePlateauButton.setClickColor(new Color(30, 100, 30)); // Vert foncé
 
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Dessiner l'image de fond
+        // // Dessiner l'image de fond
         if (backgroundImage != null) {
             g2d.drawImage(backgroundImage, 0, 0, width, height, null);
         } else {
@@ -729,49 +770,49 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
 
         if (jeu != null) {
+            // Définir la position du bouton "Choisir un plateau" - plus grand et centré
+            int choosePlateauWidth = width * 24 / 100; // 24% de la largeur du panneau
+            int choosePlateauHeight = choosePlateauWidth; // 32% de la hauteur du panneau car ratio est 16:9
+            choosePlateauButton.setSize(choosePlateauWidth, choosePlateauHeight);
+
+            // Spacine entre les plateaux
+            int spacing = width / 10; // Espace entre les plateaux, 10% de la largeur du panneau
+            int topMargin = height / 20; // Espace pour statusMessage, 5% de la hauteur du panneau
+            int bottomMargin = height / 20; // Espace pour les boutons, 5% de la hauteur du panneau
+
+            // Definir les tailles de plateau (dynamique en fonction de la taille du
+            // panneau)
+            int boardSize = jeu.getTAILLE();
+            int tileWidth = choosePlateauHeight / boardSize; // Taille de la tuile basée sur la hauteur du panneau
+            int tileHeight = tileWidth * 1; // A changer pour dessiner isométriquement
+            int deltaX = 0; // Décalage horizontal pour centrer les plateaux -> Pour ce moment pas
+                            // d'isométrie
+
+            // Definir la position depart de chaque plateau
+            int presentStartX = centerX - choosePlateauWidth / 2 + deltaX;
+            int pastStartX = presentStartX - choosePlateauWidth - spacing;
+            int futureStartX = presentStartX + choosePlateauWidth + spacing;
+            int offsetY = centerY - choosePlateauHeight / 2; // Centrer verticalement les plateaux
+
             Plateau past = jeu.getPast();
             Plateau present = jeu.getPresent();
             Plateau future = jeu.getFuture();
 
-            int boardSize = jeu.getTAILLE();
-            int topMargin = 70; // Espace pour statusMessage
-            int bottomMarginForButtons = height - dynamicButtonY + 30;
-            int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
+            // Dessiner les pickers (prochain plateau)
+            drawPickerJ1(g2d, pastStartX, presentStartX, futureStartX, offsetY, tileWidth);
+            drawPickerJ2(g2d, pastStartX, presentStartX, futureStartX, offsetY, tileWidth);
 
-            int tileWidthByWidth = (width - 80) / (boardSize * 3 + 2 * (boardSize / 2)); // Diminuer le padding
-            int tileWidthByHeight = availableHeightForBoards / (boardSize + 1);
-            int tileWidth = Math.max(15, Math.min(tileWidthByWidth, tileWidthByHeight));
+            // Dessiner les plateaux
+            drawPlateau(g2d, past, pastStartX, offsetY, tileWidth, "PASSÉ", null);
+            drawPlateau(g2d, present, presentStartX, offsetY, tileWidth, "PRÉSENT", crackPresentImage);
+            drawPlateau(g2d, future, futureStartX, offsetY, tileWidth, "FUTURE", backgroundImage);
 
-            int spacing = Math.max(10, tileWidth / 2);
-            int boardRenderHeight = boardSize * tileWidth;
-            int totalBoardAreaWidth = boardSize * tileWidth * 3 + spacing * 2;
-
-            int presentX = (width - totalBoardAreaWidth) / 2 + boardSize * tileWidth + spacing;
-            // Assurez-vous que offsetY n'est pas négatif si le panneau est trop petit
-            int offsetY = topMargin + Math.max(0, (availableHeightForBoards - boardRenderHeight - 20) / 2);
-
-            int pastX = presentX - boardSize * tileWidth - spacing;
-            int futureX = presentX + boardSize * tileWidth + spacing;
-
-            // Dessiner les personnages
-            // Lemiel (J1) à gauche
-            if (lemielImage != null) {
-                int lemielHeight = Math.min(height / 2, lemielImage.getHeight() * 2);
-                int lemielWidth = lemielHeight * lemielImage.getWidth() / lemielImage.getHeight();
-                g2d.drawImage(lemielImage, 10, height / 2 - lemielHeight / 2, lemielWidth, lemielHeight, null);
-            }
-
-            // Zarek (J2) à droite
-            if (zarekImage != null) {
-                int zarekHeight = Math.min(height / 2, zarekImage.getHeight() * 2);
-                int zarekWidth = zarekHeight * zarekImage.getWidth() / zarekImage.getHeight();
-                g2d.drawImage(zarekImage, width - zarekWidth - 10, height / 2 - zarekHeight / 2, zarekWidth, zarekHeight, null);
-            }
-
-            // À l'étape etapeCoup=3, mettez en surbrillance le plateau sélectionné par l'utilisateur (s'il y en a un)
+            // À l'étape etapeCoup=3, mettez en surbrillance le plateau sélectionné par
+            // l'utilisateur (s'il y en a un)
             if (etapeCoup == 3) {
 
-                // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est affiché
+                // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est
+                // affiché
                 if (isMyTurn()) {
                     // Afficher le texte d'invite
                     g2d.setColor(Color.YELLOW);
@@ -789,27 +830,14 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             // Déterminer les plateaux sélectionnés par le joueur actuel et l'adversaire
             Plateau.TypePlateau myNextPlateau = (myPlayerId == 1) ? joueur1SelectedPlateau : joueur2SelectedPlateau;
-            Plateau.TypePlateau opponentNextPlateau = (myPlayerId == 1) ? joueur2SelectedPlateau : joueur1SelectedPlateau;
+            Plateau.TypePlateau opponentNextPlateau = (myPlayerId == 1) ? joueur2SelectedPlateau
+                    : joueur1SelectedPlateau;
 
             // System.out.println("Mon ID : " + myPlayerId +
-            //         ", ID du joueur actuel : " + currentPlayerId +
-            //         ", Plateau que j'ai sélectionné : " + myNextPlateau +
-            //         ", Plateau sélectionné par l'adversaire : " + opponentNextPlateau);
+            // ", ID du joueur actuel : " + currentPlayerId +
+            // ", Plateau que j'ai sélectionné : " + myNextPlateau +
+            // ", Plateau sélectionné par l'adversaire : " + opponentNextPlateau);
 
-            // Dessiner les trois plateaux avec des surbrillances différentes
-            drawPlateau(g2d, past, pastX, offsetY, tileWidth, "PASSÉ", null,
-                    myNextPlateau == Plateau.TypePlateau.PAST,
-                    opponentNextPlateau == Plateau.TypePlateau.PAST);
-
-            drawPlateau(g2d, present, presentX, offsetY, tileWidth, "PRÉSENT", crackPresentImage,
-                    myNextPlateau == Plateau.TypePlateau.PRESENT,
-                    opponentNextPlateau == Plateau.TypePlateau.PRESENT);
-
-            drawPlateau(g2d, future, futureX, offsetY, tileWidth, "FUTUR", crackFutureImage,
-                      myNextPlateau == Plateau.TypePlateau.FUTURE,
-                      opponentNextPlateau == Plateau.TypePlateau.FUTURE);
-
-            
             // 在etapeCoup=3时，显示棋盘选择按钮
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
@@ -823,15 +851,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     p = getPlateauFromMousePoint(mousePoint);
                     if (p != null && p.getType() != activePlateau) {
                         if (p.getType() == Plateau.TypePlateau.PAST) {
-                            g2d.drawRoundRect(pastX-2, offsetY-2, tileWidth*past.getSize()+4, tileWidth*past.getSize()+4,
-                            10, 10);
-                        }
-                        else if (p.getType() == Plateau.TypePlateau.PRESENT) {
-                            g2d.drawRect(presentX-2, offsetY-2, tileWidth*present.getSize()+4, tileWidth*present.getSize()+4);
-                        }
-                        else {
-                            g2d.drawRoundRect(futureX-2, offsetY-2, tileWidth*future.getSize()+4, 
-                            tileWidth*future.getSize()+4, 5, 5);
+                            g2d.drawRoundRect(pastStartX - 2, offsetY - 2, tileWidth * past.getSize() + 4,
+                                    tileWidth * past.getSize() + 4,
+                                    10, 10);
+                        } else if (p.getType() == Plateau.TypePlateau.PRESENT) {
+                            g2d.drawRect(presentStartX - 2, offsetY - 2, tileWidth * present.getSize() + 4,
+                                    tileWidth * present.getSize() + 4);
+                        } else {
+                            g2d.drawRoundRect(futureStartX - 2, offsetY - 2, tileWidth * future.getSize() + 4,
+                                    tileWidth * future.getSize() + 4, 5, 5);
                         }
                     }
                 }
@@ -840,7 +868,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // 计算按钮宽度和位置
                 int buttonWidth = Math.min(boardSize * tileWidth, 120);
                 int buttonHeight = 40;
-                int buttonY = offsetY + boardRenderHeight + 10;
+                int buttonY = offsetY + choosePlateauHeight + 10;
 
                 // Définir les attributs des boutons
                 choosePastButton.setSize(buttonWidth, buttonHeight);
@@ -848,9 +876,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 chooseFutureButton.setSize(buttonWidth, buttonHeight);
 
                 // Définir la position des boutons
-                choosePastButton.setLocation(pastX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
-                choosePresentButton.setLocation(presentX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
-                chooseFutureButton.setLocation(futureX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
+                choosePastButton.setLocation(pastStartX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
+                choosePresentButton.setLocation(presentStartX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
+                chooseFutureButton.setLocation(futureStartX + (boardSize * tileWidth - buttonWidth) / 2, buttonY);
 
                 // Définir la couleur des boutons
                 Color normalColor = new Color(50, 150, 50);
@@ -894,7 +922,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Informations sur les clones avec Avatars
             g2d.setFont(new Font("Consolas", Font.PLAIN, 15));
             g2d.setColor(Color.LIGHT_GRAY);
-            int cloneInfoY = offsetY + boardRenderHeight + 25;
+            int cloneInfoY = offsetY + choosePlateauHeight + 25;
             if (cloneInfoY >= dynamicButtonY - 15) { // Éviter de superposer les boutons
                 cloneInfoY = offsetY - 35; // Placer au-dessus du plateau s'il n'y a pas assez d'espace
                 if (cloneInfoY < 20) {
@@ -906,15 +934,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             if (jeu.getJoueur1() != null) {
                 if (lemielAvatarImage != null) {
-                    g2d.drawImage(lemielAvatarImage, Math.max(10, pastX - 20), cloneInfoY - avatarSize, avatarSize, avatarSize, null);
+                    g2d.drawImage(lemielAvatarImage, Math.max(10, pastStartX - 20), cloneInfoY - avatarSize, avatarSize,
+                            avatarSize, null);
                 }
-                String p1Info = "Lemiel (ID " + jeu.getJoueur1().getId() + ") Clones: " + jeu.getJoueur1().getNbClones();
+                String p1Info = "Lemiel (ID " + jeu.getJoueur1().getId() + ") Clones: "
+                        + jeu.getJoueur1().getNbClones();
                 if (gameClient != null && jeu.getJoueur1().getId() == gameClient.getMyPlayerId()) {
                     p1Info += " (Vous)";
                 }
                 // Ajouter les informations de sélection du plateau
                 p1Info += " - Plateau: " + joueur1SelectedPlateau;
-                g2d.drawString(p1Info, Math.max(10, pastX - 20) + avatarSize + 5, cloneInfoY);
+                g2d.drawString(p1Info, Math.max(10, pastStartX - 20) + avatarSize + 5, cloneInfoY);
             }
 
             if (jeu.getJoueur2() != null) {
@@ -926,10 +956,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 p2Info += " - Plateau: " + joueur2SelectedPlateau;
                 FontMetrics p2Metrics = g2d.getFontMetrics();
                 int p2InfoWidth = p2Metrics.stringWidth(p2Info);
-                int p2X = Math.min(width - 10 - p2InfoWidth - avatarSize - 5, futureX + (boardSize * tileWidth) + 20 - p2InfoWidth - avatarSize - 5);
+                int p2X = Math.min(width - 10 - p2InfoWidth - avatarSize - 5,
+                        futureStartX + (boardSize * tileWidth) + 20 - p2InfoWidth - avatarSize - 5);
 
                 if (zarekAvatarImage != null) {
-                    g2d.drawImage(zarekAvatarImage, p2X + p2InfoWidth + 5, cloneInfoY - avatarSize, avatarSize, avatarSize, null);
+                    g2d.drawImage(zarekAvatarImage, p2X + p2InfoWidth + 5, cloneInfoY - avatarSize, avatarSize,
+                            avatarSize, null);
                 }
                 g2d.drawString(p2Info, p2X, cloneInfoY);
             }
@@ -937,7 +969,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Rendre les boutons
             backButton.render(g2d);
 
-            // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est pas égal à 3
+            // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
+            // pas égal à 3
             if (isMyTurn() && (etapeCoup == 1 || etapeCoup == 2)) {
                 undoButton.render(g2d);
             }
@@ -946,7 +979,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, 22));
             FontMetrics metrics = g2d.getFontMetrics();
-            String currentStatus = (statusMessage != null && !statusMessage.isEmpty()) ? statusMessage : "Chargement des données du jeu...";
+            String currentStatus = (statusMessage != null && !statusMessage.isEmpty()) ? statusMessage
+                    : "Chargement des données du jeu...";
             int msgWidth = metrics.stringWidth(currentStatus);
             g2d.drawString(currentStatus, (width - msgWidth) / 2, height / 2);
         }
@@ -966,145 +1000,168 @@ public class GameScene implements Scene, GameStateUpdateListener {
         g2d.dispose();
     }
 
-    private void drawPlateau(Graphics2D g, Plateau plateau, int x, int y, int tileWidth, String title, BufferedImage crackImage, boolean isMyNextPlateau, boolean isOpponentNextPlateau) {
-        if (plateau == null) {
-            g.setColor(Color.RED);
-            g.setFont(new Font("Arial", Font.BOLD, 12));
-            g.drawString("Plateau " + title + " non disponible", x + 10, y + tileWidth * 2);
-            return;
+    private void drawPickerJ1(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
+            int offsetY, int tileWidth) {
+        int size = tileWidth * 7 / 8; // Taille du picker du prochain plateau => 7% de height
+        int spacing = tileWidth / 2; // Espace entre les boutons du picker => 4% de width
+        int pickerY = offsetY - spacing - size; // Position Y du picker, juste en dessous des plateaux
+
+        int[] xPos = {
+                pastStartX + tileWidth * 2 - size / 2, // Position pour le plateau passé
+                presentStartX + tileWidth * 2 - size / 2, // Position pour le plateau présent
+                futureStartX + tileWidth * 2 - size / 2 // Position pour le plateau futur
+        };
+
+        Shape oldClip = g.getClip();
+
+        // Pour chaque plateau, dessiner un oval de sélection
+        for (int plt = 0; plt < 3; plt++) {
+            g.setColor(Color.BLACK);
+            g.fillOval(xPos[plt], pickerY, size, size); // Fond noir
+
+            // Dessiner l'avatar
+            switch (jeu.getJoueur1().getProchainPlateau()) {
+                case PAST:
+                    if (lemielAvatarImage != null) {
+                        g.drawImage(lemielAvatarImage, xPos[0], pickerY, size, size, null);
+                    }
+                    break;
+
+                case PRESENT:
+                    if (lemielAvatarImage != null) {
+                        g.drawImage(lemielAvatarImage, xPos[1], pickerY, size, size, null);
+                    }
+                    break;
+
+                case FUTURE:
+                    if (lemielAvatarImage != null) {
+                        g.drawImage(lemielAvatarImage, xPos[2], pickerY, size, size, null);
+                    }
+                    break;
+            }
         }
 
+        g.setClip(oldClip); // Restaurer le clip précédent
+    }
+
+    private void drawPickerJ2(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
+            int offsetY, int tileWidth) {
+        int size = tileWidth * 7 / 8; // Taille du picker du prochain plateau => 7% de height
+        int spacing = tileWidth / 2; // Espace entre les boutons du picker => 4% de width
+        int pickerY = offsetY + tileWidth * jeu.getTAILLE() + spacing; // Position Y du picker, juste en dessous des
+                                                                       // plateaux
+
+        int[] xPos = {
+                pastStartX + tileWidth * 2 - size / 2, // Position pour le plateau passé
+                presentStartX + tileWidth * 2 - size / 2, // Position pour le plateau présent
+                futureStartX + tileWidth * 2 - size / 2 // Position pour le plateau futur
+        };
+
+        Shape oldClip = g.getClip();
+
+        // Pour chaque plateau, dessiner un oval de sélection
+        for (int plt = 0; plt < 3; plt++) {
+            g.setColor(Color.BLACK);
+            g.fillOval(xPos[plt], pickerY, size, size); // Fond noir
+
+            // Dessiner l'avatar
+            switch (jeu.getJoueur2().getProchainPlateau()) {
+                case PAST:
+                    if (zarekAvatarImage != null) {
+                        g.drawImage(zarekAvatarImage, xPos[0], pickerY, size, size, null);
+                    }
+                    break;
+
+                case PRESENT:
+                    if (zarekAvatarImage != null) {
+                        g.drawImage(zarekAvatarImage, xPos[1], pickerY, size, size, null);
+                    }
+                    break;
+
+                case FUTURE:
+                    if (zarekAvatarImage != null) {
+                        g.drawImage(zarekAvatarImage, xPos[2], pickerY, size, size, null);
+                    }
+                    break;
+            }
+        }
+
+        g.setClip(oldClip); // Restaurer le clip précédent
+    }
+
+    private void drawPlateau(Graphics2D g, Plateau plateau, int x, int y, int tileWidth, String title,
+            BufferedImage crackImage) {
         int boardSize = plateau.getSize();
         int boardPixelSize = boardSize * tileWidth;
-
-        // Mettre en surbrillance le prochain plateau sélectionné par le joueur actuel - Vert
-        if (isMyNextPlateau) {
-            g.setColor(new Color(0, 200, 0, 180)); // Vert semi-transparent
-            g.setStroke(new BasicStroke(5f));
-            g.drawRect(x - 8, y - 8, boardPixelSize + 16, boardPixelSize + 16);
-            g.setStroke(new BasicStroke(1f));
-        }
-
-        // Mettre en surbrillance le prochain plateau sélectionné par l'adversaire - Jaune
-        if (isOpponentNextPlateau) {
-            g.setColor(new Color(255, 255, 0, 180)); // Jaune semi-transparent
-            g.setStroke(new BasicStroke(2f));
-            g.drawRect(x - 12, y - 12, boardPixelSize + 24, boardPixelSize + 24);
-            g.setStroke(new BasicStroke(1f));
-        }
-
-        // Titre
-        g.setColor(Color.decode("#AAAAAA")); // Gris clair pour le titre
-        g.setFont(new Font("Tahoma", Font.BOLD, Math.max(10, tileWidth / 2 - 2)));
-        FontMetrics metrics = g.getFontMetrics();
-        int titleWidth = metrics.stringWidth(title);
-        g.drawString(title, x + (boardPixelSize - titleWidth) / 2, y - metrics.getDescent() - 5);
+        int tileHeight = tileWidth * 1; // A changer pour dessiner isométriquement
 
         // Bordure
         g.setColor(new Color(80, 80, 80));
         g.drawRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1);
 
-        // Si une image de fissure est disponible et que ce n'est pas le plateau du passé, dessiner l'image de fond
-        if (crackImage != null && !plateau.getType().equals(Plateau.TypePlateau.PAST)) {
-            g.drawImage(crackImage, x, y, boardPixelSize, boardPixelSize, null);
-        }
-
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
-                // Fond de la cellule (seul le plateau du passé conserve sa couleur d'origine)
-                if (plateau.getType().equals(Plateau.TypePlateau.PAST)) {
-                    int v = 0;
-                    if (casesPasse.contains(new Point(row, col))) {
-                        //g.setColor(Color.GREEN);
-                        v = 100;
-                    }
-                    if ((row + col) % 2 == 0) {
-                        g.setColor(new Color(75-v/2, 75+v, 85-v/2)); // Plus sombre
-                    } else {
-                        g.setColor(new Color(75-v/2, 75+v, 85-v/2, 180)); // Très sombre
-                    }
-                    g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                } else if (plateau.getType().equals(Plateau.TypePlateau.PRESENT)) {
-                    // Les plateaux présent et futur utilisent des cases semi-transparentes
-                    if (casesPresent.contains(new Point(row, col))) {
-                        g.setColor(Color.GREEN);
-                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                    }
-                    else if ((row + col) % 2 == 0) {
-                        g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
-                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                    }
-                } else {
-                    // Les plateaux présent et futur utilisent des cases semi-transparentes
-                    if (casesFutur.contains(new Point(row, col))) {
-                        g.setColor(Color.GREEN);
-                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                    }
-                    else if ((row + col) % 2 == 0) {
-                        g.setColor(new Color(75, 75, 85, 180)); // Version semi-transparente
-                        g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-                    }
-                }
-
-                // Grille de la cellule
-                g.setColor(new Color(100, 100, 110));
-                g.drawRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
-
                 Piece piece = plateau.getPiece(row, col);
-                if (piece != null && piece.getOwner() != null) {
-                    int pieceMargin = Math.max(2, tileWidth / 8);
-                    int pieceSize = tileWidth - 2 * pieceMargin;
-                    int pieceX = x + col * tileWidth + pieceMargin;
-                    int pieceY = y + row * tileWidth + pieceMargin;
 
-                    // Utiliser les images d'avatar au lieu de remplir avec une couleur
-                    if (piece.getOwner().getId() == 1) { // Joueur 1 (Lemiel)
-                        if (lemielAvatarImage != null) {
-                            g.drawImage(lemielAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
-                        } else {
-                            // Si l'image n'est pas chargée, utiliser la couleur d'origine
-                            g.setColor(new Color(220, 220, 240));
-                            g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
-                        }
-                    } else { // Joueur 2 (Zarek)
-                        if (zarekAvatarImage != null) {
-                            g.drawImage(zarekAvatarImage, pieceX, pieceY, pieceSize, pieceSize, null);
-                        } else {
-                            // Si l'image n'est pas chargée, utiliser la couleur d'origine
-                            g.setColor(new Color(70, 70, 100));
-                            g.fillOval(pieceX, pieceY, pieceSize, pieceSize);
-                        }
-                    }
-
-                    // Ajouter une bordure autour des pièces pour les mettre en évidence
-                    Color borderColor = new Color(100, 100, 180);
-                    if (gameClient != null && piece.getOwner().getId() == gameClient.getMyPlayerId()) {
-                        borderColor = Color.GREEN; // Bordure verte pour les pièces du joueur
-                    }
-
-                    g.setColor(borderColor);
-                    g.setStroke(new BasicStroke(Math.max(1.5f, tileWidth / 16f)));
-                    g.drawRect(pieceX, pieceY, pieceSize, pieceSize);
-
-                    // Mettre en surbrillance la pièce sélectionnée
-                    if (clicked) {
-
-                        System.out.println("Selected piece position: " + selectedPiecePosition +
-                                ", row: " + row + ", col: " + col + ", selectedPlateauType: " + selectedPlateauType);
-                        System.out.println("Plateau type: " + plateau.getType());
-                        clicked = false; // Réinitialiser le clic après le rendu
-                    }
-                    if (selectedPiecePosition != null
-                            && selectedPiecePosition.x == row && selectedPiecePosition.y == col
-                            && plateau.getType() == selectedPlateauType) {
-                        g.setColor(Color.ORANGE);
-                        g.setStroke(new BasicStroke(Math.max(2.5f, tileWidth / 10f)));
-                        g.drawRect(pieceX - 2, pieceY - 2, pieceSize + 4, pieceSize + 4);
-                    }
-                    g.setStroke(new BasicStroke(1f)); // Réinitialiser l'épaisseur des lignes
+                // Set up les couleurs de fond des cases
+                Color white = null, black = null;
+                switch (plateau.getType()) {
+                    case PAST:
+                        white = new Color(0xe8e7de);
+                        black = new Color(0xbfb9b4);
+                        break;
+                    case PRESENT:
+                        white = new Color(0xb3afac);
+                        black = new Color(0x8e8a84);
+                        break;
+                    case FUTURE:
+                        white = new Color(0x777871);
+                        black = new Color(0x545251);
+                        break;
                 }
+
+                if (row % 2 == 0 && col % 2 == 0 || row % 2 == 1 && col % 2 == 1) {
+                    g.setColor(white); // Couleur blanche pour les cases paires
+                } else {
+                    g.setColor(black); // Couleur noire pour les cases impaires
+                }
+
+                // Dessiner la case
+                g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
+
+                if (piece != null && piece.getOwner() != null) {
+                    int imageHeight = tileWidth; // Taille de l'image du personnage
+                    int imageWidth = imageHeight * zarekAnimation[0][0].getWidth() / zarekAnimation[0][0].getHeight(); // Ratio de l'image
+                    switch (piece.getOwner().getId()) {
+                        case 1: // Joueur 1 (Lemiel)
+                            g.drawImage(lemielAnimation[0][frame], x + col * tileWidth, y + row * tileWidth, imageWidth, imageHeight, null);
+                            g.drawImage(lemielAnimation[1][frame], x + col * tileWidth, y + row * tileWidth, imageWidth, imageHeight, null);
+                            break;
+                        case 2: // Joueur 2 (Zarek)
+                            g.drawImage(zarekAnimation[0][frame], x + col * tileWidth, y + row * tileWidth, imageWidth, imageHeight, null);
+                            g.drawImage(zarekAnimation[1][frame], x + col * tileWidth, y + row * tileWidth, imageWidth, imageHeight, null);
+                            break;
+                        default:
+                            g.setColor(Color.GRAY); // Couleur par défaut si l'ID n'est pas reconnu
+                    }
+                }
+
+                // Mettre en surbrillance la pièce sélectionnée
+                // if (piece == jeu.getPieceCourante()) {
+                //     g.setColor(Color.ORANGE);
+                //     g.setStroke(new BasicStroke(Math.max(2.5f, tileWidth / 10f)));
+                //     g.drawRect(pieceX - 2, pieceY - 2, pieceSize + 4, pieceSize + 4);
+                // }
+
+                g.setStroke(new BasicStroke(1f)); // Réinitialiser l'épaisseur des lignes
             }
         }
+        
+        // Si une image de fissure est disponible et que ce n'est pas le plateau du
+        // passé, dessiner l'image de fond
+        // if (crackImage != null && !plateau.getType().equals(Plateau.TypePlateau.PAST)) {
+        //     g.drawImage(crackImage, x, y, boardPixelSize, boardPixelSize, null);
+        // }
     }
 
     private void setupMouseListeners() {
@@ -1153,12 +1210,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                     // Le bouton original de sélection de plateau peut ne plus être utilisé
                     /*
-                    if (choosePlateauButton.contains(mousePoint) && etapeCoup == 3) {
-                        System.out.println("Clic sur le bouton 'Choisir un plateau'");
-                        choosePlateauButton.onClick();
-                        return;
-                    }
-                    */
+                     * if (choosePlateauButton.contains(mousePoint) && etapeCoup == 3) {
+                     * System.out.println("Clic sur le bouton 'Choisir un plateau'");
+                     * choosePlateauButton.onClick();
+                     * return;
+                     * }
+                     */
                 }
                 handleBoardClick(mousePoint); // Gérer le clic sur le plateau de jeu
             }
@@ -1204,11 +1261,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         if (p != null && p.getType() != activePlateau) {
                             if (p.getType() == Plateau.TypePlateau.PAST) {
                                 handleChoosePastAction();
-                            }
-                            else if (p.getType() == Plateau.TypePlateau.PRESENT) {
+                            } else if (p.getType() == Plateau.TypePlateau.PRESENT) {
                                 handleChoosePresentAction();
-                            }
-                            else {
+                            } else {
                                 handleChooseFutureAction();
                             }
                         }
@@ -1265,6 +1320,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         if (jeu == null || sceneManager == null || sceneManager.getPanel() == null) {
             return null;
         }
+
         int width = sceneManager.getPanel().getWidth();
         int height = sceneManager.getPanel().getHeight();
         int dynamicButtonY = height - 70; // Synchronisé avec render
@@ -1272,31 +1328,41 @@ public class GameScene implements Scene, GameStateUpdateListener {
             dynamicButtonY = 450;
         }
 
+        // Calculer les centres
+        int centerX = width / 2;
+        int centerY = height / 2;
+
+        // Définir les tailles de plateau (dynamique en fonction de la taille du
+        // panneau)
+        int choosePlateauWidth = width * 24 / 100; // 24% de la largeur de l'écran
+        int choosePlateauHeight = choosePlateauWidth; // 32% de l'hauteur de l'écran
+
+        // Spacing entre les plateaux
+        int spacing = width / 10; // Espace entre les plateaux, 10% de la largeur du panneau
+
+        // Définir les tailles de plateau (dynamique en fonction de la taille du
+        // panneau)
         int boardSize = jeu.getTAILLE();
-        int topMargin = 70;
-        int bottomMarginForButtons = height - dynamicButtonY + 30;
-        int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
-        int tileWidthByWidth = (width - 80) / (boardSize * 3 + 2 * (boardSize / 2));
-        int tileWidthByHeight = availableHeightForBoards / (boardSize + 1);
-        int tileWidth = Math.max(15, Math.min(tileWidthByWidth, tileWidthByHeight));
+        int tileWidth = choosePlateauWidth / boardSize; // Largeur d'une case
+        int tileHeight = tileWidth * 1; // Hauteur d'une case (carrée pour l'instant)
+        int deltaX = 0; // Décalage horizontal pour centrer les plateaux -> Pour ce moment pas
+                        // d'isométrie
 
-        int spacing = Math.max(10, tileWidth / 2);
-        int boardRenderHeight = boardSize * tileWidth;
-        int totalBoardAreaWidth = boardSize * tileWidth * 3 + spacing * 2;
-        int presentX = (width - totalBoardAreaWidth) / 2 + boardSize * tileWidth + spacing;
-        int offsetY = topMargin + Math.max(0, (availableHeightForBoards - boardRenderHeight - 20) / 2);
-        int pastX = presentX - boardSize * tileWidth - spacing;
-        int futureX = presentX + boardSize * tileWidth + spacing;
-        int boardPixelWidth = boardSize * tileWidth;
+        // Definir la position de départ de chaque plateau
+        int offsetY = centerY - choosePlateauHeight / 2; // Centrer verticalement
+        int presentStartX = centerX - choosePlateauWidth / 2 + deltaX; // Centrer horizontalement
+        int pastStartX = presentStartX - choosePlateauWidth - spacing; // Plateau passé à gauche
+        int futureStartX = presentStartX + choosePlateauWidth + spacing; // Plateau futur à droite
 
-        if (mousePoint.y >= offsetY && mousePoint.y < offsetY + boardRenderHeight) {
-            if (mousePoint.x >= pastX && mousePoint.x < pastX + boardPixelWidth) {
+        // Vérifier si le clic est dans la zone des plateaux
+        if (mousePoint.y >= offsetY && mousePoint.y < offsetY + choosePlateauHeight) {
+            if (mousePoint.x >= pastStartX && mousePoint.x < pastStartX + choosePlateauWidth) {
                 return jeu.getPast();
             }
-            if (mousePoint.x >= presentX && mousePoint.x < presentX + boardPixelWidth) {
+            if (mousePoint.x >= presentStartX && mousePoint.x < presentStartX + choosePlateauHeight) {
                 return jeu.getPresent();
             }
-            if (mousePoint.x >= futureX && mousePoint.x < futureX + boardPixelWidth) {
+            if (mousePoint.x >= futureStartX && mousePoint.x < futureStartX + choosePlateauHeight) {
                 return jeu.getFuture();
             }
         }
@@ -1309,6 +1375,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
             return null;
         }
 
+        if (jeu == null || sceneManager == null || sceneManager.getPanel() == null) {
+            return null;
+        }
+
+        // Obtenir la taille du panneau
         int width = sceneManager.getPanel().getWidth();
         int height = sceneManager.getPanel().getHeight();
         int dynamicButtonY = height - 70; // Synchronisé avec render
@@ -1316,43 +1387,53 @@ public class GameScene implements Scene, GameStateUpdateListener {
             dynamicButtonY = 450;
         }
 
+        // Calculer les centres
+        int centerX = width / 2;
+        int centerY = height / 2;
+
+        // Définir les tailles de plateau (dynamique en fonction de la taille du
+        // panneau)
+        int choosePlateauWidth = width * 24 / 100; // 24% de la largeur de l'écran
+        int choosePlateauHeight = choosePlateauWidth; // 32% de l'hauteur de l'écran
+
+        // Spacing entre les plateaux
+        int spacing = width / 10; // Espace entre les plateaux, 10% de la largeur du panneau
+
+        // Définir les tailles de plateau (dynamique en fonction de la taille du
+        // panneau)
         int boardSize = jeu.getTAILLE();
-        int topMargin = 70;
-        int bottomMarginForButtons = height - dynamicButtonY + 30;
-        int availableHeightForBoards = height - topMargin - bottomMarginForButtons;
-        int tileWidthByWidth = (width - 80) / (boardSize * 3 + 2 * (boardSize / 2));
-        int tileWidthByHeight = availableHeightForBoards / (boardSize + 1);
-        int tileWidth = Math.max(15, Math.min(tileWidthByWidth, tileWidthByHeight));
+        int tileWidth = choosePlateauWidth / boardSize; // Largeur d'une case
+        int tileHeight = tileWidth * 1; // Hauteur d'une case (carrée pour l'instant)
+        int deltaX = 0; // Décalage horizontal pour centrer les plateaux -> Pour ce moment pas
+                        // d'isométrie
 
-        if (tileWidth == 0) {
-            return null; // Éviter la division par zéro
-        }
-        int spacing = Math.max(10, tileWidth / 2);
-        int boardRenderHeight = boardSize * tileWidth;
-        int totalBoardAreaWidth = boardSize * tileWidth * 3 + spacing * 2;
-        int presentX = (width - totalBoardAreaWidth) / 2 + boardSize * tileWidth + spacing;
-        int offsetY = topMargin + Math.max(0, (availableHeightForBoards - boardRenderHeight - 20) / 2);
-        int pastX = presentX - boardSize * tileWidth - spacing;
-        int futureX = presentX + boardSize * tileWidth + spacing;
+        // Definir la position de départ de chaque plateau
+        int offsetY = centerY - choosePlateauHeight / 2; // Centrer verticalement
+        int presentStartX = centerX - choosePlateauWidth / 2 + deltaX; // Centrer horizontalement
+        int pastStartX = presentStartX - choosePlateauWidth - spacing; // Plateau passé à gauche
+        int futureStartX = presentStartX + choosePlateauWidth + spacing; // Plateau futur à droite
 
+        // Déterminer le point de départ en fonction du type de plateau
         int boardXStart;
         switch (clickedPlateau.getType()) {
             case PAST:
-                boardXStart = pastX;
+                boardXStart = pastStartX;
                 break;
             case PRESENT:
-                boardXStart = presentX;
+                boardXStart = presentStartX;
                 break;
             case FUTURE:
-                boardXStart = futureX;
+                boardXStart = futureStartX;
                 break;
             default:
                 return null;
         }
 
+        // Calculer la position de la case en fonction du clic de la souris
         int col = (mousePoint.x - boardXStart) / tileWidth;
         int row = (mousePoint.y - offsetY) / tileWidth;
 
+        // Vérifier si les coordonnées sont valides
         if (row >= 0 && row < boardSize && col >= 0 && col < boardSize) {
             return new Point(row, col);
         }
@@ -1373,7 +1454,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void resetSelectionAfterAction() {
         resetSelection();
-        // statusMessage est généralement mis à jour par la logique appelant cette fonction ou par onGameStateUpdate
+        // statusMessage est généralement mis à jour par la logique appelant cette
+        // fonction ou par onGameStateUpdate
     }
 
     private void updateStatusFromCurrentGame(boolean fromServerUpdate) {
@@ -1392,11 +1474,13 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 } else if (etapeCoup == 2) {
                     this.statusMessage = "Second mouvement: déplacez à nouveau votre pion ou effectuez une action spéciale.";
                 } else {
-                    this.statusMessage = "C'est VOTRE tour (" + playerName + " - Joueur " + gameClient.getMyPlayerId() + ")";
+                    this.statusMessage = "C'est VOTRE tour (" + playerName + " - Joueur " + gameClient.getMyPlayerId()
+                            + ")";
                 }
             } else {
                 String opponentName = this.jeu.getJoueurCourant().getId() == 1 ? "Lemiel" : "Zarek";
-                this.statusMessage = "Tour de l'adversaire : " + opponentName + " (ID " + this.jeu.getJoueurCourant().getId() + ")";
+                this.statusMessage = "Tour de l'adversaire : " + opponentName + " (ID "
+                        + this.jeu.getJoueurCourant().getId() + ")";
             }
         } else if (isLoading) {
             // Si en cours de chargement, conserver le statusMessage du SwingWorker
@@ -1422,9 +1506,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
         // Extraire etapeCoup de newGameState
         if (newGameState != null) {
             int newEtapeCoup = newGameState.getEtapeCoup();
-            System.out.println("GameScene : etapeCoup from server = " + newEtapeCoup + ", current etapeCoup = " + this.etapeCoup);
+            System.out.println(
+                    "GameScene : etapeCoup from server = " + newEtapeCoup + ", current etapeCoup = " + this.etapeCoup);
 
-            // Mettre à jour seulement si la nouvelle valeur de etapeCoup est différente de la valeur actuelle
+            // Mettre à jour seulement si la nouvelle valeur de etapeCoup est différente de
+            // la valeur actuelle
             if (this.etapeCoup != newEtapeCoup) {
                 this.etapeCoup = newEtapeCoup;
                 System.out.println("GameScene : Mise à jour de etapeCoup: " + this.etapeCoup);
@@ -1465,7 +1551,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
         updateStatusFromCurrentGame(true);
         gameHasEnded = false;
 
-        // Modification clé : conserver les informations de la pièce sélectionnée lorsque etapeCoup est 1 ou 2
+        // Modification clé : conserver les informations de la pièce sélectionnée
+        // lorsque etapeCoup est 1 ou 2
         if (this.etapeCoup != 1 && this.etapeCoup != 2) {
             // Réinitialiser la sélection uniquement en dehors des phases de mouvement
             resetSelectionAfterAction();
@@ -1478,7 +1565,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
     @Override
     public void onGameMessage(String messageType, String messageContent) {
         // Gérer les messages reçus de GameClient, déjà sur le thread EDT
-        isLoading = false; // La réception d'un message du serveur indique que le chargement initial est terminé
+        isLoading = false; // La réception d'un message du serveur indique que le chargement initial est
+                           // terminé
 
         System.out.println("GameScene: Message reçu: " + messageType + " -> " + messageContent);
 
@@ -1490,7 +1578,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 casesFutur.clear();
                 // Format : x:y;mouvementsPossibles
                 // Format de mouvementsPossibles : TYPE_COUP:x:y;TYPE_COUP:x:y;...
-                String[] parts = messageContent.split(";", 2); // Diviser en 2 parties au maximum : coordonnées et mouvements possibles
+                String[] parts = messageContent.split(";", 2); // Diviser en 2 parties au maximum : coordonnées et
+                                                               // mouvements possibles
 
                 if (parts.length > 0) {
                     try {
@@ -1506,7 +1595,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                         // Analyser la partie des mouvements possibles
                         String possibleMovesStr = parts.length > 1 ? parts[1] : "";
-                        
+
                         List<List<String>> result = new ArrayList<>();
 
                         // Supprimer le dernier point-virgule si présent
@@ -1526,36 +1615,37 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         for (int i = 0; i < result.size(); i++) {
                             System.out.println("Case possible " + (i + 1) + " : " + result.get(i));
 
-                            //System.err.println(result.get(i).get(0));
+                            // System.err.println(result.get(i).get(0));
 
                             if (result.get(i).get(0).equals("PAST")) {
-                                //System.out.println("Salut");
-                                casesPasse.add(new Point(Integer.parseInt(result.get(i).get(1)), 
-                                Integer.parseInt(result.get(i).get(2))));
-                            }
-                            else if (result.get(i).get(0).equals("PRESENT")) {
-                                casesPresent.add(new Point(Integer.parseInt(result.get(i).get(1)), 
-                                Integer.parseInt(result.get(i).get(2))));
-                            }
-                            else {
-                                casesFutur.add(new Point(Integer.parseInt(result.get(i).get(1)), 
-                                Integer.parseInt(result.get(i).get(2))));
+                                // System.out.println("Salut");
+                                casesPasse.add(new Point(Integer.parseInt(result.get(i).get(1)),
+                                        Integer.parseInt(result.get(i).get(2))));
+                            } else if (result.get(i).get(0).equals("PRESENT")) {
+                                casesPresent.add(new Point(Integer.parseInt(result.get(i).get(1)),
+                                        Integer.parseInt(result.get(i).get(2))));
+                            } else {
+                                casesFutur.add(new Point(Integer.parseInt(result.get(i).get(1)),
+                                        Integer.parseInt(result.get(i).get(2))));
                             }
                         }
 
                         System.out.println(casesPasse.size());
 
-                        for(int i = 0; i < casesPasse.size(); i++) {
+                        for (int i = 0; i < casesPasse.size(); i++) {
                             System.out.println("casesPasse : " + casesPasse.get(i));
                         }
 
-                        System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y + " avec mouvements possibles: " + possibleMovesStr);
+                        System.out.println("GameScene: Pièce sélectionnée à " + x + "," + y
+                                + " avec mouvements possibles: " + possibleMovesStr);
 
                         // La réception du message PIECE indique l'entrée dans etapeCoup=1
                         this.etapeCoup = 1; // Deja a 1
 
-                        // Mettre à jour l'affichage de l'interface utilisateur pour les mouvements possibles
-                        statusMessage = "Pion sélectionné (" + x + "," + y + ") sur plateau " + selectedPlateauType + ". Choisissez une destination sur ce plateau.";
+                        // Mettre à jour l'affichage de l'interface utilisateur pour les mouvements
+                        // possibles
+                        statusMessage = "Pion sélectionné (" + x + "," + y + ") sur plateau " + selectedPlateauType
+                                + ". Choisissez une destination sur ce plateau.";
 
                         // Mettre à jour la position de la pièce sélectionnée
                         selectedPiecePosition = new Point(x, y);
@@ -1563,7 +1653,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         // S'assurer que selectedPlateauType n'est pas perdu ici
                         System.out.println("GameScene: Plateau sélectionné sauvegardé: " + selectedPlateauType);
 
-                        // Mettre à jour activePlateau de manière synchronisée pour s'assurer qu'il reflète le plateau actuellement utilisé
+                        // Mettre à jour activePlateau de manière synchronisée pour s'assurer qu'il
+                        // reflète le plateau actuellement utilisé
                         this.activePlateau = selectedPlateauType;
                         System.out.println("GameScene: activePlateau mis à jour à : " + this.activePlateau);
                     } catch (NumberFormatException e) {
@@ -1575,20 +1666,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 break;
 
             case "DESELECT":
+                // Nettoyer les listes de cases possibles
+                System.out.println("GameScene: Sélection annulée, nettoyage des cases possibles.");
                 casesPasse.clear();
                 casesPresent.clear();
                 casesFutur.clear();
 
+                // Réinitialiser l'état du jeu
                 this.etapeCoup = jeu.getEtapeCoup(); // Réinitialiser l'étape de coup
-
-                // Mettre a jour l'affichage
-                statusMessage = "Sélection annulée. Choisissez un pion sur le plateau actif.";
+                System.out.println("GameScene: Réinitialisation de etapeCoup à " + this.etapeCoup);
 
                 // Réinitialiser la sélection
-                selectedPlateauType = null;
-                nextActionType = null;
+                resetSelection();
                 break;
-
 
             case "COUP":
                 casesPasse.clear();
@@ -1597,10 +1687,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // Gérer le message de succès du mouvement
                 // Format : TYPE_COUP:succes:newX:newY:newPlateauType
                 String[] coupParts = messageContent.split(":");
-                if (coupParts.length >= 3) { // Modifier pour avoir au moins 3 parties, car nous devons ajouter les nouvelles informations de coordonnées
+                if (coupParts.length >= 3) { // Modifier pour avoir au moins 3 parties, car nous devons ajouter les
+                                             // nouvelles informations de coordonnées
                     String typeCoup = coupParts[0];
 
-                    // Vérifier si le serveur a retourné la nouvelle position de la pièce et le nouveau plateau
+                    // Vérifier si le serveur a retourné la nouvelle position de la pièce et le
+                    // nouveau plateau
                     if (coupParts.length >= 5) {
                         try {
                             int newX = Integer.parseInt(coupParts[1]);
@@ -1613,23 +1705,30 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             this.activePlateau = newPlateauType;
 
                             System.out.println("GameScene: Mise à jour de la position de la pièce - de " +
-                                    (selectedPiecePosition != null ? selectedPiecePosition.x + "," + selectedPiecePosition.y : "null") +
+                                    (selectedPiecePosition != null
+                                            ? selectedPiecePosition.x + "," + selectedPiecePosition.y
+                                            : "null")
+                                    +
                                     " à " + newX + "," + newY +
                                     ", plateau de " + selectedPlateauType + " à " + newPlateauType);
                         } catch (Exception e) {
-                            System.err.println("GameScene: Échec de l'analyse de la nouvelle position de la pièce: " + e.getMessage());
+                            System.err.println("GameScene: Échec de l'analyse de la nouvelle position de la pièce: "
+                                    + e.getMessage());
                         }
                     }
 
-                    // Vérifier s'il s'agit d'une opération JUMP ou CLONE, mettre à jour activePlateau
+                    // Vérifier s'il s'agit d'une opération JUMP ou CLONE, mettre à jour
+                    // activePlateau
                     if ("JUMP".equals(typeCoup)) {
                         // Calculer le nouvel activePlateau en fonction du selectedPlateauType actuel
                         if (selectedPlateauType == Plateau.TypePlateau.PAST) {
                             this.activePlateau = Plateau.TypePlateau.PRESENT;
-                            System.out.println("GameScene: Opération JUMP, activePlateau mis à jour de PASSÉ à PRÉSENT");
+                            System.out
+                                    .println("GameScene: Opération JUMP, activePlateau mis à jour de PASSÉ à PRÉSENT");
                         } else if (selectedPlateauType == Plateau.TypePlateau.PRESENT) {
                             this.activePlateau = Plateau.TypePlateau.FUTURE;
-                            System.out.println("GameScene: Opération JUMP, activePlateau mis à jour de PRÉSENT à FUTUR");
+                            System.out
+                                    .println("GameScene: Opération JUMP, activePlateau mis à jour de PRÉSENT à FUTUR");
                         }
                         // Mettre à jour selectedPlateauType pour suivre le plateau actuel
                         selectedPlateauType = this.activePlateau;
@@ -1637,22 +1736,26 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         // Calculer le nouvel activePlateau en fonction du selectedPlateauType actuel
                         if (selectedPlateauType == Plateau.TypePlateau.PRESENT) {
                             this.activePlateau = Plateau.TypePlateau.PAST;
-                            System.out.println("GameScene: Opération CLONE, activePlateau mis à jour de PRÉSENT à PASSÉ");
+                            System.out
+                                    .println("GameScene: Opération CLONE, activePlateau mis à jour de PRÉSENT à PASSÉ");
                         } else if (selectedPlateauType == Plateau.TypePlateau.FUTURE) {
                             this.activePlateau = Plateau.TypePlateau.PRESENT;
-                            System.out.println("GameScene: Opération CLONE, activePlateau mis à jour de FUTUR à PRÉSENT");
+                            System.out
+                                    .println("GameScene: Opération CLONE, activePlateau mis à jour de FUTUR à PRÉSENT");
                         }
                         // Mettre à jour selectedPlateauType pour suivre le plateau actuel
                         selectedPlateauType = this.activePlateau;
                     }
 
-                    // Réception du message COUP, décider de la prochaine étape en fonction de l'etapeCoup actuel
+                    // Réception du message COUP, décider de la prochaine étape en fonction de
+                    // l'etapeCoup actuel
                     if (this.etapeCoup == 1) {
                         this.etapeCoup = 2;
                         statusMessage = "Premier déplacement effectué. Choisissez votre seconde action.";
                     } else if (this.etapeCoup == 2) {
                         this.etapeCoup = 3;
-                        statusMessage = "Coup " + typeCoup + " effectué avec succès. Sélectionnez le plateau pour le prochain tour.";
+                        statusMessage = "Coup " + typeCoup
+                                + " effectué avec succès. Sélectionnez le plateau pour le prochain tour.";
                     } else {
                         statusMessage = "Coup " + typeCoup + " effectué avec succès.";
                     }
@@ -1683,7 +1786,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     modifiedContent = messageContent.replace("Joueur 2", "Zarek");
                 }
 
-                // S'il s'agit d'une réponse à une opération d'annulation, réinitialiser etapeCoup à 0
+                // S'il s'agit d'une réponse à une opération d'annulation, réinitialiser
+                // etapeCoup à 0
                 if (messageContent.contains("annulation") || messageContent.contains("Undo")) {
                     this.etapeCoup = 0;
                     System.out.println("GameScene: Retour à etapeCoup 0 après Undo");
@@ -1692,11 +1796,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 statusMessage = modifiedContent;
                 break;
 
-
             case "GAGNE":
             case "PERDU":
                 gameHasEnded = true;
-                String dialogTitle = ("WIN".equals(messageType) || "GAGNE".equals(messageType)) ? "FÉLICITATIONS !" : "DOMMAGE !";
+                String dialogTitle = ("WIN".equals(messageType) || "GAGNE".equals(messageType)) ? "FÉLICITATIONS !"
+                        : "DOMMAGE !";
                 // Modifier le contenu du message
                 String victoryContent = messageContent;
                 if (messageContent.contains("Joueur 1")) {
@@ -1705,19 +1809,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     victoryContent = messageContent.replace("Joueur 2", "Zarek");
                 }
                 statusMessage = victoryContent;
-                JOptionPane.showMessageDialog(sceneManager.getPanel(), victoryContent, dialogTitle, JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), victoryContent, dialogTitle,
+                        JOptionPane.INFORMATION_MESSAGE);
                 break;
 
             case "ERROR":
                 statusMessage = "Erreur: " + messageContent;
-                JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, "ERREUR", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, "ERREUR",
+                        JOptionPane.ERROR_MESSAGE);
                 break;
 
             case "DISCONNECTED":
                 gameHasEnded = true;
                 statusMessage = "Déconnecté: " + messageContent;
-                JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, "DÉCONNECTÉ", JOptionPane.WARNING_MESSAGE);
-                
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), messageContent, "DÉCONNECTÉ",
+                        JOptionPane.WARNING_MESSAGE);
+
                 break;
 
             default:
@@ -1780,7 +1887,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Obtenir le plateau actuellement sélectionné
             Plateau.TypePlateau plateauToSelect = null;
 
-            // S'il n'y a pas de sélection spécifique, utiliser le plateau par défaut (PASSÉ)
+            // S'il n'y a pas de sélection spécifique, utiliser le plateau par défaut
+            // (PASSÉ)
             if (selectedPlateauType == null) {
                 plateauToSelect = Plateau.TypePlateau.PAST;
                 System.out.println("GameScene: Pas de plateau sélectionné, utilisation de PASSÉ par défaut");
@@ -1790,7 +1898,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
 
             // Envoyer la commande de sélection du plateau
-            String command = "0:" + plateauToSelect.name() + ":" + (selectedPlateauType != null ? selectedPlateauType.name() : "PAST") + ":0:0";
+            String command = "0:" + plateauToSelect.name() + ":"
+                    + (selectedPlateauType != null ? selectedPlateauType.name() : "PAST") + ":0:0";
             System.out.println("GameScene: Envoi de la commande: " + command);
             gameClient.sendPlayerAction(command);
             statusMessage = "Sélection du plateau " + plateauToSelect + " pour le prochain tour...";

@@ -134,12 +134,14 @@ public class GameClient {
                                     
                                     listener.onGameStateUpdate(gameInstance);
                                     break;
+
                                 case GAGNE:
                                     listener.onGameMessage("WIN", finalContent);
                                     break;
                                 case PERDU:
                                     listener.onGameMessage("LOSE", finalContent);
                                     break;
+                                    
                                 case PIECE:
                                     // nouveau format：PIECE:x:y:possibleMoves
                                     // possibleMoves format：TYPE_COUP:x:y;TYPE_COUP:x:y;...

@@ -44,7 +44,7 @@ public class IntroductionScene implements Scene {
         try {
             // Tente de charger l'image du logo depuis le chemin spécifié.
             // Assurez-vous que le chemin "res/Logo.png" est correct par rapport à la racine de votre projet.
-            logo = ImageIO.read(new File("res/Logo.png"));
+            logo = ImageIO.read(new File("res/Logo/Logo.png"));
         } catch (IOException e) {
             // En cas d'erreur de chargement, affiche la trace de l'erreur.
             // Vous pourriez vouloir gérer cette erreur plus élégamment (ex: afficher un message).

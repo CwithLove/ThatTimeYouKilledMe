@@ -81,6 +81,37 @@ public class GameStateParser {
                     updatePlateau(jeuToUpdate.getPresent(), part.substring(3), jeuToUpdate);
                 } else if (part.startsWith("F:")) {
                     updatePlateau(jeuToUpdate.getFuture(), part.substring(2), jeuToUpdate);
+                } else if (part.startsWith("PC:")) {
+                    System.out.println(part);
+                    String subParts[] = part.split(":", 3);
+
+                    for (int i = 0; i < subParts.length; i++) {
+                        System.out.println("subParts[" + i + "] = " + subParts[i]);
+                    }
+                    if (subParts.length == 2 && "null".equals(subParts[1])) {
+                        jeuToUpdate.setPieceCourante(null);
+                    } else if (subParts.length == 3) {
+                        try {
+                            Plateau.TypePlateau type = Plateau.TypePlateau.valueOf(subParts[1]);
+                            int posXY = Integer.parseInt(subParts[2]);
+                            int posX = posXY / 10; // Division entière pour obtenir la coordonnée X
+                            int posY = posXY % 10; // Modulo pour obtenir la coordonnée Y
+                            switch (type) {
+                                case PAST:
+                                    jeuToUpdate.setPieceCourante(jeuToUpdate.getPast().getPiece(posX, posY));
+                                    break;
+                                case PRESENT:
+                                    jeuToUpdate.setPieceCourante(jeuToUpdate.getPresent().getPiece(posX, posY));
+                                    break;
+                                case FUTURE:
+                                    jeuToUpdate.setPieceCourante(jeuToUpdate.getFuture().getPiece(posX, posY));
+                                    break;
+                            }
+
+                        } catch (Exception e) {
+                            System.err.println("GameStateParser: Erreur lors de la mise à jour du plateau courant: " + e.getMessage());
+                        }
+                    }
                 }
             }
 

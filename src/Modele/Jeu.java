@@ -4,6 +4,8 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import Modele.Plateau.TypePlateau;
+
 /**
  * La classe Jeu contient les méthodes pour intéragir avec le modèle du jeu.
  *
@@ -258,6 +260,7 @@ public class Jeu {
         switch (coup.getPltCourant().getType()) {
             case PRESENT:
                 past.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                present.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
                 coup.getPiece().getOwner().declone();
                 //joueurCourant.declone();
                 if (joueurCourant == joueur1) {
@@ -270,6 +273,7 @@ public class Jeu {
 
             case FUTURE:
                 present.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                future.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
                 coup.getPiece().getOwner().declone();
                 //joueurCourant.declone();
                 if (joueurCourant == joueur1) {
@@ -903,9 +907,10 @@ public class Jeu {
 
     // Convertit l'état du jeu en chaîne pour la sérialisation
     public String getGameStateAsString() {
+        TypePlateau plateauSelectedPiece = null;
         StringBuilder sb = new StringBuilder();
 
-        // 添加etapeCoup
+        // etapeCoup
         sb.append("etapeCoup:").append(etapeCoup).append(";");
 
         // ID du joueur courant
@@ -931,6 +936,10 @@ public class Jeu {
                 } else {
                     sb.append('2');
                 }
+
+                if (p != null && p == pieceCourante) {
+                    plateauSelectedPiece = past.getType();
+                }
             }
         }
         sb.append(";");
@@ -945,6 +954,10 @@ public class Jeu {
                     sb.append('1');
                 } else {
                     sb.append('2');
+                }
+
+                if (p != null && p == pieceCourante) {
+                    plateauSelectedPiece = present.getType();
                 }
             }
         }
@@ -961,8 +974,21 @@ public class Jeu {
                 } else {
                     sb.append('2');
                 }
+
+                if (p != null && p == pieceCourante) {
+                    plateauSelectedPiece = future.getType();
+                }
             }
         }
+
+        sb.append(";").append("PC:");
+
+        if (plateauSelectedPiece != null) {
+            sb.append(plateauSelectedPiece).append(":").append((int) pieceCourante.getPosition().getX()).append((int) pieceCourante.getPosition().getY()); // Plateau de la pièce sélectionnée
+        } else {
+            sb.append("null"); // Aucune pièce sélectionnée
+        }
+        
 
         return sb.toString();
     }

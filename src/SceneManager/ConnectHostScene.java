@@ -3,9 +3,9 @@ package SceneManager;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
-import javax.swing.JOptionPane;
 
 /**
  * ConnectHostScene représente la scène où l'utilisateur peut entrer l'adresse IP

@@ -1,10 +1,9 @@
 package Modele;
 
+import Modele.Plateau.TypePlateau;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Scanner;
-
-import Modele.Plateau.TypePlateau;
 
 /**
  * La classe Jeu contient les méthodes pour intéragir avec le modèle du jeu.

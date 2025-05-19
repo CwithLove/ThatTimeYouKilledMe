@@ -1587,17 +1587,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             int newY = Integer.parseInt(coupParts[2]);
                             Plateau.TypePlateau newPlateauType = Plateau.TypePlateau.valueOf(coupParts[3]);
 
-                            // Mettre à jour selectedPiecePosition et selectedPlateauType
-                            selectedPiecePosition = new Point(newX, newY);
-                            selectedPlateauType = newPlateauType;
-                            this.activePlateau = newPlateauType;
-
                             System.out.println("GameScene: Mise à jour de la position de la pièce - de "
                                     + (selectedPiecePosition != null
                                             ? selectedPiecePosition.x + "," + selectedPiecePosition.y
                                             : "null")
                                     + " à " + newX + "," + newY
                                     + ", plateau de " + selectedPlateauType + " à " + newPlateauType);
+
+                            // Mettre à jour selectedPiecePosition et selectedPlateauType
+                            selectedPiecePosition = new Point(newX, newY);
+                            selectedPlateauType = newPlateauType;
+                            this.activePlateau = newPlateauType;
                         } catch (Exception e) {
                             System.err.println("GameScene: Échec de l'analyse de la nouvelle position de la pièce: "
                                     + e.getMessage());

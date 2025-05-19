@@ -384,58 +384,38 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         int titleFontSize = Math.min(width, height) / 18;
         g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
         String titleText = "Salle d'Attente de l'Hôte";
-        FontMetrics titleMetricsFont = g2d.getFontMetrics(); // Utiliser titleMetricsFont pour éviter conflit
+        FontMetrics titleMetricsFont = g2d.getFontMetrics();
         int titleTextWidth = titleMetricsFont.stringWidth(titleText);
         g2d.drawString(titleText, (width - titleTextWidth) / 2, height / 7);
 
-        // Informations (IP, état du joueur 2).
+        // Affichage de l'IP pour que le joueur 2 puisse se connecter
         int infoFontSize = Math.min(width, height) / 28;
         g2d.setFont(new Font("Arial", Font.PLAIN, infoFontSize));
-        int currentY = height / 4;
-
         g2d.setColor(Color.LIGHT_GRAY);
-        g2d.drawString("Votre IP (pour le Joueur 2): " + hostIP, width / 10, currentY);
-        currentY += infoFontSize + 10;
+        String ipText = "IP pour le Joueur 2: " + hostIP;
+        FontMetrics ipMetrics = g2d.getFontMetrics();
+        int ipTextWidth = ipMetrics.stringWidth(ipText);
+        g2d.drawString(ipText, (width - ipTextWidth) / 2, height / 4);
 
-        // État du client hôte (Joueur 1)
-        String hostClientStatusText;
-        if (hostClientConnected) {
-            hostClientStatusText = "Hôte (Joueur 1): Connecté (ID " + (hostClient != null ? hostClient.getMyPlayerId() : "?") + ")";
-            g2d.setColor(Color.CYAN);
-        } else if (serverSuccessfullyStarted) {
-            hostClientStatusText = "Hôte (Joueur 1): Connexion en cours...";
-            g2d.setColor(Color.YELLOW);
-        } else {
-            hostClientStatusText = "Hôte (Joueur 1): (Serveur non prêt)";
-            g2d.setColor(Color.ORANGE);
-        }
-        g2d.drawString(hostClientStatusText, width / 10, currentY);
-        currentY += infoFontSize + 15;
+        // Division de l'écran en deux zones pour J1 et J2
+        int zoneWidth = width / 2 - 20; // Un peu moins que la moitié pour avoir de l'espace entre
+        int zoneHeight = height / 3;
+        int zoneY = height / 3;
 
+        // Zone J1 (gauche)
+        drawPlayerZone(g2d, 10, zoneY, zoneWidth, zoneHeight, true, hostClientConnected, 
+                       hostClient != null ? String.valueOf(hostClient.getMyPlayerId()) : "?", infoFontSize);
 
-        // État du Joueur 2.
-        String player2StatusText;
-        if (playerTwoConfirmedConnected) {
-            player2StatusText = "Joueur 2: Connecté !";
-            g2d.setColor(Color.GREEN);
-        } else if (serverSuccessfullyStarted && hostClientConnected) { // Attend joueur 2 seulement si serveur et hôte OK
-            String dots = "";
-            for (int i = 0; i < animationDots; i++) dots += ".";
-            player2StatusText = "Joueur 2: En attente de connexion" + dots;
-            g2d.setColor(Color.YELLOW);
-        } else {
-            player2StatusText = "Joueur 2: (En attente de la configuration du serveur/hôte)";
-            g2d.setColor(Color.ORANGE);
-        }
-        g2d.drawString(player2StatusText, width / 10, currentY);
-        g2d.setColor(Color.WHITE); // Réinitialise la couleur.
+        // Zone J2 (droite)
+        drawPlayerZone(g2d, width/2 + 10, zoneY, zoneWidth, zoneHeight, false, playerTwoConfirmedConnected, 
+                       "2", infoFontSize);
 
         // Message de statut général.
         if (statusMessage != null && !statusMessage.isEmpty()) {
             g2d.setFont(new Font("Arial", Font.ITALIC, Math.max(12, infoFontSize * 3 / 4)));
             FontMetrics statusMetrics = g2d.getFontMetrics();
             int statusWidth = statusMetrics.stringWidth(statusMessage);
-            g2d.drawString(statusMessage, (width - statusWidth) / 2, height * 4 / 7); // Positionné plus bas.
+            g2d.drawString(statusMessage, (width - statusWidth) / 2, height * 2 / 3 + 20);
         }
 
         // Configuration et dessin des boutons.
@@ -444,20 +424,83 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         int btnFontSize = Math.min(width, height) / 35;
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
 
+        // Repositionner le bouton "Lancer la partie" au centre en bas
         startGameButton.setSize(btnWidth, btnHeight);
-        startGameButton.setLocation(width / 2 - btnWidth / 2, height * 3 / 4); // Positionné plus bas.
+        startGameButton.setLocation(width / 2 - btnWidth / 2, height * 4 / 5);
         startGameButton.setFont(commonBtnFont);
 
+        // Maintenir le bouton Retour en bas à gauche
         backButton.setSize(Math.max(120, btnWidth * 3/4), Math.max(35,btnHeight * 3/4));
-        backButton.setLocation(40, height - Math.max(35,btnHeight * 3/4) - 25); // En bas à gauche.
+        backButton.setLocation(40, height - Math.max(35,btnHeight * 3/4) - 25);
         backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12,btnFontSize * 3/4)));
 
         // Active ou désactive le bouton "Lancer la partie" en fonction de l'état.
         startGameButton.setEnabled(serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected && !transitioningToGameScene);
-        startGameButton.render(g2d); // La méthode render du bouton gère l'apparence si désactivé.
-
+        startGameButton.render(g2d);
         backButton.render(g2d);
+        
         g2d.dispose();
+    }
+    
+    /**
+     * Dessine une zone de joueur avec un cadre et les informations sur le joueur.
+     * @param g2d Le contexte graphique 2D
+     * @param x Position X de la zone
+     * @param y Position Y de la zone
+     * @param width Largeur de la zone
+     * @param height Hauteur de la zone
+     * @param isHost Indique s'il s'agit du joueur hôte (J1)
+     * @param isConnected Indique si le joueur est connecté
+     * @param playerId Identifiant du joueur
+     * @param fontSize Taille de la police
+     */
+    private void drawPlayerZone(Graphics2D g2d, int x, int y, int width, int height, 
+                             boolean isHost, boolean isConnected, String playerId, int fontSize) {
+        // Dessiner un cadre autour de la zone du joueur
+        g2d.setColor(new Color(60, 60, 100, 180));
+        g2d.fillRoundRect(x, y, width, height, 20, 20);
+        g2d.setColor(isHost ? new Color(100, 150, 255) : new Color(255, 150, 100));
+        g2d.setStroke(new BasicStroke(3));
+        g2d.drawRoundRect(x, y, width, height, 20, 20);
+        
+        // Titre de la zone (J1 ou J2)
+        String playerTitle = isHost ? "J1" : "J2";
+        g2d.setFont(new Font("Arial", Font.BOLD, fontSize * 3 / 2));
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        int titleWidth = titleMetrics.stringWidth(playerTitle);
+        g2d.drawString(playerTitle, x + (width - titleWidth) / 2, y + fontSize * 2);
+        
+        // Statut du joueur
+        String statusText;
+        if (isConnected) {
+            statusText = isHost ? "Hôte (Joueur 1): Connecté" : "Joueur 2: Connecté";
+            g2d.setColor(Color.GREEN);
+        } else if (isHost && serverSuccessfullyStarted) {
+            statusText = "Hôte: Connexion en cours...";
+            g2d.setColor(Color.YELLOW);
+        } else if (!isHost && serverSuccessfullyStarted && hostClientConnected) {
+            String dots = "";
+            for (int i = 0; i < animationDots; i++) dots += ".";
+            statusText = "En attente de connexion" + dots;
+            g2d.setColor(Color.YELLOW);
+        } else {
+            statusText = isHost ? "Hôte: (Serveur non prêt)" : "Joueur 2: En attente";
+            g2d.setColor(Color.ORANGE);
+        }
+        
+        g2d.setFont(new Font("Arial", Font.PLAIN, fontSize));
+        FontMetrics statusMetrics = g2d.getFontMetrics();
+        int statusWidth = statusMetrics.stringWidth(statusText);
+        g2d.drawString(statusText, x + (width - statusWidth) / 2, y + fontSize * 4);
+        
+        // ID du joueur si connecté
+        if (isConnected) {
+            g2d.setColor(Color.WHITE);
+            String idText = "ID: " + playerId;
+            FontMetrics idMetrics = g2d.getFontMetrics();
+            int idWidth = idMetrics.stringWidth(idText);
+            g2d.drawString(idText, x + (width - idWidth) / 2, y + fontSize * 6);
+        }
     }
 
     /**

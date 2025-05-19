@@ -332,7 +332,7 @@ public class GameServerManager {
                         break;
 
                     case 1: // Premier coup: déplacement ou action spéciale
-                        Plateau.TypePlateau currentPieceBoard = null;
+                        Plateau.TypePlateau currentPieceBoard;
                         Point piecePosition; 
                         Point clickedPosition = new Point(x, y);
                         Coup.TypeCoup typeCoup ;
@@ -345,142 +345,53 @@ public class GameServerManager {
                             continue;
                         }
 
-                        // On regarde sur le meme plateau ou le joueur a selectionné la piece
-                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType()) {
-                            // Si le joueur click sur la meme piece ou celle de l'adversaire
-                            // => deselectionner la piece courante
-                            if (selectedPiece != null && (selectedPiece.getOwner() != joueurCourant || selectedPiece.getPosition() == pieceCourante.getPosition())) {
-                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                gameInstance.setPieceCourante(null);
-                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                sendGameStateToAllClients();
-                                continue;
-                            } 
-
+                        currentPieceBoard = plateauCourant.getType();
+                        
+                        piecePosition = pieceCourante.getPosition();
+                        
+                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType() && selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
                             // Si le joueur click sur un autre pion de son équipe
                             // => selectionner la piece courante
-                            if (selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
-                                // Deselectionner la pièce courante
-                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            // Deselectionner la pièce courante
+                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
 
-                                // Sélectionner la nouvelle pièce
-                                gameInstance.setPieceCourante(selectedPiece);
-                                gameInstance.setEtapeCoup(1); // Rester à l'étape 1
+                            // Sélectionner la nouvelle pièce
+                            gameInstance.setPieceCourante(selectedPiece);
+                            gameInstance.setEtapeCoup(1); // Rester à l'étape 1
 
-                                System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
+                            System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
                                               " sur plateau " + plateauCourant.getType());
 
-                                possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
-                                sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
+                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
 
-                                sendGameStateToAllClients();
+                            sendGameStateToAllClients();
 
-                                continue;
-                            }
-                        } else {
-                            // Si le joueur clique sur une pièce dans un autre plateau
-                            // Verifier si la position cliquee est le meme position de la piece -> il faut verifier si c'est un JUMP ou CLONE
-                            if (selectedPiece != null && selectedPiece.getPosition().equals(clickedPosition)) {
-                                String coups = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
-                                switch (plateauCourant.getType()) {
-                                    case PAST:
-                                        if (!coups.contains("JUMPS")) {
-                                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                            gameInstance.setPieceCourante(null);
-                                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                            sendGameStateToAllClients();
-                                            continue;
-                                        }
-
-                                    case PRESENT:
-                                        if (!coups.contains("CLONES") && !coups.contains("JUMPS")) {
-                                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                            gameInstance.setPieceCourante(null);
-                                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                            sendGameStateToAllClients();
-                                            continue;
-                                        }
-
-                                    case FUTURE:
-                                        if (!coups.contains("CLONES")) {
-                                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                            gameInstance.setPieceCourante(null);
-                                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                            sendGameStateToAllClients();
-                                            continue;
-                                        }
-
-                                    default:
-                                        break;
-                                }
-                            } else { // Si le joueur clique sur une pièce dans un autre plateau mais pas à la même position
-                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                gameInstance.setPieceCourante(null);
-                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                sendGameStateToAllClients();
-                                continue;
-                            }
-                        } 
-
-                        boolean movedSuccessfully = false;
-                        if (selectedPiece == null) {
-                            coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
-                            boolean continueFlag = true;
-                            for (int i = 0; i < coupsPossibles.size() && continueFlag; i++) {
-                                Coup c = coupsPossibles.get(i);
-                                Point currentPos = pieceCourante.getPosition();
-                                Point targetPos = new Point(currentPos.x, currentPos.y); 
-
-                                // Calculer la position cible selon le type de coup
-                                switch (c.getTypeCoup()) {
-                                    case UP -> targetPos.x -= 1;
-                                    case DOWN -> targetPos.x += 1;
-                                    case LEFT -> targetPos.y -= 1;
-                                    case RIGHT -> targetPos.y += 1;
-                                    case JUMP, CLONE -> {
-                                        // Pour les mouvements à travers le temps, la position reste la même
-                                    }
-                                }
-
-                                if (clickedPosition.equals(targetPos)) {
-                                    // recuperer le plateau ou le piece se situe
-                                    currentPieceBoard = plateauCourant.getType();
-                                    
-                                    // recuperer la coordonne de click et la position de pieceS
-                                    piecePosition = pieceCourante.getPosition();
-                                    
-                                    // un support pour verifier le type de movement
-                                    typeCoup = determineMovementType(piecePosition, clickedPosition, 
-                                                                                 currentPieceBoard, selectedPlateauType, clientId);
-                                    if (typeCoup == null) {
-                                        continue;
-                                    }
-                                    
-                                    //traiter le mouvement
-                                    if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
-                                        // Si le coup n'est pas valide, ne pas changer d'étape
-                                        gameInstance.setEtapeCoup(1); // Rester à l'étape 1
-                                    } else {
-                                        // Si le coup est valide, passer à l'étape 2W
-                                        System.out.println("GameServerManager: Coup réussi, étape du coup passée à 2");
-                                        possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
-                                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
-                                        movedSuccessfully = true;
-                                    }
-                                    continueFlag = false; // Sortir de la boucle si le coup a été traité
-                                }
-                            }
-                            // Si aucun coup possible n'a été trouvé, deselectionner la pièce
-                            if (!movedSuccessfully) {
-                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                gameInstance.setPieceCourante(null);
-                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                sendGameStateToAllClients();
-                                break;
-                            }
-                            break;
+                            continue;
+                            
                         }
 
+                        typeCoup = determineMovementType(piecePosition, clickedPosition, 
+                                                      currentPieceBoard, selectedPlateauType, clientId);
+                        if (typeCoup == null) {
+                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                            gameInstance.setPieceCourante(null);
+                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendGameStateToAllClients();
+                            continue;
+                        }
+                        
+
+                        System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
+                        if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
+                            continue; // Si le coup est réussi, continuer à l'étape 3
+                        } else {
+                            gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                            gameInstance.setPieceCourante(null);
+                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendGameStateToAllClients();
+                            break;
+                        }
 
 
                     case 2: // Deuxième coup: déplacement ou action spéciale
@@ -507,7 +418,9 @@ public class GameServerManager {
                         }
                         
 
+                        System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
+                            gameInstance.setEtapeCoup(2); // Rester à l'étape 2
                         }
                         break;
 

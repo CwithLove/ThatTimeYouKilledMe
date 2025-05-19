@@ -737,10 +737,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // À l'étape etapeCoup=3, mettez en surbrillance le plateau sélectionné par
             // l'utilisateur (s'il y en a un)
             if (etapeCoup == 3) {
+
+                // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est
+                // affiché
                 if (isMyTurn()) {
-                    // Afficher le texte comme un status message
-                    statusMessage = "Sélectionnez un plateau pour le prochain tour";
-                    repaintPanel();
+                    // Afficher le texte d'invite
+                    g2d.setColor(Color.YELLOW);
+                    g2d.setFont(new Font("Arial", Font.BOLD, 18));
+                    String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
+                    FontMetrics metrics = g2d.getFontMetrics();
+                    int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
                 }
             }
 
@@ -780,6 +787,14 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     }
                 }
                 g2d.setStroke(originalStroke);
+
+                // Dessiner le texte d'invite
+                g2d.setColor(Color.YELLOW);
+                g2d.setFont(new Font("Arial", Font.BOLD, 18));
+                String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
+                FontMetrics metrics = g2d.getFontMetrics();
+                int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
             }
 
             // Message de statut
@@ -830,7 +845,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int centerX = width / 2;
         int height = sceneManager.getPanel().getHeight();
 
-        int choosePlateauWidth = width * 26 / 100; // 26% de la largeur du panneau
+        int choosePlateauWidth = width * 28 / 100; // 28% de la largeur du panneau
         int choosePlateauHeight = choosePlateauWidth; // 32% de la hauteur du panneau car ratio est 16:9
         choosePlateauButton.setSize(choosePlateauWidth, choosePlateauHeight);
 
@@ -856,7 +871,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             }
         }
 
-        int rectWidth = width * 28 / 100; // 28% de la largeur du panneau
+        int rectWidth = width * 26 / 100; // 28% de la largeur du panneau
         int rectHeight = height * 10 / 100; // 10% de la hauteur du panneau
         int lemielCloneX = sideMargin;
         int zarekCloneX = centerX - choosePlateauWidth / 2;

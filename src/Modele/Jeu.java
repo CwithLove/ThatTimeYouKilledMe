@@ -305,8 +305,6 @@ public class Jeu {
             new Point(0, 1) // droite
         };
 
-        etapeCoup += 1;
-
         switch (coup.getTypeCoup()) {
             case UP:
                 index = 0;

@@ -33,6 +33,26 @@ public class Plateau {
         this.size = 4;
     }
 
+    //Permet de faire des copies du plateau
+    public Plateau(Plateau copie) {
+        this.type = copie.getType();
+        this.nbBlancs = copie.getNbBlancs();
+        this.nbNoirs = copie.getNbNoirs();
+        this.size = copie.getSize();
+
+        this.grille = new Piece[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                Piece p = copie.getPiece(i, j);
+                if (p != null) {
+                    this.grille[i][j] = new Piece(p);
+                } else {
+                    this.grille[i][j] = null;
+                }
+            }
+        }
+    }
+
     public int getSize() { return size; }
 
     public void setPiece(Piece p, int lig, int col) {

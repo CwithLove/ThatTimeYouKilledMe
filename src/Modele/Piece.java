@@ -11,6 +11,12 @@ public class Piece {
         this.position = position;
     }
 
+    //Permet de faire des copies de la piece
+    public Piece(Piece piece) {
+        this.owner = piece.owner;
+        this.position = piece.position;
+    }
+
     public Joueur getOwner() {
         return owner;
     }

@@ -52,6 +52,22 @@ public class Jeu {
         historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
     }
 
+    public Jeu(Jeu jeu){
+        this.joueur1 = jeu.joueur1;
+        this.joueur2 = jeu.joueur2;
+
+        this.past = jeu.past;
+        this.present = jeu.present;
+        this.future = jeu.future;
+        this.etapeCoup = jeu.etapeCoup;
+
+        this.joueurCourant = jeu.joueurCourant;
+        this.pieceCourante = jeu.pieceCourante;
+        this.gameState = jeu.gameState;
+        this.plateauCourant = jeu.plateauCourant;
+        this.historiqueJeu = jeu.historiqueJeu;
+    }
+
     /**
      * Donne l'étape du coup en cours
      *

@@ -737,17 +737,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // À l'étape etapeCoup=3, mettez en surbrillance le plateau sélectionné par
             // l'utilisateur (s'il y en a un)
             if (etapeCoup == 3) {
-
-                // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est
-                // affiché
                 if (isMyTurn()) {
-                    // Afficher le texte d'invite
-                    g2d.setColor(Color.YELLOW);
-                    g2d.setFont(new Font("Arial", Font.BOLD, 18));
-                    String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
-                    FontMetrics metrics = g2d.getFontMetrics();
-                    int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
-                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
+                    // Afficher le texte comme un status message
+                    statusMessage = "Sélectionnez un plateau pour le prochain tour";
+                    repaintPanel();
                 }
             }
 
@@ -787,14 +780,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     }
                 }
                 g2d.setStroke(originalStroke);
-
-                // Dessiner le texte d'invite
-                g2d.setColor(Color.YELLOW);
-                g2d.setFont(new Font("Arial", Font.BOLD, 18));
-                String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
-                FontMetrics metrics = g2d.getFontMetrics();
-                int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
-                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
             }
 
             // Message de statut

@@ -53,7 +53,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private GameClient gameClient;
     private String serverIpToConnectOnDemand; // IP pour que le client se connecte (si ce n'est pas l'hôte/solo)
     private boolean isOperatingInSinglePlayerMode; // True si c'est le mode Solo avec auto-hébergement
-
+    private String joueurname;
     private String statusMessage = "Initialisation...";
     private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread
     // (onGameMessage)
@@ -104,12 +104,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
         commonUIInit();
     }
 
-    // Constructeur pour le client se connectant à un hôte en mode multijoueur
-    public GameScene(SceneManager sceneManager, String serverIpToConnect) {
+     public GameScene(SceneManager sceneManager, String serverIpToConnect) {
         this.sceneManager = sceneManager;
         this.isOperatingInSinglePlayerMode = false;
         this.serverIpToConnectOnDemand = serverIpToConnect;
         this.statusMessage = "Mode Multi: Connexion à l'hôte...";
+        loadResources();
+        commonUIInit();
+    }
+
+    // Constructeur pour le client se connectant à un hôte en mode multijoueur
+    public GameScene(SceneManager sceneManager, String serverIpToConnect,String nomdejoueur) {
+        this.sceneManager = sceneManager;
+        this.isOperatingInSinglePlayerMode = false;
+        this.serverIpToConnectOnDemand = serverIpToConnect;
+        this.statusMessage = "Mode Multi: Connexion à l'hôte...";
+        this.joueurname = nomdejoueur;
         loadResources();
         commonUIInit();
     }
@@ -147,6 +157,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             this.gameClient.setListener(this); // Définit cette scène comme écouteur
             this.jeu = this.gameClient.getGameInstance(); // Obtient l'état initial du jeu
+
+            jeu.getJoueur1().setNom("Joueur Hote : Blanc");
+            if(joueurname!=null){
+                jeu.getJoueur2().setNom(joueurname);
+            }
 
             if (this.jeu == null) {
                 System.out.println("GameScene: Instance de jeu est null, attente de mise à jour du serveur");
@@ -433,7 +448,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             @Override
             protected Boolean doInBackground() throws Exception {
                 publish("Connexion à " + serverIpToConnectOnDemand + "...");
-                gameClient = new GameClient(serverIpToConnectOnDemand, GameScene.this);
+                gameClient = new GameClient(serverIpToConnectOnDemand, GameScene.this,getJoueurname());
                 gameClient.connect();
                 return true;
             }
@@ -1859,4 +1874,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
             System.out.println("GameScene: Sélection du plateau FUTUR pour le prochain tour");
         }
     }
+
+    public String getJoueurname() {
+        return joueurname;
+    }
 }
+
+

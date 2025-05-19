@@ -3,17 +3,30 @@ package Network;
 import java.io.*;
 import java.net.SocketException;
 import java.util.concurrent.*;
+import java.util.Map;
+import SceneManager.HostingScene;
 
 public class ClientReceiver implements Runnable {
     private ObjectInputStream in;
     private BlockingQueue<Message> fileEntrante;
     private int clientId;
     private volatile boolean running = true;
+    private Map<Integer, String> playerNames;
+    private HostingScene hostingSceneCallback;
 
-    public ClientReceiver(ObjectInputStream in, BlockingQueue<Message> fileEntrante, int clientId) {
+
+    public ClientReceiver(ObjectInputStream in, BlockingQueue<Message> fileEntrante, int clientId,
+                          Map<Integer, String> playerNames, HostingScene hostingSceneCallback) {
         this.in = in;
         this.fileEntrante = fileEntrante;
         this.clientId = clientId;
+        this.playerNames = playerNames;
+        this.hostingSceneCallback = hostingSceneCallback;
+    }
+
+
+    public ClientReceiver(ObjectInputStream in, BlockingQueue<Message> fileEntrante, int clientId) {
+        this(in, fileEntrante, clientId, null, null);
     }
 
     public void run() {
@@ -23,8 +36,14 @@ public class ClientReceiver implements Runnable {
                     Object obj = in.readObject();
                     if (obj instanceof String) {
                         String messageStr = (String) obj;
-                        fileEntrante.put(new Message(clientId, messageStr));
-                        // System.out.println("ClientReceiver (" + clientId + "): Reçu -> " + messageStr);
+
+                        if (messageStr.startsWith("NAME:")) {
+                            handleNameMessage(messageStr);
+                        } else {
+
+                            fileEntrante.put(new Message(clientId, messageStr));
+                            // System.out.println("ClientReceiver (" + clientId + "): Reçu -> " + messageStr);
+                        }
                     }
                 } catch (ClassNotFoundException e) {
                     System.err.println("ClientReceiver (" + clientId + "): Type d'objet non reconnu - " + e.getMessage());
@@ -46,7 +65,27 @@ public class ClientReceiver implements Runnable {
             System.out.println("ClientReceiver (" + clientId + "): Arrêt du thread de réception");
         }
     }
-    
+
+
+    private void handleNameMessage(String message) {
+        try {
+            String playerName = message.substring(5);
+
+
+            if (playerNames != null) {
+                playerNames.put(clientId, playerName);
+                System.out.println("ClientReceiver: Nom du joueur " + clientId + " défini: " + playerName);
+            }
+
+            if (clientId == 2 && hostingSceneCallback != null) {
+                System.out.println("ClientReceiver: Notification à HostingScene du nom du joueur 2: " + playerName);
+                hostingSceneCallback.onPlayerTwoNameReceived(playerName);
+            }
+        } catch (Exception e) {
+            System.err.println("ClientReceiver: Erreur lors du traitement du message NAME: " + e.getMessage());
+        }
+    }
+
     public void stop() {
         running = false;
     }

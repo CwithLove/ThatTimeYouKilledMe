@@ -36,12 +36,17 @@ public class GameServerManager {
     private volatile int clientIdCounter = 0; // volatile car il peut être accédé depuis plusieurs threads client handler
     private int maxClients = 2;
     private int currentTurnPlayerId; // ID du joueur dont c'est le tour
+    private final Map<Integer, String> playerNames = new ConcurrentHashMap<>();
 
     private HostingScene hostingSceneCallback; // Callback pour HostingScene (si l'hôte est en mode multijoueur)
     private volatile boolean isServerRunning = false;
 
     public GameServerManager(HostingScene callback) {
         this.hostingSceneCallback = callback; // Peut être null (par exemple : lorsque GameScene héberge en solo)
+    }
+
+    public String getPlayerName(int playerId) {
+        return playerNames.getOrDefault(playerId, "Joueur " + playerId);
     }
 
     public void startServer() throws IOException {
@@ -58,9 +63,9 @@ public class GameServerManager {
                 while (connectedClientIds.size() < maxClients && isServerRunning) {
                     System.out.println("GameServerManager: En attente de connexions client ("
                             + connectedClientIds.size() + "/" + maxClients + ")...");
-                    Socket clientSocket = serverSocket.accept(); // Accepter une connexion
+                    Socket clientSocket = serverSocket.accept();
 
-                    synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
+                    synchronized (this) {
                         clientIdCounter++;
                     }
                     int newClientId = clientIdCounter;
@@ -68,17 +73,12 @@ public class GameServerManager {
                     System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
 
                     try {
-                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
-                       // 1. Le serveur crée un flux de sortie et le flush
+                        // 按照协议顺序创建流
                         ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
                         out.flush();
 
-                        // 2. Le client crée un flux d'entrée
-                        // 3. Le client crée un flux de sortie et le flush
-                        // 4. Le serveur crée un flux d'entrée
                         ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 
-                        // 5. Le serveur envoie ID
                         out.writeObject("ID:" + newClientId);
                         out.flush();
                         System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
@@ -87,10 +87,9 @@ public class GameServerManager {
                         outgoingQueues.put(newClientId, clientOutgoingQueue);
                         connectedClientIds.add(newClientId);
 
-
-                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
+                        // 创建并启动ClientReceiver和ClientSender，传递playerNames和hostingSceneCallback
                         Thread receiverThread = new Thread(
-                                new ClientReceiver(in, incomingMessages, newClientId),
+                                new ClientReceiver(in, incomingMessages, newClientId, playerNames, hostingSceneCallback),
                                 "ClientReceiver-" + newClientId
                         );
                         receiverThread.start();
@@ -109,19 +108,15 @@ public class GameServerManager {
                         } catch (IOException closeEx) {
                             // ignore les erreurs dans la fermeture
                         }
-                        continue; // sortie d'iteration acutelle
+                        continue;
                     }
 
                     if (connectedClientIds.size() == maxClients) {
                         System.out.println("GameServerManager: Nombre maximum de " + maxClients + " joueurs atteint.");
                         if (hostingSceneCallback != null) {
-                            // Si HostingScene a un callback, le notifier.
-                            // HostingScene décidera quand appeler startGameEngine().
                             hostingSceneCallback.onPlayerTwoConnected();
                             System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
                         } else {
-                            // Si aucun callback (mode solo hébergé par GameScene),
-                            // démarrer automatiquement GameEngineServer.
                             System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
                             startGameEngine();
                         }
@@ -133,7 +128,6 @@ public class GameServerManager {
             } catch (IOException e) {
                 if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
                     System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
-                    // e.printStackTrace(); // Peut encombrer la console
                 } else {
                     System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
                 }

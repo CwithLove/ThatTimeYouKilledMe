@@ -3,6 +3,8 @@ package Network;
 import Modele.Jeu;
 import java.io.*;
 import java.net.*;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 // import Modele.Plateau; // Ne pas utiliser Plateau directement
 // import Modele.Piece; // Ne pas utiliser Piece directement
 
@@ -17,12 +19,38 @@ public class GameClient {
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
     private ObjectInputStream inputStream;
+    private String joueurName;
+
+    public GameClient(String ipAddress, GameStateUpdateListener listener, String playerName) {
+        this.serverIpAddress = ipAddress;
+        this.listener = listener;
+        this.joueurName = playerName;
+        this.gameInstance = new Jeu();
+    }
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
         this.listener = listener;
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
-                                      // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+    }
+
+    public void setJoueurName(String name) {
+        this.joueurName = name;
+        if (isConnected()) {
+            sendPlayerName();
+        }
+}
+
+    public String getJoueurName() {
+        return joueurName;
+    }
+
+    public void sendPlayerName() {
+        if (isConnected() && joueurName != null && !joueurName.trim().isEmpty()) {
+            sendPlayerAction("NAME:" + joueurName);
+            System.out.println("GameClient (ID: " + myPlayerId + "): Nom du joueur envoyé -> " + joueurName);
+        }
     }
 
     public void connect() throws IOException {
@@ -60,6 +88,8 @@ public class GameClient {
                     disconnect();
                     throw new IOException("GameClient: Type de message d'ID initial invalide.");
                 }
+
+
             } catch (ClassNotFoundException e) {
                 disconnect();
                 throw new IOException("GameClient: Erreur lors de la lecture du message d'ID.", e);
@@ -70,6 +100,9 @@ public class GameClient {
 
             // Démarrer le thread de réception
             setupReceptionThread();
+            if (joueurName != null && !joueurName.trim().isEmpty()) {
+                sendPlayerName();
+            }
             
         } catch (IOException e) {
             isConnected = false;

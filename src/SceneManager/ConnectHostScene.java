@@ -16,6 +16,7 @@ public class ConnectHostScene implements Scene {
     private Button connectButton; // Bouton pour tenter la connexion
     private Button backButton; // Bouton pour retourner à la scène précédente
     private JTextField ipAddressField; // Champ de texte pour saisir l'adresse IP
+    private JTextField joueurname;
     private String statusMessage = "Entrez l'adresse IP de l'hôte."; // Message d'état affiché à l'utilisateur
 
     private MouseAdapter mouseAdapterInternal; // Adaptateur interne pour gérer les événements de la souris
@@ -31,6 +32,7 @@ public class ConnectHostScene implements Scene {
     public ConnectHostScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
         this.ipAddressField = new JTextField("127.0.0.1"); // Adresse IP par défaut (localhost)
+        this.joueurname = new JTextField("Joueur2 : Noir");
 
         // Initialisation du bouton "Se connecter"
         connectButton = new Button(300, 300, 200, 50, "Se connecter", () -> {
@@ -43,8 +45,18 @@ public class ConnectHostScene implements Scene {
                 return; // Arrête le processus si l'IP est vide
             }
             System.out.println("ConnectHostScene: Passage à GameScene avec IP: " + ip);
+
+            String jouernom = joueurname.getText().trim(); // Récupère et nettoie l'IP saisie
+            if (jouernom.isEmpty()) {
+                statusMessage = "Le nom de Joueur 2 ne peut pas être vide.";
+                // Affiche un message d'erreur si l'IP est vide
+                JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur de Saisie", JOptionPane.WARNING_MESSAGE);
+                repaintPanel(); // Redessine le panneau pour afficher le message d'erreur (si intégré au rendu)
+                return; // Arrête le processus si l'IP est vide
+            }
+            System.out.println("ConnectHostScene: Passage à GameScene avec le nom de joueur: " + jouernom);
             // Crée et affiche la scène de jeu. GameScene gérera la tentative de connexion.
-            GameScene gameScene = new GameScene(sceneManager, ip);
+            GameScene gameScene = new GameScene(sceneManager, ip,jouernom);
             sceneManager.setScene(gameScene);
         });
 
@@ -64,7 +76,7 @@ public class ConnectHostScene implements Scene {
         startTime = System.currentTimeMillis(); // Réinitialise l'heure de début pour l'animation
         alpha = 0f; // Réinitialise l'alpha pour le fondu
         fadeComplete = false; // Indique que le fondu n'est pas terminé
-        statusMessage = "Entrez l'adresse IP de l'hôte."; // Message initial
+        statusMessage = "Entrez l'adresse IP de l'hôte et votre nom."; // Message initial
 
         if (sceneManager.getPanel() != null) {
             int panelWidth = sceneManager.getPanel().getWidth();
@@ -75,9 +87,14 @@ public class ConnectHostScene implements Scene {
             ipAddressField.setBounds(panelWidth / 2 - fieldWidth / 2, panelHeight / 2 - 60, fieldWidth, fieldHeight);
             ipAddressField.setFont(new Font("Arial", Font.PLAIN, 18)); // Augmente la taille de la police
             ipAddressField.setHorizontalAlignment(JTextField.CENTER); // Centre le texte dans le champ
+            joueurname.setBounds(panelWidth / 2 - fieldWidth / 2, panelHeight / 2 - 20, fieldWidth, fieldHeight);
+            joueurname.setFont(new Font("Arial", Font.PLAIN, 18));
+            joueurname.setHorizontalAlignment(JTextField.CENTER);
             sceneManager.getPanel().setLayout(null); // Utilise un layout null pour positionner manuellement les composants
             sceneManager.getPanel().add(ipAddressField); // Ajoute le champ IP au panneau
+            sceneManager.getPanel().add(joueurname);
             ipAddressField.setVisible(true); // Rend le champ IP visible
+            joueurname.setVisible(true);
             // Demande le focus pour le champ IP après que le panneau soit affiché et validé
             SwingUtilities.invokeLater(() -> ipAddressField.requestFocusInWindow());
         }
@@ -250,6 +267,7 @@ public class ConnectHostScene implements Scene {
         clearMouseListeners(); // Supprime les écouteurs de la souris
         if (sceneManager.getPanel() != null && ipAddressField != null) {
             ipAddressField.setVisible(false); // Cacher avant de supprimer
+            joueurname.setVisible(false);
             sceneManager.getPanel().remove(ipAddressField); // Supprime le champ IP du panneau
             // Nécessaire après la suppression du composant
             sceneManager.getPanel().revalidate();

@@ -27,6 +27,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private Button startGameButton;             // Bouton pour lancer la partie une fois les conditions remplies.
     private Button backButton;                  // Bouton pour retourner à la scène précédente (MultiplayerScene).
 
+    private String player2Name;
     private GameClient hostClient;              // Le client de l'hôte, qui se connecte à son propre serveur.
     private volatile boolean serverSuccessfullyStarted = false; // Indique si le GameServerManager a démarré correctement.
     private volatile boolean playerTwoConfirmedConnected = false; // Indique si le Joueur 2 s'est connecté (via callback).
@@ -321,7 +322,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         SwingUtilities.invokeLater(() -> { // Assure l'exécution sur l'EDT.
             if (!playerTwoConfirmedConnected) {
                 playerTwoConfirmedConnected = true;
-                statusMessage = "Joueur 2 connecté! Prêt à lancer la partie.";
+                statusMessage = "Joueur 2 connecté! Prêt à lancer la partie." + player2Name;
                 System.out.println("HostingScene: Joueur 2 confirmé connecté.");
                 repaintPanel();
             }
@@ -416,7 +417,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         // État du Joueur 2.
         String player2StatusText;
         if (playerTwoConfirmedConnected) {
-            player2StatusText = "Joueur 2: Connecté !";
+            player2StatusText = "Joueur 2 : " + this.player2Name + ": Connecté !" ;
             g2d.setColor(Color.GREEN);
         } else if (serverSuccessfullyStarted && hostClientConnected) { // Attend joueur 2 seulement si serveur et hôte OK
             String dots = "";
@@ -591,4 +592,20 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             }
         });
     }
+
+      public void onPlayerTwoNameReceived(String name) {
+        SwingUtilities.invokeLater(() -> {
+            if (name != null && !name.trim().isEmpty()) {
+                this.player2Name = name;
+                if (playerTwoConfirmedConnected) {
+                    statusMessage = player2Name + " connecté! Prêt à lancer la partie.";
+                    System.out.println("HostingScene: Message de statut mis à jour avec le nom du joueur 2: " + player2Name);
+                    repaintPanel();
+                }
+            }
+        });
+    }
+
+
+
 }

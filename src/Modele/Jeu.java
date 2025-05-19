@@ -378,7 +378,7 @@ public class Jeu {
             return false;
         }
         etapeCoup = 0;
-        historiqueJeu.add(past, present, future, joueur1, joueur2);
+        //historiqueJeu.add(past, present, future, joueur1, joueur2);
         return true;
     }
 
@@ -1013,7 +1013,7 @@ public class Jeu {
             majPlateauCourant();
             majJoueurCourant();
         } //si EtapeCoup == 1 2 ou 3
-        else if (historiqueJeu.getNbTours() >= 0) {
+        else if (historiqueJeu.getNbTours() >= 0 && etapeCoup > 0) {
             // retourne le plateau a l'etat du debut du tour
             joueur1 = historiqueJeu.getJoueur1();
             joueur2 = historiqueJeu.getJoueur2();
@@ -1025,6 +1025,10 @@ public class Jeu {
             majPlateauCourant();
             majJoueurCourant();
         }
+    }
+
+    public void updateHistoriqueJeu() {
+        historiqueJeu.add(past, present, future, joueur1, joueur2);
     }
 
 }

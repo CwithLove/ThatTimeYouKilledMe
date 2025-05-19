@@ -1081,9 +1081,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     g.setColor(black); // Couleur noire pour les cases impaires
                 }
 
+                // Sur
                 if (p != null && p == jeu.getPieceCourante()) {
                     // Dessiner une couleur semi-transparente pour indiquer la sélection
-                    Color highlight = new Color(255, 215, 0, 60); // Jaune doré, alpha 60/255 (plus transparent)
+                    Color highlight = new Color(255, 215, 0); // Jaune doré, alpha 60/255 (plus transparent)
                     g.setColor(highlight);
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                 }

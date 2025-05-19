@@ -332,7 +332,7 @@ public class GameServerManager {
                         break;
 
                     case 1: // Premier coup: déplacement ou action spéciale
-                        Plateau.TypePlateau currentPieceBoard;
+                        Plateau.TypePlateau currentPieceBoard = null;
                         Point piecePosition; 
                         Point clickedPosition = new Point(x, y);
                         Coup.TypeCoup typeCoup ;
@@ -345,27 +345,35 @@ public class GameServerManager {
                             continue;
                         }
 
-                        currentPieceBoard = plateauCourant.getType();
-                        
-                        piecePosition = pieceCourante.getPosition();
-                        
-                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType() && selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
+                        // On regarde sur le meme plateau ou le joueur a selectionné la piece
+                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType()) {
+                            // Si le joueur click sur la meme piece ou celle de l'adversaire
+                            // => deselectionner la piece courante
+                            if (selectedPiece != null && (selectedPiece.getOwner() != joueurCourant || selectedPiece.getPosition() == pieceCourante.getPosition())) {
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null);
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                sendGameStateToAllClients();
+                                continue;
+                            } 
+
                             // Si le joueur click sur un autre pion de son équipe
                             // => selectionner la piece courante
-                            // Deselectionner la pièce courante
-                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            if (selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
+                                // Deselectionner la pièce courante
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
 
-                            // Sélectionner la nouvelle pièce
-                            gameInstance.setPieceCourante(selectedPiece);
-                            gameInstance.setEtapeCoup(1); // Rester à l'étape 1
+                                // Sélectionner la nouvelle pièce
+                                gameInstance.setPieceCourante(selectedPiece);
+                                gameInstance.setEtapeCoup(1); // Rester à l'étape 1
 
-                            System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
+                                System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
                                               " sur plateau " + plateauCourant.getType());
 
-                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
+                                possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
+                                sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
 
-                            sendGameStateToAllClients();
+                                sendGameStateToAllClients();
 
                             continue;
                             
@@ -421,9 +429,7 @@ public class GameServerManager {
                         }
                         
 
-                        System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
-                            gameInstance.setEtapeCoup(2); // Rester à l'étape 2
                         }
                         break;
 
@@ -729,7 +735,7 @@ public class GameServerManager {
         for (Coup coup : coupsPossibles) {
             Point currentPos = selectedPiece.getPosition();
             Point targetPos = new Point(currentPos.x, currentPos.y); 
-            String nextPlateau = plateauCourant.getType().name();
+            Plateau.TypePlateau nextPlateau = null;
 
             switch (coup.getTypeCoup()) {
                 case UP:
@@ -745,14 +751,14 @@ public class GameServerManager {
                     targetPos.y += 1;
                     break;
                 case JUMP:
-                    nextPlateau = (coup.getPltCourant().getType() == Plateau.TypePlateau.PAST) ? "PRESENT" : "FUTURE";
-                    break;
+                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.PAST ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.FUTURE;
                 case CLONE:
-                    nextPlateau = (coup.getPltCourant().getType() == Plateau.TypePlateau.FUTURE) ? "PRESENT" : "PAST";
+                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.FUTURE ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.PAST;
                     break;
             }
+            String plt = nextPlateau != null ? nextPlateau.name() : coup.getPltCourant().plateauToString() ;
 
-            possibleMovesStr.append(nextPlateau).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+            possibleMovesStr.append(plt).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
         }
         
         return possibleMovesStr.toString();

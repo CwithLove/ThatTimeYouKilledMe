@@ -778,8 +778,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                         tileWidth * past.getSize() + 4,
                                         10, 10);
                             case PRESENT ->
-                                g2d.drawRect(presentStartX - 2, offsetY - 2, tileWidth * present.getSize() + 4,
-                                        tileWidth * present.getSize() + 4);
+                                g2d.drawRoundRect(presentStartX - 2, offsetY - 2, tileWidth * present.getSize() + 4,
+                                        tileWidth * present.getSize() + 4, 5, 5);
                             case FUTURE ->
                                 g2d.drawRoundRect(futureStartX - 2, offsetY - 2, tileWidth * future.getSize() + 4,
                                         tileWidth * future.getSize() + 4, 5, 5);
@@ -1047,14 +1047,29 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 Color white = null, black = null;
                 switch (plateau.getType()) {
                     case PAST -> {
+                        if (casesPasse.contains(new Point(row, col))) {
+                            white = new Color(100, 255, 90);
+                            black = new Color(60, 240, 50);
+                            break;
+                        }
                         white = new Color(0xe8e7de);
                         black = new Color(0xbfb9b4);
                     }
                     case PRESENT -> {
+                        if (casesPresent.contains(new Point(row, col))) {
+                            white = new Color(100, 255, 90);
+                            black = new Color(60, 240, 50);
+                            break;
+                        }
                         white = new Color(0xb3afac);
                         black = new Color(0x8e8a84);
                     }
                     case FUTURE -> {
+                        if (casesFutur.contains(new Point(row, col))) {
+                            white = new Color(100, 255, 90);
+                            black = new Color(60, 240, 50);
+                            break;
+                        }
                         white = new Color(0x777871);
                         black = new Color(0x545251);
                     }

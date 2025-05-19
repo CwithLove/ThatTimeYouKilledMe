@@ -726,7 +726,7 @@ public class GameServerManager {
         for (Coup coup : coupsPossibles) {
             Point currentPos = selectedPiece.getPosition();
             Point targetPos = new Point(currentPos.x, currentPos.y); 
-            Plateau.TypePlateau nextPlateau = null;
+            String nextPlateau = plateauCourant.getType().name();
 
             switch (coup.getTypeCoup()) {
                 case UP:
@@ -742,14 +742,14 @@ public class GameServerManager {
                     targetPos.y += 1;
                     break;
                 case JUMP:
-                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.PAST ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.FUTURE;
+                    nextPlateau = (coup.getPltCourant().getType() == Plateau.TypePlateau.PAST) ? "PRESENT" : "FUTURE";
+                    break;
                 case CLONE:
-                    nextPlateau = coup.getPltCourant().getType() == Plateau.TypePlateau.FUTURE ? Plateau.TypePlateau.PRESENT : Plateau.TypePlateau.PAST;
+                    nextPlateau = (coup.getPltCourant().getType() == Plateau.TypePlateau.FUTURE) ? "PRESENT" : "PAST";
                     break;
             }
-            String plt = nextPlateau != null ? nextPlateau.name() : coup.getPltCourant().plateauToString() ;
 
-            possibleMovesStr.append(plt).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+            possibleMovesStr.append(nextPlateau).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
         }
         
         return possibleMovesStr.toString();

@@ -384,7 +384,10 @@ public class GameServerManager {
 
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
-                            continue; // Si le coup est réussi, continuer à l'étape 3
+                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                            sendGameStateToAllClients();
+                            continue; // Si le coup est réussi, continuer à l'étape 2
                         } else {
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                             gameInstance.setPieceCourante(null);

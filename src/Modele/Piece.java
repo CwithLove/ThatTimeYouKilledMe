@@ -1,3 +1,5 @@
+package Modele;
+
 import java.awt.Point;
 
 public class Piece {
@@ -19,5 +21,13 @@ public class Piece {
 
     public void setPosition(Point position) {
         this.position = position;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Piece)) return false;
+        Piece other = (Piece) obj;
+        return this.owner.equals(other.owner) && this.position.equals(other.position);
     }
 }

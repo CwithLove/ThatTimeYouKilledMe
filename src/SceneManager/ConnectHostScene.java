@@ -1,5 +1,8 @@
 package SceneManager;
 
+import Modele.Jeu;
+import Network.GameClient;
+import Network.GameStateUpdateListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -7,10 +10,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
-
-import Network.GameClient;
-import Network.GameStateUpdateListener;
-import Modele.Jeu;
 
 /**
  * ConnectHostScene représente la scène où l'utilisateur peut entrer l'adresse IP
@@ -94,12 +93,7 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
                         
                         // Si la connexion a réussi, passer à ClientLobbyScene
                         if (gameClient != null && gameClient.isConnected()) {
-                            System.out.println("ConnectHostScene: Connexion réussie, passage au lobby");
-                            
-                            // Important: transfert du gameClient à ClientLobbyScene
-                            // sans le déconnecter
-                            ClientLobbyScene lobbyScene = new ClientLobbyScene(sceneManager, gameClient);
-                            sceneManager.setScene(lobbyScene);
+                            transitionToClientLobbyScene();
                         }
                     } catch (Exception e) {
                         // Gérer l'échec de la connexion
@@ -301,6 +295,22 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
         }
     }
 
+    // 创建一个显式的方法来处理成功连接后转到ClientLobbyScene的逻辑
+    private void transitionToClientLobbyScene() {
+        System.out.println("ConnectHostScene: Préparation de la transition vers ClientLobbyScene");
+        
+        // 确保在转换到ClientLobbyScene之前标记为不需断开连接
+        final GameClient clientToTransfer = this.gameClient;
+        this.gameClient = null; // 将引用设为null，这样dispose方法就不会断开它
+        
+        System.out.println("ConnectHostScene: Connexion réussie, passage au lobby");
+        SwingUtilities.invokeLater(() -> {
+            // 创建新的ClientLobbyScene并传递连接
+            ClientLobbyScene lobbyScene = new ClientLobbyScene(sceneManager, clientToTransfer);
+            sceneManager.setScene(lobbyScene);
+        });
+    }
+
     @Override
     public void dispose() {
         clearMouseListeners();
@@ -315,8 +325,11 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
         // Sinon, ClientLobbyScene prendra la responsabilité de gameClient
         if (gameClient != null && (sceneManager.getCurrentScene() == null || 
                 !sceneManager.getCurrentScene().getClass().getSimpleName().equals("ClientLobbyScene"))) {
+            System.out.println("ConnectHostScene: Déconnexion du client (transition vers une scène autre que ClientLobbyScene)");
             gameClient.disconnect();
             gameClient = null;
+        } else if (gameClient == null) {
+            System.out.println("ConnectHostScene: Client déjà transféré à ClientLobbyScene ou null");
         }
         
         System.out.println("ConnectHostScene disposée.");

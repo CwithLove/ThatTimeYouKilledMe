@@ -133,18 +133,44 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 cleanUpAndGoToMenu();
             });
         } else if (!this.gameClient.isConnected()) {
-            this.statusMessage = "Erreur fatale: Client hôte non connecté.";
+            // 尝试重新连接而不是立即返回主菜单
+            this.statusMessage = "Client déconnecté. Tentative de reconnexion...";
             System.err.println(this.statusMessage);
-            SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(sceneManager.getPanel(),
-                        "Erreur fatale lors de l'initialisation du jeu: Client hôte déconnecté.",
-                        "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
-                cleanUpAndGoToMenu();
-            });
-        } else {
-            System.out.println("GameScene: Initialisation avec client hôte (ID: " + this.gameClient.getMyPlayerId()
-                    + (this.hostServerManager != null ? ", avec serveur hôte" : ", sans serveur hôte"));
+            
+            try {
+                // 尝试重新连接
+                boolean reconnected = this.gameClient.reconnect();
+                if (reconnected) {
+                    System.out.println("GameScene: Reconnexion réussie avec client ID: " + this.gameClient.getMyPlayerId());
+                    this.gameClient.setListener(this); // 重新设置监听器
+                } else {
+                    System.err.println("GameScene: Échec de la reconnexion");
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Impossible de se reconnecter au serveur. Retour au menu principal.",
+                                "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                        cleanUpAndGoToMenu();
+                    });
+                    return;
+                }
+            } catch (Exception e) {
+                System.err.println("GameScene: Erreur lors de la tentative de reconnexion: " + e.getMessage());
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                            "Erreur lors de la tentative de reconnexion: " + e.getMessage(),
+                            "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                    cleanUpAndGoToMenu();
+                });
+                return;
+            }
+        }
+        
+        System.out.println("GameScene: Initialisation avec client hôte (ID: " + 
+                (this.gameClient != null && this.gameClient.isConnected() ? this.gameClient.getMyPlayerId() : "non connecté") +
+                (this.hostServerManager != null ? ", avec serveur hôte" : ", sans serveur hôte"));
 
+        // 仅在客户端已连接时设置监听器和获取游戏状态
+        if (this.gameClient != null && this.gameClient.isConnected()) {
             this.gameClient.setListener(this); // Définit cette scène comme écouteur
             this.jeu = this.gameClient.getGameInstance(); // Obtient l'état initial du jeu
 
@@ -157,6 +183,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         + ")");
                 updateStatusFromCurrentGame(false); // Met à jour le message de statut initial
             }
+        } else {
+            // 如果客户端未连接，设置适当的状态
+            this.statusMessage = "Configuration GameScene invalide.";
+            System.err.println(this.statusMessage);
+            
+            // 使用SwingUtilities确保UI操作在EDT线程上执行
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                        "Erreur: " + this.statusMessage,
+                        "Erreur d'Initialisation", JOptionPane.ERROR_MESSAGE);
+                cleanUpAndGoToMenu();
+            });
+            return;
         }
 
         loadResources();
@@ -225,6 +264,56 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void cleanUpAndGoToMenu() {
         isLoading = false; // Arrête tous les états de chargement
+        
+        // 先询问玩家是否想要重新连接，如果是玩家2
+        if (gameClient != null && !gameClient.isConnected() && gameClient.getMyPlayerId() == 2) {
+            int choice = JOptionPane.showConfirmDialog(
+                sceneManager.getPanel(),
+                "La connexion au serveur a été perdue. Voulez-vous essayer de vous reconnecter?",
+                "Erreur de Connexion",
+                JOptionPane.YES_NO_OPTION);
+                
+            if (choice == JOptionPane.YES_OPTION) {
+                try {
+                    // 尝试重新连接
+                    if (gameClient.reconnect()) {
+                        System.out.println("GameScene: Reconnexion réussie avec client ID: " + gameClient.getMyPlayerId());
+                        this.gameClient.setListener(this); // 重新设置监听器
+                        this.jeu = this.gameClient.getGameInstance(); // 获取游戏状态
+                        if (this.jeu != null) {
+                            updateStatusFromCurrentGame(false);
+                            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Reconnexion réussie! La partie va continuer.",
+                                "Reconnexion", JOptionPane.INFORMATION_MESSAGE);
+                            return; // 成功重连，不返回主菜单
+                        } else {
+                            System.out.println("GameScene: Reconnexion réussie mais état du jeu est null");
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("GameScene: Erreur lors de la tentative de reconnexion: " + e.getMessage());
+                }
+                
+                // 如果不成功，询问是否想要重新尝试连接到服务器
+                int retry = JOptionPane.showConfirmDialog(
+                    sceneManager.getPanel(),
+                    "Échec de la reconnexion. Voulez-vous revenir à l'écran de connexion?",
+                    "Échec de Reconnexion",
+                    JOptionPane.YES_NO_OPTION);
+                    
+                if (retry == JOptionPane.YES_OPTION) {
+                    // 断开现有连接
+                    if (gameClient != null) {
+                        gameClient.disconnect();
+                        gameClient = null;
+                    }
+                    // 返回连接主机的界面
+                    sceneManager.setScene(new ConnectHostScene(sceneManager));
+                    return;
+                }
+            }
+        }
+        
         if (gameClient != null) {
             gameClient.disconnect();
             gameClient = null;

@@ -30,6 +30,12 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
     private String j1Status = "En attente...";
     private String j2Status = "Connecté";
     
+    // Timer pour vérifier l'état de la connexion
+    private javax.swing.Timer connectionCheckTimer;
+    private static final int CONNECTION_CHECK_INTERVAL = 3000; // Vérification toutes les 3 secondes
+    private int reconnectionAttempts = 0;
+    private static final int MAX_RECONNECTION_ATTEMPTS = 5; // Nombre maximal de tentatives de reconnexion
+    
     // Flag
     private boolean transitioningToGameScene = false;
     
@@ -44,6 +50,9 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
         this.gameClient = gameClient;
         this.clientWasConnected = (gameClient != null && gameClient.isConnected());
         
+        // Initialisation du timer de vérification de connexion
+        connectionCheckTimer = new javax.swing.Timer(CONNECTION_CHECK_INTERVAL, e -> checkConnectionStatus());
+        
         // Mise à jour du listener de GameClient pour qu'il pointe vers cette scène
         if (this.gameClient != null) {
             try {
@@ -55,12 +64,74 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
         
         // Bouton Retour
         backButton = new Button(50, 500, 150, 40, "Retour", () -> {
+            // Arrêter le timer de vérification
+            if (connectionCheckTimer.isRunning()) {
+                connectionCheckTimer.stop();
+            }
+            
             // Retour à l'écran de connexion
             if (gameClient != null) {
                 gameClient.disconnect();
             }
             sceneManager.setScene(new MultiplayerScene(sceneManager));
         });
+    }
+    
+    /**
+     * Vérifie l'état de la connexion et tente de se reconnecter si nécessaire
+     */
+    private void checkConnectionStatus() {
+        if (gameClient == null) {
+            connectionCheckTimer.stop();
+            return;
+        }
+        
+        if (!gameClient.isConnected() && clientWasConnected) {
+            System.out.println("ClientLobbyScene: Détection de déconnexion lors de la vérification périodique");
+            
+            // Tenter de se reconnecter automatiquement
+            if (reconnectionAttempts < MAX_RECONNECTION_ATTEMPTS) {
+                reconnectionAttempts++;
+                try {
+                    System.out.println("ClientLobbyScene: Tentative de reconnexion automatique (" + 
+                        reconnectionAttempts + "/" + MAX_RECONNECTION_ATTEMPTS + ")");
+                    
+                    boolean reconnected = gameClient.reconnect();
+                    
+                    if (reconnected) {
+                        System.out.println("ClientLobbyScene: Reconnexion réussie avec ID: " + gameClient.getMyPlayerId());
+                        statusMessage = "Connexion rétablie! En attente du démarrage de la partie...";
+                        j1Status = "En ligne";
+                        j2Status = "Vous êtes connecté (ID: " + gameClient.getMyPlayerId() + ")";
+                        reconnectionAttempts = 0; // Réinitialiser le compteur
+                        repaintPanel();
+                    } else {
+                        statusMessage = "Tentative de reconnexion en cours (" + reconnectionAttempts + "/" + 
+                            MAX_RECONNECTION_ATTEMPTS + ")...";
+                        repaintPanel();
+                    }
+                } catch (Exception e) {
+                    System.err.println("ClientLobbyScene: Erreur lors de la tentative de reconnexion: " + e.getMessage());
+                }
+            } else {
+                // Nombre maximal de tentatives atteint
+                connectionCheckTimer.stop();
+                
+                SwingUtilities.invokeLater(() -> {
+                    System.out.println("ClientLobbyScene: Nombre maximal de tentatives de reconnexion atteint");
+                    
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                        "Impossible de se reconnecter au serveur après plusieurs tentatives. Veuillez réessayer.",
+                        "Échec de Reconnexion", JOptionPane.ERROR_MESSAGE);
+                    
+                    // Retour à l'écran de connexion
+                    sceneManager.setScene(new ConnectHostScene(sceneManager));
+                });
+            }
+        } else if (gameClient.isConnected()) {
+            // Si la connexion est rétablie, réinitialiser le compteur
+            reconnectionAttempts = 0;
+        }
     }
     
     @Override
@@ -70,6 +141,7 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
         fadeComplete = false;
         lastDotTime = startTime;
         animationDots = 0;
+        reconnectionAttempts = 0;
         
         if (gameClient != null) {
             this.clientWasConnected = gameClient.isConnected() || clientWasConnected;
@@ -109,6 +181,9 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
             if (!gameClient.isConnected() && clientWasConnected) {
                 statusMessage = "Tentative de reconnexion au serveur...";
             }
+            
+            // Démarrer le timer de vérification de la connexion
+            connectionCheckTimer.start();
         } else {
             // Si pour une raison quelconque le client n'est pas connecté, afficher un message d'erreur
             j1Status = "Non connecté";
@@ -134,33 +209,6 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
             alpha = Math.min(1.0f, elapsed / 1000.0f);
             if (alpha >= 1.0f) {
                 fadeComplete = true;
-            }
-        }
-        
-        // Vérifier l'état de connexion et tenter une reconnexion si nécessaire
-        if (gameClient != null && !gameClient.isConnected() && clientWasConnected) {
-            // Essayer de se reconnecter toutes les 5 secondes (pour éviter des tentatives trop fréquentes)
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastDotTime > 5000) {
-                try {
-                    System.out.println("ClientLobbyScene: Nouvelle tentative de reconnexion...");
-                    
-                    // Utiliser la méthode reconnect du GameClient
-                    boolean reconnected = gameClient.reconnect();
-                    
-                    // Mise à jour de l'interface selon le résultat
-                    if (reconnected) {
-                        System.out.println("ClientLobbyScene: Reconnexion réussie avec ID: " + gameClient.getMyPlayerId());
-                        statusMessage = "En attente du démarrage de la partie par l'hôte...";
-                        j1Status = "En ligne";
-                        j2Status = "Vous êtes connecté (ID: " + gameClient.getMyPlayerId() + ")";
-                    } else {
-                        statusMessage = "Tentative de reconnexion au serveur...";
-                    }
-                    repaintPanel();
-                } catch (Exception e) {
-                    System.err.println("ClientLobbyScene: Erreur lors de la tentative de reconnexion: " + e.getMessage());
-                }
             }
         }
         
@@ -334,6 +382,11 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
     public void dispose() {
         clearMouseListeners();
         
+        // Arrêter le timer de vérification
+        if (connectionCheckTimer != null && connectionCheckTimer.isRunning()) {
+            connectionCheckTimer.stop();
+        }
+        
         // Ne pas déconnecter gameClient si on passe à GameScene
         // Sinon, le déconnecter
         if (gameClient != null && (sceneManager.getCurrentScene() == null || 
@@ -362,12 +415,12 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
             SwingUtilities.invokeLater(() -> {
                 // Vérifier si le client est connecté, sinon tenter une reconnexion
                 if (gameClient != null) {
+                    // Marquer immédiatement que nous sommes en transition vers GameScene
+                    // pour éviter la déconnexion dans dispose()
+                    setTransitioningToGameScene(true);
+                    
                     if (gameClient.isConnected()) {
                         System.out.println("ClientLobbyScene: Transition vers GameScene avec client connecté");
-                        
-                        // Marquer que nous sommes en train de passer à GameScene pour éviter
-                        // la déconnexion dans dispose()
-                        setTransitioningToGameScene(true);
                         
                         // Conserver la référence au client pour éviter la collecte pendant la transition
                         final GameClient clientToTransfer = this.gameClient;
@@ -381,9 +434,6 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
                             if (gameClient.reconnect()) {
                                 System.out.println("ClientLobbyScene: Reconnexion réussie, transition vers GameScene");
                                 
-                                // Marquer que nous sommes en train de passer à GameScene
-                                setTransitioningToGameScene(true);
-                                
                                 // Conserver la référence au client
                                 final GameClient clientToTransfer = this.gameClient;
                                 
@@ -391,11 +441,13 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
                                 sceneManager.setScene(gameScene);
                             } else {
                                 System.err.println("ClientLobbyScene: Échec de reconnexion avant transition vers GameScene");
+                                setTransitioningToGameScene(false); // Réinitialiser le drapeau si la reconnexion échoue
                                 JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                     "Impossible de rejoindre la partie: la connexion a été perdue et la reconnexion a échoué.",
                                     "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
                             }
                         } catch (Exception e) {
+                            setTransitioningToGameScene(false); // Réinitialiser le drapeau en cas d'erreur
                             System.err.println("ClientLobbyScene: Erreur lors de la tentative de reconnexion avant GameScene: " + e.getMessage());
                             JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                 "Erreur lors de la tentative de reconnexion: " + e.getMessage(),
@@ -413,12 +465,37 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
             System.out.println("ClientLobbyScene: Message reçu - Type: " + messageType + ", Contenu: " + messageContent);
             
             if ("ERROR".equals(messageType) || "DISCONNECTED".equals(messageType)) {
+                // Arrêter le timer de vérification
+                if (connectionCheckTimer != null && connectionCheckTimer.isRunning()) {
+                    connectionCheckTimer.stop();
+                }
+                
                 statusMessage = "Erreur: " + messageContent;
                 
                 // Afficher un message d'erreur et retourner à l'écran de connexion
                 JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                              "Déconnecté du serveur: " + messageContent,
                                              "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+                
+                if (gameClient != null) {
+                    gameClient.disconnect();
+                    gameClient = null;
+                }
+                
+                sceneManager.setScene(new ConnectHostScene(sceneManager));
+            }
+            else if ("SERVER_SHUTDOWN".equals(messageType)) {
+                // Arrêter le timer de vérification
+                if (connectionCheckTimer != null && connectionCheckTimer.isRunning()) {
+                    connectionCheckTimer.stop();
+                }
+                
+                statusMessage = "Le serveur a été fermé: " + messageContent;
+                
+                // Afficher un message et retourner à l'écran de connexion
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                             "Le serveur a été fermé: " + messageContent,
+                                             "Serveur Fermé", JOptionPane.INFORMATION_MESSAGE);
                 
                 if (gameClient != null) {
                     gameClient.disconnect();

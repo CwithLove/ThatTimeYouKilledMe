@@ -254,6 +254,9 @@ public class GameClient {
                                 case DESELECT:   // Le joueur a désélectionné une pièce
                                     listener.onGameMessage("DESELECT", finalContent);
                                     break;
+                                case SERVER_SHUTDOWN:  // Le serveur est en cours de fermeture
+                                    listener.onGameMessage("SERVER_SHUTDOWN", finalContent);
+                                    break;
                                 default:
                                     System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
                                     listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);

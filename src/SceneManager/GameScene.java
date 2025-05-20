@@ -1553,6 +1553,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
         System.out.println("GameScene: Message reçu: " + messageType + " -> " + messageContent);
 
         switch (messageType) {
+            case "SERVER_SHUTDOWN":
+                // Le serveur est en train de se fermer
+                statusMessage = "Le serveur a été fermé: " + messageContent;
+                
+                // Afficher un message et retourner au menu principal
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                            "Le serveur a été fermé: " + messageContent,
+                                            "Serveur Fermé", JOptionPane.INFORMATION_MESSAGE);
+                
+                // Marquer que le jeu est terminé pour éviter d'autres actions
+                gameHasEnded = true;
+                
+                // Retourner au menu principal
+                cleanUpAndGoToMenu();
+                break;
+                
             case "PIECE":
                 // Gérer le message de succès de la sélection de pièce
                 casesPasse.clear();

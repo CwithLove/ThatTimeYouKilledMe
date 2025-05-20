@@ -660,6 +660,21 @@ public class GameServerManager {
             return;
         }
         System.out.println("GameServerManager: Arrêt du serveur...");
+        
+        // Envoyer un message SERVER_SHUTDOWN à tous les clients connectés avant de fermer
+        if (!connectedClientIds.isEmpty()) {
+            System.out.println("GameServerManager: Envoi de message SERVER_SHUTDOWN à " + connectedClientIds.size() + " clients");
+            String shutdownMessage = Code.SERVER_SHUTDOWN.name() + ":Le serveur est en cours de fermeture.";
+            sendStateToAllClients(shutdownMessage);
+            
+            // Attendre un court instant pour permettre l'envoi des messages
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
         isServerRunning = false; // Définir ce drapeau en premier
 
         try {

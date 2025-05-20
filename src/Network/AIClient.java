@@ -31,7 +31,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private int currentPosX = -1;
     private int currentPosY = -1;
     IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
-    private IAminimax ia = new IAminimax(3,gameInstance);
+    private IAminimax ia = new IAminimax(1,gameInstance);
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;
@@ -195,7 +195,6 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                 Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
                 //L'ia joue un coup
                 joueCoup(AImove,this.gameInstance,i);
-                //reçoit le nouvel état
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -208,8 +207,11 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     }
 
     private void joueCoup(IAFields<Piece,String,String,Plateau.TypePlateau> coupIA, Jeu jeu,int numCoup){
-        if (coupIA == null) {
+        if (coupIA == null && coupIA.getQuatrieme() == null) {
             System.out.println("Erreur, le coup de l'IA est null");
+            return;
+        }
+        if (numCoup != 3 && coupIA == null) {
             return;
         }
         if (numCoup == 0){

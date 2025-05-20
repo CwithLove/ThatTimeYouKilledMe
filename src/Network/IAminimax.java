@@ -51,7 +51,7 @@ public class IAminimax {
             Jeu jeuClone = new Jeu(gameState);
             if (coup.getPremier() != null) {
                 int x = (int) coup.getPremier().getPosition().getX();
-                int y = (int) coup.getPremier().getPosition().getX();
+                int y = (int) coup.getPremier().getPosition().getY();
                 Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
                 if (pieceCourante == null) {
                     System.out.println("IAMinimax: Piece courante null");
@@ -298,10 +298,10 @@ public class IAminimax {
                     //traduction en coup et application
                     jeuClone1.appliquerCoup(coup1);
 
-                    for (Coup coup2 : jeuClone1.getCoupPossibles(clone.getPlateauCourant(), piece)){
+                    for (Coup coup2 : jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), piece)){ // ERREUR, si on jump ou clone, ça change le plateau courant
                         for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
                             coup = new IAFields<>(piece, coup1.getTypeCoup().name(), coup2.getTypeCoup().name(), plateau);
-                            System.out.println("DEBUG "+coup+", "+posx+" "+posy);
+                            //System.out.println("DEBUG "+coup+", "+posx+" "+posy);
                             listeCoups.add(coup);
                         }
                     }
@@ -331,6 +331,7 @@ public class IAminimax {
                 }
             }
         }
+        System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
         return listePieces;
     }
 

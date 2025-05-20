@@ -207,11 +207,8 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     }
 
     private void joueCoup(IAFields<Piece,String,String,Plateau.TypePlateau> coupIA, Jeu jeu,int numCoup){
-        if (coupIA == null && coupIA.getQuatrieme() == null) {
+        if (coupIA == null) {
             System.out.println("Erreur, le coup de l'IA est null");
-            return;
-        }
-        if (numCoup != 3 && coupIA == null) {
             return;
         }
         if (numCoup == 0){

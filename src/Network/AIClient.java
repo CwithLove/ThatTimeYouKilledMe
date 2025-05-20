@@ -31,7 +31,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private int currentPosX = -1;
     private int currentPosY = -1;
     IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
-    private IAminimax ia = new IAminimax(1,gameInstance);
+    private IAminimax ia = new IAminimax(3,gameInstance);
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;
@@ -192,7 +192,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
         try {
             for (int i = 0; i < 4; i++){
-                Thread.sleep(500 + random.nextInt(1500)); // L'IA "réfléchit" pendant 0,5-2 secondes
+                Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
                 //L'ia joue un coup
                 joueCoup(AImove,this.gameInstance,i);
                 //reçoit le nouvel état

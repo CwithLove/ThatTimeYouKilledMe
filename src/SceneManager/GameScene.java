@@ -204,7 +204,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private void commonUIInit() {
         // La position des boutons sera mise à jour dans render()
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
-
         // Ajouter un bouton pour annuler une action
         int undoX = sceneManager.getPanel().getWidth() / 2 - 50;
         int undoY = sceneManager.getPanel().getHeight() / 11 + 20;
@@ -660,10 +659,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // System.out.println("GameScene render: etapeCoup = " + etapeCoup);
         }
 
+        // Mettre à jour la position du bouton "Retour" et "Annuler"
+        undoButton.setLocation(width / 2 - 50, height / 11 + 20);
+
+        
         // Créer un Graphics2D pour le rendu
         Graphics2D g2d = (Graphics2D) g.create();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
 
         // // Dessiner l'image de fond
         if (backgroundImage != null) {
@@ -715,6 +719,16 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau past = jeu.getPast();
             Plateau present = jeu.getPresent();
             Plateau future = jeu.getFuture();
+
+            if (isMyTurn()){
+                g2d.setColor(Color.YELLOW);
+                g2d.setFont(new Font("Arial", Font.BOLD, 36));
+                String selectBoardMessage = "Votre tour!";
+                FontMetrics metrics = g2d.getFontMetrics();
+                int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+                // Centrer le message en bas
+                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 20); 
+            }
 
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
@@ -1047,11 +1061,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 Piece p = plateau.getPiece(row, col);
                 // Set up les couleurs de fond des cases
                 Color white = null, black = null;
+                int vfonce = 0x66D7D1, vclaire = 0x8DE2DE;
                 switch (plateau.getType()) {
                     case PAST -> {
                         if (casesPasse.contains(new Point(row, col))) {
-                            white = new Color(100, 255, 90);
-                            black = new Color(60, 240, 50);
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
                         white = new Color(0xe8e7de);
@@ -1059,8 +1074,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     }
                     case PRESENT -> {
                         if (casesPresent.contains(new Point(row, col))) {
-                            white = new Color(100, 255, 90);
-                            black = new Color(60, 240, 50);
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
                         white = new Color(0xb3afac);
@@ -1068,8 +1083,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     }
                     case FUTURE -> {
                         if (casesFutur.contains(new Point(row, col))) {
-                            white = new Color(100, 255, 90);
-                            black = new Color(60, 240, 50);
+                            // white = new Color(100, 255, 90);
+                            // black = new Color(60, 240, 50);
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
                         white = new Color(0x777871);
@@ -1086,7 +1103,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // Sur
                 if (p != null && p == jeu.getPieceCourante()) {
                     // Dessiner une couleur semi-transparente pour indiquer la sélection
-                    Color highlight = new Color(255, 215, 0); // Jaune doré, alpha 60/255 (plus transparent)
+                    Color highlight = new Color(0xE9B44C);
+                    //Color highlight = new Color(255, 215, 0); // Jaune doré, alpha 60/255 (plus transparent)
                     g.setColor(highlight);
                     g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
                 }

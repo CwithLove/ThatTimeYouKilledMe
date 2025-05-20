@@ -34,7 +34,7 @@ public class Plateau {
     }
 
     //Permet de faire des copies du plateau
-    public Plateau(Plateau copie) {
+    public Plateau(Plateau copie, Joueur joueur1, Joueur joueur2) {
         this.type = copie.getType();
         this.nbBlancs = copie.getNbBlancs();
         this.nbNoirs = copie.getNbNoirs();
@@ -45,7 +45,8 @@ public class Plateau {
             for (int j = 0; j < 4; j++) {
                 Piece p = copie.getPiece(i, j);
                 if (p != null) {
-                    this.grille[i][j] = new Piece(p);
+                    Joueur owner = (copie.getPiece(i, j).getOwner().getId() == 1) ? joueur1 : joueur2;
+                    this.grille[i][j] = new Piece(owner, copie.getPiece(i, j).getPosition());
                 } else {
                     this.grille[i][j] = null;
                 }

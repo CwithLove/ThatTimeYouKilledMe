@@ -1,12 +1,11 @@
 package Network;
 
 import Modele.Coup;
+import Modele.IAFields;
 import Modele.Jeu;
 import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
-import Modele.IAFields;
-
 import java.awt.Point;
 import java.io.EOFException;
 import java.io.IOException;
@@ -31,6 +30,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private final String aiName = "Bot Adversaire";
     private int currentPosX = -1;
     private int currentPosY = -1;
+    IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
     private IAminimax ia = new IAminimax(1,gameInstance);
 
     public AIClient(String serverIpAddress) {
@@ -136,6 +136,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         case GAGNE:
                         case PERDU:
                         case ADVERSAIRE:
+                        case ACTION:
                             onGameMessage(code.name(), content);
                             break;
                         default:
@@ -163,35 +164,47 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu invalide reçu pour décision.");
             return;
         }
+
+        // if (this.gameInstance.getJoueurCourant().getId() != this.myPlayerId) {
+        //     System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
+        //     return;
+        // }
+
         System.out.println("----- DEBUG MODE ------");
-        IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null;
-        Jeu copyForIa = new Jeu(this.gameInstance); //copie du jeu
+        if (gameInstance.getJoueurCourant().getId() != myPlayerId) {
+            System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
+            return;
+        }
+        
         try {
-            AImove = ia.coupIA(copyForIa);
+            System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu reçu pour décision.");
+            AImove = ia.coupIA(gameInstance);
+            if (AImove == null) {
+                System.out.println("Erreur, le coup de l'IA est null");
+                return;
+            }
             System.out.println("----------------------------------------------------------------------------------CoupIA : " + AImove);
         } catch (Exception e) {
             e.printStackTrace(); // Affiche l’erreur
         }
         // System.out.println(aiName + " (ID: " + myPlayerId + "): État jeu MAJ. Tour de Joueur ID: " + this.gameInstance.getJoueurCourant().getId());
 
-        if (this.gameInstance.getJoueurCourant().getId() == this.myPlayerId) {
-            System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
-            try {
-                for (int i = 0; i < 4; i++){
-                    Thread.sleep(500 + random.nextInt(1500)); // L'IA "réfléchit" pendant 0,5-2 secondes
-                    //L'ia joue un coup
-                    joueCoup(AImove,this.gameInstance,i);
-                    //reçoit le nouvel état
-
-                }
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println(aiName + ": Thread interrompu pendant la réflexion.");
-                return;
+        System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
+        try {
+            for (int i = 0; i < 4; i++){
+                Thread.sleep(500 + random.nextInt(1500)); // L'IA "réfléchit" pendant 0,5-2 secondes
+                //L'ia joue un coup
+                joueCoup(AImove,this.gameInstance,i);
+                //reçoit le nouvel état
             }
-            //makeDecisionAndPlay();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println(aiName + ": Thread interrompu pendant la réflexion.");
+            return;
         }
+        
+        //makeDecisionAndPlay();
+        
     }
 
     private void joueCoup(IAFields<Piece,String,String,Plateau.TypePlateau> coupIA, Jeu jeu,int numCoup){
@@ -229,26 +242,26 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
         switch (coup) {
             case "UP":
-                currentPosX +=1;
-                sendPlayerAction(0 +":"+ null +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                currentPosX -=1;
+                sendPlayerAction(0 +":"+ null +":"+ jeu.getJoueurCourant().getProchainPlateau().name()+ ":" + currentPosX + ":" + currentPosY);
                 break;
             case "DOWN":
-                currentPosX -=1;
-                sendPlayerAction(0 +":"+ null +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                currentPosX +=1;
+                sendPlayerAction(0 +":"+ null +":"+ jeu.getJoueurCourant().getProchainPlateau().name() + ":" + currentPosX + ":" + currentPosY);
                 break;
             case "LEFT":
                 currentPosY -=1;
-                sendPlayerAction(0 +":"+ null +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                sendPlayerAction(0 +":"+ null +":"+ jeu.getJoueurCourant().getProchainPlateau().name() + ":" + currentPosX + ":" + currentPosY);
                 break;
             case "RIGHT":
                 currentPosY +=1;
-                sendPlayerAction(0 +":"+ null +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                sendPlayerAction(0 +":"+ null +":"+ jeu.getJoueurCourant().getProchainPlateau().name() + ":" + currentPosX + ":" + currentPosY);
                 break;
             case "JUMP":
-                sendPlayerAction(0 +":"+ jumpPlateau(jeu.getPlateauCourant().getType()) +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                sendPlayerAction(0 +":"+ null +":"+ jumpPlateau(jeu.getPlateauCourant().getType()) + ":" + currentPosX + ":" + currentPosY);
                 break;
             case "CLONE":
-                sendPlayerAction(0 +":"+ clonePlateau(jeu.getPlateauCourant().getType()) +":"+ jeu.getPlateauCourant().plateauToString()+ ":" + currentPosX + ":" + currentPosY);
+                sendPlayerAction(0 +":"+ null +":"+ clonePlateau(jeu.getPlateauCourant().getType()) + ":" + currentPosX + ":" + currentPosY);
                 break;
             default:
                 System.out.println("Erreur, le coup invalide !");

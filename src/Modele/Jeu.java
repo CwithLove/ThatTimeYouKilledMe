@@ -53,19 +53,36 @@ public class Jeu {
     }
 
     public Jeu(Jeu jeu){
-        this.joueur1 = jeu.joueur1;
-        this.joueur2 = jeu.joueur2;
+        // Initialiser les joueurs
+        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
+        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+        //IAminmax ia = new IAminmax(1);
 
-        this.past = jeu.past;
-        this.present = jeu.present;
-        this.future = jeu.future;
+        // Initialiser les plateaux
+        past = new Plateau(jeu.getPast(), joueur1, joueur2);
+        present = new Plateau(jeu.getPresent(), joueur1, joueur2);
+        future = new Plateau(jeu.getFuture(), joueur1, joueur2);
         this.etapeCoup = jeu.etapeCoup;
 
-        this.joueurCourant = jeu.joueurCourant;
-        this.pieceCourante = jeu.pieceCourante;
+        switch (jeu.joueurCourant.getId()) {
+            case 1 -> this.joueurCourant = joueur1;
+            case 2 -> this.joueurCourant = joueur2;
+        }
+
+        switch (jeu.plateauCourant.getType()) {
+            case PAST:
+                this.plateauCourant = past;
+                break;
+            case PRESENT:
+                this.plateauCourant = present;
+                break;
+            case FUTURE:
+                this.plateauCourant = future;
+                break;
+        }
+        
         this.gameState = jeu.gameState;
-        this.plateauCourant = jeu.plateauCourant;
-        this.historiqueJeu = jeu.historiqueJeu;
+        historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
     }
 
     /**
@@ -752,6 +769,20 @@ public class Jeu {
 
     public void setJoueurCourant(Joueur joueur) {
         this.joueurCourant = joueur;
+    }
+
+    public void setPlateauCourant(TypePlateau type) {
+        switch (type) {
+            case PAST:
+                plateauCourant = past;
+                break;
+            case PRESENT:
+                plateauCourant = present;
+                break;
+            case FUTURE:
+                plateauCourant = future;
+                break;
+        }
     }
 
     public Plateau getPast() {

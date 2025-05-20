@@ -358,6 +358,19 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     }
 
     /**
+     * Callback appelé par GameServerManager quand le Joueur 2 se déconnecte.
+     */
+    public void onPlayerTwoDisconnected() {
+        SwingUtilities.invokeLater(() -> { // Assure l'exécution sur l'EDT.
+            playerTwoConfirmedConnected = false;
+            statusMessage = "Joueur 2 déconnecté. En attente d'une nouvelle connexion.";
+            System.out.println("HostingScene: Joueur 2 déconnecté.");
+            startGameButton.setEnabled(false);
+            repaintPanel();
+        });
+    }
+
+    /**
      * Met à jour la logique de la scène (animation de fondu, points d'attente, état des boutons).
      */
     @Override

@@ -39,6 +39,8 @@ public class GameServerManager {
 
     private HostingScene hostingSceneCallback; // Callback pour HostingScene (si l'hôte est en mode multijoueur)
     private volatile boolean isServerRunning = false;
+    // Stocker les récepteurs client
+    private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
 
     public GameServerManager(HostingScene callback) {
         this.hostingSceneCallback = callback; // Peut être null (par exemple : lorsque GameScene héberge en solo)
@@ -53,96 +55,8 @@ public class GameServerManager {
         isServerRunning = true;
         System.out.println("GameServerManager: Serveur démarré sur le port " + PORT);
 
-        acceptConnectionsThread = new Thread(() -> {
-            try {
-                while (connectedClientIds.size() < maxClients && isServerRunning) {
-                    System.out.println("GameServerManager: En attente de connexions client ("
-                            + connectedClientIds.size() + "/" + maxClients + ")...");
-                    Socket clientSocket = serverSocket.accept(); // Accepter une connexion
-
-                    synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
-                        clientIdCounter++;
-                    }
-                    int newClientId = clientIdCounter;
-
-                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
-
-                    try {
-                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
-                       // 1. Le serveur crée un flux de sortie et le flush
-                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                        out.flush();
-
-                        // 2. Le client crée un flux d'entrée
-                        // 3. Le client crée un flux de sortie et le flush
-                        // 4. Le serveur crée un flux d'entrée
-                        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-
-                        // 5. Le serveur envoie ID
-                        out.writeObject("ID:" + newClientId);
-                        out.flush();
-                        System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
-
-                        BlockingQueue<String> clientOutgoingQueue = new LinkedBlockingQueue<>();
-                        outgoingQueues.put(newClientId, clientOutgoingQueue);
-                        connectedClientIds.add(newClientId);
-
-
-                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
-                        Thread receiverThread = new Thread(
-                                new ClientReceiver(in, incomingMessages, newClientId),
-                                "ClientReceiver-" + newClientId
-                        );
-                        receiverThread.start();
-
-                        Thread senderThread = new Thread(
-                                new ClientSender(out, clientOutgoingQueue, newClientId),
-                                "ClientSender-" + newClientId
-                        );
-                        senderThread.start();
-
-                        System.out.println("GameServerManager: Client " + newClientId + " configuré. Clients connectés: " + connectedClientIds.size());
-                    } catch (IOException e) {
-                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId + ": " + e.getMessage());
-                        try {
-                            clientSocket.close();
-                        } catch (IOException closeEx) {
-                            // ignore les erreurs dans la fermeture
-                        }
-                        continue; // sortie d'iteration acutelle
-                    }
-
-                    if (connectedClientIds.size() == maxClients) {
-                        System.out.println("GameServerManager: Nombre maximum de " + maxClients + " joueurs atteint.");
-                        if (hostingSceneCallback != null) {
-                            // Si HostingScene a un callback, le notifier.
-                            // HostingScene décidera quand appeler startGameEngine().
-                            hostingSceneCallback.onPlayerTwoConnected();
-                            System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
-                        } else {
-                            // Si aucun callback (mode solo hébergé par GameScene),
-                            // démarrer automatiquement GameEngineServer.
-                            System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
-                            startGameEngine();
-                        }
-                    }
-                }
-                if (isServerRunning) {
-                    System.out.println("GameServerManager: Nombre maximum de clients atteint ou arrêt du serveur. Arrêt de l'acceptation de nouvelles connexions.");
-                }
-            } catch (IOException e) {
-                if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
-                    System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
-                    // e.printStackTrace(); // Peut encombrer la console
-                } else {
-                    System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
-                }
-            } finally {
-                System.out.println("GameServerManager: Le thread d'acceptation des connexions s'est terminé.");
-            }
-        });
-        acceptConnectionsThread.setName("GSM-AcceptConnectionsThread");
-        acceptConnectionsThread.start();
+        // Créer et démarrer un nouveau thread d'acceptation
+        createAndStartAcceptThread("GSM-AcceptConnectionsThread");
     }
 
     public synchronized void startGameEngine() { // synchronized pour éviter plusieurs appels
@@ -776,4 +690,172 @@ public class GameServerManager {
         
         return possibleMovesStr.toString();
     }
+
+    /**
+     * Gestion de la déconnexion d'un client
+     * @param clientId ID du client qui s'est déconnecté
+     */
+    public synchronized void handleClientDisconnection(int clientId) {
+        System.out.println("GameServerManager: Client " + clientId + " s'est déconnecté.");
+        
+        connectedClientIds.remove(Integer.valueOf(clientId));
+        outgoingQueues.remove(clientId);
+        clientReceivers.remove(clientId);
+
+        // Si nous sommes en phase de jeu (gameInstance existe)
+        if (gameInstance != null) {
+            // Notifier l'autre joueur que son adversaire s'est déconnecté
+            int otherPlayerId = (clientId == 1) ? 2 : 1;
+            
+            if (connectedClientIds.contains(otherPlayerId)) {
+                String disconnectionMessage = Code.ADVERSAIRE.name() + ":Votre adversaire (Joueur " + clientId + ") s'est déconnecté.";
+                sendMessageToClient(otherPlayerId, disconnectionMessage);
+                System.out.println("GameServerManager: Notification envoyée au joueur " + otherPlayerId + " que le joueur " + clientId + " s'est déconnecté.");
+            }
+        } else {
+            // Si nous sommes encore en phase de Lobby (gameInstance n'existe pas encore)
+            System.out.println("GameServerManager: Déconnexion en phase de Lobby, nettoyage des ressources du joueur " + clientId);
+            
+            // Si c'est le joueur 2 qui s'est déconnecté, on redémarre le thread d'acceptation pour permettre 
+            // à un nouveau joueur 2 de se connecter
+            if (clientId == 2 && isServerRunning) {
+                // 重置clientIdCounter以确保下一个连接的客户端ID为2
+                synchronized (this) {
+                    clientIdCounter = 1; // 重置为1，下一个分配的ID将是2
+                }
+                System.out.println("GameServerManager: Réinitialisation du compteur d'ID client à 1 (prochain ID sera 2)");
+                System.out.println("GameServerManager: Redémarrage du thread d'acceptation pour permettre une nouvelle connexion.");
+                restartAcceptConnectionsThread();
+            }
+        }
+        
+        // Si le joueur 2 s'est déconnecté et nous avons un callback pour HostingScene
+        if (clientId == 2 && hostingSceneCallback != null) {
+            notifyPlayerTwoDisconnected();
+        }
+        
+        System.out.println("GameServerManager: Clients restants connectés: " + connectedClientIds.size());
+    }
+    
+    /**
+     * Notifier HostingScene que le joueur 2 s'est déconnecté
+     */
+    private void notifyPlayerTwoDisconnected() {
+        if (hostingSceneCallback != null) {
+            System.out.println("GameServerManager: Notification à HostingScene que le joueur 2 s'est déconnecté.");
+            hostingSceneCallback.onPlayerTwoDisconnected();
+        }
+    }
+
+    /**
+     * Redémarre le thread d'acceptation des connexions après la déconnexion d'un client
+     */
+    private void restartAcceptConnectionsThread() {
+        // Vérifier si un thread existe déjà et s'il est toujours en cours d'exécution
+        if (acceptConnectionsThread != null && acceptConnectionsThread.isAlive()) {
+            System.out.println("GameServerManager: Le thread d'acceptation est déjà en cours d'exécution.");
+            return;
+        }
+        
+        // 使用封装方法创建并启动线程
+        createAndStartAcceptThread("GSM-AcceptConnectionsThread-Restarted");
+    }
+    
+    /**
+     * Crée et démarre un thread d'acceptation des connexions
+     * @param threadName Nom du thread à créer
+     */
+    private void createAndStartAcceptThread(String threadName) {
+        acceptConnectionsThread = new Thread(() -> {
+            try {
+                System.out.println("GameServerManager: Thread d'acceptation " + threadName + " démarré.");
+                while (connectedClientIds.size() < maxClients && isServerRunning) {
+                    System.out.println("GameServerManager: En attente de connexions client ("
+                            + connectedClientIds.size() + "/" + maxClients + ")...");
+                    Socket clientSocket = serverSocket.accept(); // Accepter une connexion
+
+                    synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
+                        clientIdCounter++;
+                    }
+                    int newClientId = clientIdCounter;
+
+                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
+
+                    try {
+                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
+                       // 1. Le serveur crée un flux de sortie et le flush
+                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+                        out.flush();
+
+                        // 2. Le client crée un flux d'entrée
+                        // 3. Le client crée un flux de sortie et le flush
+                        // 4. Le serveur crée un flux d'entrée
+                        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+
+                        // 5. Le serveur envoie ID
+                        out.writeObject("ID:" + newClientId);
+                        out.flush();
+                        System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
+
+                        BlockingQueue<String> clientOutgoingQueue = new LinkedBlockingQueue<>();
+                        outgoingQueues.put(newClientId, clientOutgoingQueue);
+                        connectedClientIds.add(newClientId);
+
+
+                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
+                        ClientReceiver receiver = new ClientReceiver(in, incomingMessages, newClientId, this);
+                        Thread receiverThread = new Thread(
+                                receiver,
+                                "ClientReceiver-" + newClientId
+                        );
+                        receiverThread.start();
+                        
+                        // Stocker le récepteur client
+                        clientReceivers.put(newClientId, receiver);
+
+                        Thread senderThread = new Thread(
+                                new ClientSender(out, clientOutgoingQueue, newClientId),
+                                "ClientSender-" + newClientId
+                        );
+                        senderThread.start();
+
+                        System.out.println("GameServerManager: Client " + newClientId + " configuré. Clients connectés: " + connectedClientIds.size());
+                    } catch (IOException e) {
+                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId + ": " + e.getMessage());
+                        try {
+                            clientSocket.close();
+                        } catch (IOException closeEx) {
+                            // ignore les erreurs dans la fermeture
+                        }
+                        continue; // sortie d'iteration acutelle
+                    }
+
+                    if (connectedClientIds.size() == maxClients) {
+                        System.out.println("GameServerManager: Nombre maximum de " + maxClients + " joueurs atteint.");
+                        if (hostingSceneCallback != null) {
+                            // Si HostingScene a un callback, le notifier.
+                            // HostingScene décidera quand appeler startGameEngine().
+                            hostingSceneCallback.onPlayerTwoConnected();
+                            System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
+                        } else {
+                            // Si aucun callback (mode solo hébergé par GameScene),
+                            // démarrer automatiquement GameEngineServer.
+                            System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
+                            startGameEngine();
+                        }
+                    }
+                }
+                System.out.println("GameServerManager: Thread d'acceptation terminé.");
+            } catch (IOException e) {
+                if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
+                    System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
+                } else {
+                    System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
+                }
+            }
+        });
+        acceptConnectionsThread.setName(threadName);
+        acceptConnectionsThread.start();
+    }
+
 }

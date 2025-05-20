@@ -41,6 +41,15 @@ public class GameServerManager {
     private volatile boolean isServerRunning = false;
     // Stocker les récepteurs client
     private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
+    
+    // Interface pour le callback de déconnexion
+    public interface PlayerDisconnectionListener {
+        void onPlayerDisconnected();
+    }
+    
+    // Référence au listener de déconnexion (GameScene)
+    private PlayerDisconnectionListener disconnectionListener;
+    private volatile boolean notifiedDisconnection = false;
 
     public GameServerManager(HostingScene callback) {
         this.hostingSceneCallback = callback; // Peut être null (par exemple : lorsque GameScene héberge en solo)
@@ -53,6 +62,7 @@ public class GameServerManager {
         }
         serverSocket = new ServerSocket(PORT);
         isServerRunning = true;
+        notifiedDisconnection = false; // 重置断开连接通知标记
         System.out.println("GameServerManager: Serveur démarré sur le port " + PORT);
 
         // Créer et démarrer un nouveau thread d'acceptation
@@ -590,6 +600,7 @@ public class GameServerManager {
         }
         
         isServerRunning = false; // Définir ce drapeau en premier
+        notifiedDisconnection = false; // Réinitialiser l'indicateur de notification
 
         try {
             if (acceptConnectionsThread != null && acceptConnectionsThread.isAlive()) {
@@ -692,6 +703,15 @@ public class GameServerManager {
     }
 
     /**
+     * Définit le listener de déconnexion pour la phase de jeu
+     * @param listener L'objet qui implémente PlayerDisconnectionListener (GameScene)
+     */
+    public void setDisconnectionListener(PlayerDisconnectionListener listener) {
+        this.disconnectionListener = listener;
+        System.out.println("GameServerManager: Listener de déconnexion défini");
+    }
+
+    /**
      * Gestion de la déconnexion d'un client
      * @param clientId ID du client qui s'est déconnecté
      */
@@ -712,6 +732,13 @@ public class GameServerManager {
                 sendMessageToClient(otherPlayerId, disconnectionMessage);
                 System.out.println("GameServerManager: Notification envoyée au joueur " + otherPlayerId + " que le joueur " + clientId + " s'est déconnecté.");
             }
+            
+            // Notifier GameScene qu'un joueur s'est déconnecté, seulement si nous n'avons pas déjà notifié
+            if (disconnectionListener != null && !notifiedDisconnection) {
+                notifiedDisconnection = true; // Marquer comme déjà notifié
+                System.out.println("GameServerManager: Notification à GameScene qu'un joueur s'est déconnecté");
+                disconnectionListener.onPlayerDisconnected();
+            }
         } else {
             // Si nous sommes encore en phase de Lobby (gameInstance n'existe pas encore)
             System.out.println("GameServerManager: Déconnexion en phase de Lobby, nettoyage des ressources du joueur " + clientId);
@@ -719,9 +746,9 @@ public class GameServerManager {
             // Si c'est le joueur 2 qui s'est déconnecté, on redémarre le thread d'acceptation pour permettre 
             // à un nouveau joueur 2 de se connecter
             if (clientId == 2 && isServerRunning) {
-                // 重置clientIdCounter以确保下一个连接的客户端ID为2
+                // Réinitialisation du compteur d'ID pour que le prochain client ait l'ID 2
                 synchronized (this) {
-                    clientIdCounter = 1; // 重置为1，下一个分配的ID将是2
+                    clientIdCounter = 1; // Réinitialiser à 1, le prochain ID sera 2
                 }
                 System.out.println("GameServerManager: Réinitialisation du compteur d'ID client à 1 (prochain ID sera 2)");
                 System.out.println("GameServerManager: Redémarrage du thread d'acceptation pour permettre une nouvelle connexion.");

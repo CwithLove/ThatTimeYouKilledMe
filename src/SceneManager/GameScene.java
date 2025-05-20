@@ -22,7 +22,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
-public class GameScene implements Scene, GameStateUpdateListener {
+public class GameScene implements Scene, GameStateUpdateListener, GameServerManager.PlayerDisconnectionListener {
 
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
@@ -58,6 +58,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // (onGameMessage)
     private volatile boolean isLoading = false; // Pour afficher l'état de chargement
     private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
+    private volatile boolean handlingDisconnection = false; // 防止onPlayerDisconnected被多次调用
 
     Point mousePoint;
 
@@ -121,6 +122,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
         this.isOperatingInSinglePlayerMode = false;
         this.gameClient = alreadyConnectedHostClient; // Utilise le client déjà connecté
         this.hostServerManager = serverManager; // Reprend la gestion du serveur
+        
+        // Définir cette classe comme listener de déconnexion pour le serveur
+        if (this.hostServerManager != null) {
+            this.hostServerManager.setDisconnectionListener(this);
+            System.out.println("GameScene: Enregistré comme listener de déconnexion pour le serveur");
+        }
 
         if (this.gameClient == null) {
             this.statusMessage = "Erreur fatale: Client hôte non fourni à GameScene.";
@@ -2062,5 +2069,24 @@ public class GameScene implements Scene, GameStateUpdateListener {
             statusMessage = "Plateau FUTUR sélectionné pour le prochain tour.";
             System.out.println("GameScene: Sélection du plateau FUTUR pour le prochain tour");
         }
+    }
+
+    @Override
+    public void onPlayerDisconnected() {
+        // Si le joueur s'est déconnecté, on affiche un message et on retourne au menu principal
+        if (handlingDisconnection) {
+            return;
+        }
+        handlingDisconnection = true;
+        SwingUtilities.invokeLater(() -> {
+            // Afficher un message de déconnexion
+            JOptionPane.showMessageDialog(sceneManager.getPanel(), 
+                "Le joueur s'est déconnecté, le jeu est terminé", 
+                "DÉCONNECTÉ",
+                JOptionPane.WARNING_MESSAGE);
+            
+            // retourner au menu principal
+            cleanUpAndGoToMenu();
+        });
     }
 }

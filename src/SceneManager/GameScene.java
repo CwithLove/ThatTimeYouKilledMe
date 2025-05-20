@@ -91,6 +91,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private Plateau.TypePlateau joueur2SelectedPlateau = Plateau.TypePlateau.FUTURE;
     private Plateau.TypePlateau activePlateau = null;
 
+    private int presentStartX;
+    private int pastStartX;
+    private int futureStartX;
+    private int offsetY;
+
+    private int tileWidth;
+    private int boardSize;
+
+    private Plateau plateauMouse;
+    private int caseMouseX;
+    private int caseMouseY;
+
     // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
         this.sceneManager = sceneManager;
@@ -716,17 +728,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             // Definir les tailles de plateau (dynamique en fonction de la taille du
             // panneau)
-            int boardSize = jeu.getTAILLE();
-            int tileWidth = choosePlateauHeight / boardSize; // Taille de la tuile basée sur la hauteur du panneau
+            boardSize = jeu.getTAILLE();
+            tileWidth = choosePlateauHeight / boardSize; // Taille de la tuile basée sur la hauteur du panneau
             int tileHeight = tileWidth * 1; // A changer pour dessiner isométriquement
             int deltaX = 0; // Décalage horizontal pour centrer les plateaux -> Pour ce moment pas
             // d'isométrie
 
             // Definir la position depart de chaque plateau
-            int presentStartX = centerX - choosePlateauWidth / 2 + deltaX;
-            int pastStartX = presentStartX - choosePlateauWidth - spacing;
-            int futureStartX = presentStartX + choosePlateauWidth + spacing;
-            int offsetY = centerY - choosePlateauHeight / 2 + tileHeight / 2; // Centrer verticalement les plateaux
+            presentStartX = centerX - choosePlateauWidth / 2 + deltaX;
+            pastStartX = presentStartX - choosePlateauWidth - spacing;
+            futureStartX = presentStartX + choosePlateauWidth + spacing;
+            offsetY = centerY - choosePlateauHeight / 2 + tileHeight / 2; // Centrer verticalement les plateaux
 
             Plateau past = jeu.getPast();
             Plateau present = jeu.getPresent();
@@ -803,6 +815,28 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int myPlayerId = gameClient != null ? gameClient.getMyPlayerId() : -1;
             int currentPlayerId = jeu.getJoueurCourant() != null ? jeu.getJoueurCourant().getId() : -1;
 
+
+            caseMouseX = -1;
+            caseMouseY = -1;
+
+            Plateau p = null;
+            Point casePoint = null;
+            if (mousePoint != null) {
+                p = getPlateauFromMousePoint(mousePoint);
+                plateauMouse = p;
+                if (p != null) {
+                    casePoint = getCaseFromMousePoint(p, mousePoint);
+                    caseMouseX = (int) casePoint.getX();
+                    caseMouseY = (int) casePoint.getY();
+                }
+            }
+
+            if (casePoint != null) {
+                System.out.println("Plateau " + p.getType() + " CASE : " + casePoint.getX() + ", " + casePoint.getY());
+            }
+
+
+
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
                 g2d.setColor(Color.WHITE);
@@ -810,28 +844,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 Stroke originalStroke = g2d.getStroke();
                 g2d.setStroke(new BasicStroke(4f));
 
-                Plateau p;
-                if (mousePoint != null) {
-                    p = getPlateauFromMousePoint(mousePoint);
-                    if (gameClient.getMyPlayerId() == 1) {
-                        activePlateau = joueur1SelectedPlateau;
-                    } else {
-                        activePlateau = joueur2SelectedPlateau;
-                    }
+                if (gameClient.getMyPlayerId() == 1) {
+                    activePlateau = joueur1SelectedPlateau;
+                } else {
+                    activePlateau = joueur2SelectedPlateau;
+                }
 
-                    if (p != null && p.getType() != activePlateau) {
-                        switch (p.getType()) {
-                            case PAST ->
-                                g2d.drawRoundRect(pastStartX - 2, offsetY - 2, tileWidth * past.getSize() + 4,
-                                        tileWidth * past.getSize() + 4,
-                                        10, 10);
-                            case PRESENT ->
-                                g2d.drawRoundRect(presentStartX - 2, offsetY - 2, tileWidth * present.getSize() + 4,
-                                        tileWidth * present.getSize() + 4, 5, 5);
-                            case FUTURE ->
-                                g2d.drawRoundRect(futureStartX - 2, offsetY - 2, tileWidth * future.getSize() + 4,
-                                        tileWidth * future.getSize() + 4, 5, 5);
-                        }
+                if (p != null && p.getType() != activePlateau) {
+                    switch (p.getType()) {
+                        case PAST ->
+                            g2d.drawRoundRect(pastStartX - 2, offsetY - 2, tileWidth * past.getSize() + 4,
+                                    tileWidth * past.getSize() + 4, 5, 5);
+                        case PRESENT ->
+                            g2d.drawRoundRect(presentStartX - 2, offsetY - 2, tileWidth * present.getSize() + 4,
+                                    tileWidth * present.getSize() + 4, 5, 5);
+                        case FUTURE ->
+                            g2d.drawRoundRect(futureStartX - 2, offsetY - 2, tileWidth * future.getSize() + 4,
+                                    tileWidth * future.getSize() + 4, 5, 5);
                     }
                 }
                 g2d.setStroke(originalStroke);
@@ -1172,13 +1201,27 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     switch (piece.getOwner().getId()) {
                         case 1 -> {
                             // Joueur 1 (Lemiel)
-                            g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
-                            g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                            if (gameClient.getMyPlayerId() == 1 && isMyTurn() && joueur1SelectedPlateau == plateau.getType() && plateauMouse != null && 
+                            joueur1SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
+                                g.drawImage(lemielAnimation[0][frame], (int) (pieceX - 5/6), (int) (pieceY - 5/6), imageWidth * 5/3, (int) (imageHeight * 5/3), null);
+                                g.drawImage(lemielAnimation[1][frame], (int) (pieceX - 5/6), (int) (pieceY - 5/6), imageWidth * 5/3,(int) (imageHeight * 5/3), null);
+                            }
+                            else {
+                                g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                            }
                         }
                         case 2 -> {
                             // Joueur 2 (Zarek)
-                            g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
-                            g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                            if (gameClient.getMyPlayerId() == 2 && isMyTurn() && joueur2SelectedPlateau == plateau.getType() && plateauMouse != null && 
+                            joueur2SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
+                                g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth * 5/3, imageHeight * 5/3, null);
+                                g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth * 5/3, imageHeight * 5/3, null);
+                            }
+                            else {
+                                g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                            }
                         }
                         default -> {
                             g.setColor(Color.GRAY); // Couleur par défaut si l'ID n'est pas reconnu
@@ -1917,6 +1960,30 @@ public class GameScene implements Scene, GameStateUpdateListener {
             statusMessage = "Plateau FUTUR sélectionné pour le prochain tour.";
             System.out.println("GameScene: Sélection du plateau FUTUR pour le prochain tour");
         }
+    }
+
+    private Point getCaseFromMousePoint(Plateau plateau, Point point) {
+        int x, y, startX;
+        Point p;
+        if (plateau.getType() == Plateau.TypePlateau.PAST)
+            startX = pastStartX;
+        else if (plateau.getType() == Plateau.TypePlateau.PRESENT)
+            startX = presentStartX;
+        else
+            startX = futureStartX;
+        
+        for(int i = 0; i < boardSize; i++) {
+            x = startX + i * tileWidth;  
+            for(int j = 0; j < boardSize; j++) {
+                y = offsetY + j * tileWidth;
+                //System.out.println("x :" + x + " y : " + y + " mousePoint : (" + mousePoint.getX() + ", " + mousePoint.getY() + " )");
+                if (x < point.getX() && x + tileWidth > point.getX() && y < point.getY() && y + tileWidth > point.getY()) {
+                    p = new Point(i, j);
+                    return p;
+                }
+            }
+        }
+        return null;
     }
 
     /*private void animationTranslation() {

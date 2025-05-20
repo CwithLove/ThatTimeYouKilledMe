@@ -86,6 +86,89 @@ public class GameClient {
         }
     }
     
+    /**
+     * Tente de reconnecter au serveur si la connexion a été perdue.
+     * Conserve l'ID du joueur et autres informations de session si possible.
+     * @return true si la reconnexion a réussi, false sinon
+     */
+    public boolean reconnect() {
+        if (isConnected()) {
+            System.out.println("GameClient: Déjà connecté, pas besoin de reconnexion");
+            return true;
+        }
+        
+        System.out.println("GameClient: Tentative de reconnexion avec ID: " + myPlayerId);
+        
+        // Nettoyage des ressources existantes
+        try {
+            if (outputStream != null) outputStream.close();
+            if (inputStream != null) inputStream.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            // Ignorer les erreurs de fermeture
+        }
+        
+        outputStream = null;
+        inputStream = null;
+        socket = null;
+        
+        try {
+            // Établir une nouvelle connexion socket
+            socket = new Socket(serverIpAddress, serverPort);
+            isConnected = true;
+            
+            // Recréer les flux dans le bon ordre (comme pour connect())
+            inputStream = new ObjectInputStream(socket.getInputStream());
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.flush();
+            
+            // Lire l'ID envoyé par le serveur
+            Object idMessageObj = inputStream.readObject();
+            if (idMessageObj instanceof String) {
+                String idMessage = (String) idMessageObj;
+                if (idMessage.startsWith("ID:")) {
+                    int newPlayerId = Integer.parseInt(idMessage.substring(3));
+                    System.out.println("GameClient: Reconnexion réussie. Nouvel ID: " + newPlayerId);
+                    
+                    // Mise à jour de l'ID si nécessaire
+                    this.myPlayerId = newPlayerId;
+                } else {
+                    throw new IOException("Message ID invalide lors de la reconnexion: " + idMessage);
+                }
+            } else {
+                throw new IOException("Type de message d'ID invalide lors de la reconnexion");
+            }
+            
+            // Recréer le thread de réception
+            setupReceptionThread();
+            
+            if (listener != null) {
+                listener.onGameMessage("RECONNECTED", "Reconnexion réussie avec ID: " + myPlayerId);
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("GameClient: Échec de la tentative de reconnexion: " + e.getMessage());
+            isConnected = false;
+            
+            // Nettoyage en cas d'échec
+            try {
+                if (outputStream != null) outputStream.close();
+                if (inputStream != null) inputStream.close();
+                if (socket != null && !socket.isClosed()) socket.close();
+            } catch (IOException closeEx) {
+                // Ignorer les erreurs de fermeture
+            }
+            
+            if (listener != null) {
+                listener.onGameMessage("ERROR", "Échec de la reconnexion: " + e.getMessage());
+            }
+            
+            return false;
+        }
+    }
+    
     // Déplacer la configuration du thread de réception dans une méthode séparée pour améliorer la clarté du code
     private void setupReceptionThread() {
         receptionThread = new Thread(() -> {

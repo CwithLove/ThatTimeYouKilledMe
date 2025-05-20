@@ -14,6 +14,9 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import javax.swing.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
@@ -203,7 +206,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
 
         // Ajouter un bouton pour annuler une action
-        undoButton = new Button(0, 0, 100, 40, "UNDO", this::handleUndoAction);
+        int undoX = sceneManager.getPanel().getWidth() / 2 - 50;
+        int undoY = sceneManager.getPanel().getHeight() / 11 + 20;
+        undoButton = new Button(undoX, undoY, 100, 40, "UNDO", this::handleUndoAction);
 
         // Ajouter un bouton pour choisir un plateau
         choosePlateauButton = new Button(0, 0, 180, 40, "Choisir ce plateau", this::handleChoosePlateauAction);
@@ -874,7 +879,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         int rectWidth = width * 26 / 100; // 28% de la largeur du panneau
         int rectHeight = height * 10 / 100; // 10% de la hauteur du panneau
         int lemielCloneX = sideMargin;
-        int zarekCloneX = centerX - choosePlateauWidth / 2;
+        int zarekCloneX = sceneManager.getPanel().getWidth() - choosePlateauWidth - sideMargin / 2;
         int cloneY = topMargin;
 
         // Draw rectangle background
@@ -955,32 +960,42 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         Shape oldClip = g.getClip();
 
-        // Pour chaque plateau, dessiner un oval de sélection
-        for (int plt = 0; plt < 3; plt++) {
-            g.setColor(Color.BLACK);
-            g.fillOval(xPos[plt], pickerY, size, size); // Fond noir
+        // Pour le plateau courant, dessiner un oval de sélection
+
+        g.setColor(new Color(0, 0, 0, 128));
 
             // Dessiner l'avatar
             switch (jeu.getJoueur1().getProchainPlateau()) {
                 case PAST:
                     if (lemielAvatarImage != null) {
+                        g.setColor(new Color(0, 0, 0, 128));
+                        g.fillOval(xPos[0], pickerY, size, size); // Fond noir
+                        g.setColor(new Color(240,217,134));
+                        g.drawOval(xPos[0], pickerY, size, size);
                         g.drawImage(lemielAvatarImage, xPos[0], pickerY, size, size, null);
                     }
                     break;
 
                 case PRESENT:
                     if (lemielAvatarImage != null) {
+                        g.setColor(new Color(0, 0, 0, 128));
+                        g.fillOval(xPos[1], pickerY, size, size);
+                        g.setColor(new Color(240,217,134));
+                        g.drawOval(xPos[1], pickerY, size, size);
                         g.drawImage(lemielAvatarImage, xPos[1], pickerY, size, size, null);
                     }
                     break;
 
                 case FUTURE:
                     if (lemielAvatarImage != null) {
+                        g.setColor(new Color(0, 0, 0, 128));
+                        g.fillOval(xPos[2], pickerY, size, size);
+                        g.setColor(new Color(240,217,134));
+                        g.drawOval(xPos[2], pickerY, size, size);
                         g.drawImage(lemielAvatarImage, xPos[2], pickerY, size, size, null);
                     }
                     break;
             }
-        }
 
         g.setClip(oldClip); // Restaurer le clip précédent
     }
@@ -1000,31 +1015,40 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         Shape oldClip = g.getClip();
 
-        // Pour chaque plateau, dessiner un oval de sélection
-        for (int plt = 0; plt < 3; plt++) {
-            g.setColor(Color.BLACK);
-            g.fillOval(xPos[plt], pickerY, size, size); // Fond noir
+        // Pour le plateau courant, dessiner un oval de sélection
+
 
             // Dessiner l'avatar
             switch (jeu.getJoueur2().getProchainPlateau()) {
                 case PAST:
                     if (zarekAvatarImage != null) {
+                        g.setColor(new Color(255, 255, 255, 128));
+                        g.fillOval(xPos[0], pickerY, size, size);
+                        g.setColor(new Color(0, 0, 0));
+                        g.drawOval(xPos[0], pickerY, size, size);
                         g.drawImage(zarekAvatarImage, xPos[0], pickerY, size, size, null);
                     }
                     break;
 
                 case PRESENT:
                     if (zarekAvatarImage != null) {
+                        g.setColor(new Color(255, 255, 255, 128));
+                        g.fillOval(xPos[1], pickerY, size, size);
+                        g.setColor(new Color(0, 0, 0));
+                        g.drawOval(xPos[1], pickerY, size, size);
                         g.drawImage(zarekAvatarImage, xPos[1], pickerY, size, size, null);
                     }
                     break;
 
                 case FUTURE:
                     if (zarekAvatarImage != null) {
+                        g.setColor(new Color(255, 255, 255, 128));
+                        g.fillOval(xPos[2], pickerY, size, size);
+                        g.setColor(new Color(0, 0, 0));
+                        g.drawOval(xPos[2], pickerY, size, size);
                         g.drawImage(zarekAvatarImage, xPos[2], pickerY, size, size, null);
                     }
                     break;
-            }
         }
 
         g.setClip(oldClip); // Restaurer le clip précédent
@@ -1859,4 +1883,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
             System.out.println("GameScene: Sélection du plateau FUTUR pour le prochain tour");
         }
     }
+
+    /*private void animationTranslation() {
+        timerAnim = new Timer(20, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                repaintPanel();
+                x++;
+            }
+        });
+        timerAnim.start();
+    }*/
 }

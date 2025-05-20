@@ -70,6 +70,11 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
         fadeComplete = false;
         lastDotTime = startTime;
         animationDots = 0;
+        
+        if (gameClient != null) {
+            this.clientWasConnected = gameClient.isConnected() || clientWasConnected;
+        }
+        
         // Tenter une reconnexion immediate si le client était connecté mais ne l'est plus
         if (gameClient != null && !gameClient.isConnected() && clientWasConnected) {
             try {
@@ -82,6 +87,16 @@ public class ClientLobbyScene implements Scene, GameStateUpdateListener {
                 }
             } catch (Exception e) {
                 System.err.println("ClientLobbyScene: Erreur lors de la tentative de reconnexion: " + e.getMessage());
+            }
+        }
+        
+        // Revient au lobby depuis GameScene, on set le listener vers cette scène
+        if (gameClient != null) {
+            try {
+                gameClient.setListener(this);
+                System.out.println("ClientLobbyScene: Listener mis à jour.");
+            } catch (Exception e) {
+                System.err.println("ClientLobbyScene: Erreur lors de la mise à jour du listener: " + e.getMessage());
             }
         }
         

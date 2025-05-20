@@ -1,19 +1,18 @@
 package SceneManager;
 
+import Modele.Jeu;
+import Network.GameClient;
+import Network.GameServerManager;
+import Network.GameStateUpdateListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import javax.swing.SwingUtilities;
 import javax.swing.JOptionPane;
-import javax.swing.SwingWorker;
-
-import Network.GameClient;
-import Network.GameServerManager;
-import Network.GameStateUpdateListener;
-import Modele.Jeu; // Nécessaire pour l'implémentation de GameStateUpdateListener
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker; // Nécessaire pour l'implémentation de GameStateUpdateListener
 
 /**
  * HostingScene est la scène où l'hôte attend qu'un autre joueur se connecte
@@ -231,85 +230,115 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         startTime = System.currentTimeMillis();
         alpha = 0f;
         fadeComplete = false;
-        playerTwoConfirmedConnected = false;
-        serverSuccessfullyStarted = false;
-        hostClientConnected = false;
         transitioningToGameScene = false; // Réinitialise à chaque init
-        statusMessage = "Démarrage du serveur hôte...";
-        if(startGameButton != null) startGameButton.setEnabled(true); // S'assurer que le bouton est actif à l'init
-
-        setupMouseListeners(); // Configure les écouteurs de souris.
-
-        // Utilise SwingWorker pour les opérations de réseau et de démarrage du serveur.
-        SwingWorker<Void, String> initWorker = new SwingWorker<Void, String>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                // Étape 1: Démarrer le GameServerManager.
-                publish("Démarrage du serveur...");
-                if (gameServerManager != null && gameServerManager.isServerRunning()){
-                    // Si un serveur est déjà là (d'une instance précédente non nettoyée?), l'arrêter.
-                    // Ceci est une mesure de sécurité, normalement dispose() devrait s'en charger.
-                    System.out.println("HostingScene: Un serveur existant a été trouvé, tentative d'arrêt.");
-                    gameServerManager.stopServer();
-                }
-                gameServerManager = new GameServerManager(HostingScene.this); // 'this' est le callback.
-                try {
-                    gameServerManager.startServer();
-                    serverSuccessfullyStarted = true;
-                    publish("Serveur démarré sur IP: " + hostIP + ". Connexion de l'hôte...");
-                    System.out.println("HostingScene: Serveur démarré avec succès.");
-
-                    // Petite pause pour s'assurer que le socket serveur est bien ouvert.
-                    Thread.sleep(200);
-
-                    // Étape 2: L'hôte se connecte à son propre serveur.
-                    hostClient = new GameClient("127.0.0.1", HostingScene.this); // Utilise "127.0.0.1"
-                    hostClient.connect(); // Tente de se connecter.
-                    hostClientConnected = true; // Suppose la connexion réussie, GameClient gère les erreurs.
-                    System.out.println("HostingScene: Client hôte (ID: " + hostClient.getMyPlayerId() + ") connecté. En attente Joueur 2.");
-                    publish("Hôte (Joueur 1) connecté! En attente du Joueur 2...");
-
-                } catch (IOException e) {
-                    serverSuccessfullyStarted = false; // Échec du démarrage du serveur ou de la connexion du client hôte.
-                    hostClientConnected = false;
-                    System.err.println("HostingScene: Erreur critique pendant l'initialisation (serveur/client hôte): " + e.getMessage());
-                    e.printStackTrace();
-                    publish("Erreur Init: " + e.getMessage());
-                    // Affiche l'erreur sur l'EDT via done() ou un mécanisme de callback si nécessaire.
-                    throw e; // Relance pour que done() puisse le gérer.
-                }
-                return null;
+        
+        // Vérifie si un serveur et un client existent déjà, pour éviter de les réinitialiser lorsque le joueur revient au lobby
+        boolean hasExistingServer = (gameServerManager != null && gameServerManager.isServerRunning());
+        boolean hasExistingClient = (hostClient != null && hostClient.isConnected());
+        
+        if (hasExistingServer && hasExistingClient) {
+            // Cad probablement J1 qui revient au lobby depuis Gamescene :D
+            // Finalement y'a pas dde bug
+            System.out.println("HostingScene: Utilisation des connexions existantes. Client ID: " + 
+                hostClient.getMyPlayerId() + ", Serveur actif: " + gameServerManager.isServerRunning());
+            
+            serverSuccessfullyStarted = true;
+            hostClientConnected = true;
+            
+            hostClient.setListener(this);
+            
+            // Check si J2 est connecté
+            playerTwoConfirmedConnected = gameServerManager.areAllPlayersConnected();
+            
+            statusMessage = "Connexions restaurées après la partie précédente.";
+            if (playerTwoConfirmedConnected) {
+                statusMessage += " Prêt à commencer une nouvelle partie!";
+                startGameButton.setEnabled(true);
+            } else {
+                statusMessage += " En attente de la connexion du Joueur 2...";
+                startGameButton.setEnabled(false);
             }
+        } else {
+            // Pas de connexion existante, on fait une initialisation normale
+            playerTwoConfirmedConnected = false;
+            serverSuccessfullyStarted = false;
+            hostClientConnected = false;
+            statusMessage = "Démarrage du serveur hôte...";
+            if(startGameButton != null) startGameButton.setEnabled(true); // S'assurer que le bouton est actif à l'init
 
-            @Override
-            protected void process(java.util.List<String> chunks) {
-                if (!chunks.isEmpty()) {
-                    statusMessage = chunks.get(chunks.size() - 1);
+            // Utilise SwingWorker pour les opérations de réseau et de démarrage du serveur.
+            SwingWorker<Void, String> initWorker = new SwingWorker<Void, String>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    // Étape 1: Démarrer le GameServerManager.
+                    publish("Démarrage du serveur...");
+                    if (gameServerManager != null && gameServerManager.isServerRunning()){
+                        // Si un serveur est déjà là (d'une instance précédente non nettoyée?), l'arrêter.
+                        // Ceci est une mesure de sécurité, normalement dispose() devrait s'en charger.
+                        System.out.println("HostingScene: Un serveur existant a été trouvé, tentative d'arrêt.");
+                        gameServerManager.stopServer();
+                    }
+                    gameServerManager = new GameServerManager(HostingScene.this); // 'this' est le callback.
+                    try {
+                        gameServerManager.startServer();
+                        serverSuccessfullyStarted = true;
+                        publish("Serveur démarré sur IP: " + hostIP + ". Connexion de l'hôte...");
+                        System.out.println("HostingScene: Serveur démarré avec succès.");
+
+                        // Petite pause pour s'assurer que le socket serveur est bien ouvert.
+                        Thread.sleep(200);
+
+                        // Étape 2: L'hôte se connecte à son propre serveur.
+                        hostClient = new GameClient("127.0.0.1", HostingScene.this); // Utilise "127.0.0.1"
+                        hostClient.connect(); // Tente de se connecter.
+                        hostClientConnected = true; // Suppose la connexion réussie, GameClient gère les erreurs.
+                        System.out.println("HostingScene: Client hôte (ID: " + hostClient.getMyPlayerId() + ") connecté. En attente Joueur 2.");
+                        publish("Hôte (Joueur 1) connecté! En attente du Joueur 2...");
+
+                    } catch (IOException e) {
+                        serverSuccessfullyStarted = false; // Échec du démarrage du serveur ou de la connexion du client hôte.
+                        hostClientConnected = false;
+                        System.err.println("HostingScene: Erreur critique pendant l'initialisation (serveur/client hôte): " + e.getMessage());
+                        e.printStackTrace();
+                        publish("Erreur Init: " + e.getMessage());
+                        // Affiche l'erreur sur l'EDT via done() ou un mécanisme de callback si nécessaire.
+                        throw e; // Relance pour que done() puisse le gérer.
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void process(java.util.List<String> chunks) {
+                    if (!chunks.isEmpty()) {
+                        statusMessage = chunks.get(chunks.size() - 1);
+                        repaintPanel();
+                    }
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        get(); // Vérifie les exceptions de doInBackground.
+                        if (!serverSuccessfullyStarted) {
+                            statusMessage = "Échec du démarrage du serveur.";
+                            JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Serveur", JOptionPane.ERROR_MESSAGE);
+                        } else if (!hostClientConnected) {
+                            statusMessage = "Serveur démarré, mais échec connexion client hôte.";
+                             JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Client Hôte", JOptionPane.ERROR_MESSAGE);
+                        }
+                        // statusMessage final sera "Hôte connecté! En attente du Joueur 2..." si tout va bien.
+                    } catch (Exception e) {
+                        // Attrapé depuis doInBackground.
+                        statusMessage = "Erreur initialisation: " + e.getMessage();
+                         JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Init", JOptionPane.ERROR_MESSAGE);
+                    }
                     repaintPanel();
                 }
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get(); // Vérifie les exceptions de doInBackground.
-                    if (!serverSuccessfullyStarted) {
-                        statusMessage = "Échec du démarrage du serveur.";
-                        JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Serveur", JOptionPane.ERROR_MESSAGE);
-                    } else if (!hostClientConnected) {
-                        statusMessage = "Serveur démarré, mais échec connexion client hôte.";
-                         JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Client Hôte", JOptionPane.ERROR_MESSAGE);
-                    }
-                    // statusMessage final sera "Hôte connecté! En attente du Joueur 2..." si tout va bien.
-                } catch (Exception e) {
-                    // Attrapé depuis doInBackground.
-                    statusMessage = "Erreur initialisation: " + e.getMessage();
-                     JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Init", JOptionPane.ERROR_MESSAGE);
-                }
-                repaintPanel();
-            }
-        };
-        initWorker.execute(); // Lance le worker.
+            };
+            initWorker.execute(); // Lance le worker.
+        }
+        
+        setupMouseListeners(); // Configure les écouteurs de souris.
         lastDotTime = startTime; // Pour l'animation des points.
         repaintPanel(); // Rafraîchit l'UI initiale.
     }
@@ -633,5 +662,51 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 repaintPanel();
             }
         });
+    }
+
+    /**
+     * Permet de définir un client et un serveur existants pour réutilisation après une partie terminée
+     * @param existingClient Le client de jeu déjà connecté
+     * @param existingServer Le gestionnaire de serveur existant
+     */
+    public void setExistingClient(GameClient existingClient, GameServerManager existingServer) {
+        this.hostClient = existingClient;
+        this.gameServerManager = existingServer;
+        
+        if (this.hostClient != null) {
+            // Mise à jour du listener
+            this.hostClient.setListener(this);
+            hostClientConnected = this.hostClient.isConnected();
+            
+            System.out.println("HostingScene: Client hôte existant défini (ID: " + this.hostClient.getMyPlayerId() + 
+                ", connecté: " + hostClientConnected + ")");
+        }
+        
+        if (this.gameServerManager != null) {
+            serverSuccessfullyStarted = true;
+            
+            // Vérifier si le joueur 2 est connecté
+            playerTwoConfirmedConnected = this.gameServerManager.areAllPlayersConnected();
+            
+            System.out.println("HostingScene: Serveur existant défini, J2 connecté: " + playerTwoConfirmedConnected);
+        }
+        
+        // Mise à jour de l'interface utilisateur
+        if (hostClientConnected) {
+            statusMessage = "Serveur et client restaurés après la partie précédente";
+            if (playerTwoConfirmedConnected) {
+                statusMessage += ". Prêt à commencer une nouvelle partie!";
+                startGameButton.setEnabled(true);
+            } else {
+                statusMessage += ". En attente de la connexion du Joueur 2...";
+                startGameButton.setEnabled(false);
+            }
+        } else {
+            statusMessage = "Erreur lors de la restauration de la connexion";
+            startGameButton.setEnabled(false);
+        }
+        
+        // Forcer une mise à jour de l'interface
+        repaintPanel();
     }
 }

@@ -615,15 +615,22 @@ public class GameScene implements Scene, GameStateUpdateListener {
         repaintPanel();
         
     }
-
+    int framePicker = 0;
+    int tictac = 0;
     @Override
     public void update() {
         // Mettre à jour l'animation de Zarek
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastFrameUpdateTime > 250) { // Mettre à jour une image toutes les 250 ms
             frame = (frame + 1) % 8;
+            if(tictac == 0){ 
+                framecountJ1 = (framecountJ1+ 1) % 2;
+                framecountJ2 = (framecountJ2+ 1) % 2;
+            }
+            tictac = (tictac+1) % 3;
             lastFrameUpdateTime = currentTime;
         }
+
 
         // Mettre à jour le survol uniquement si le jeu n'est pas en cours de chargement
         // et n'est pas terminé
@@ -649,6 +656,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
     }
 
+    int framecountJ1 = 0;
+    int framecountJ2 = 0; 
+    int frameJ1=0, frameJ2= 0;
     @Override
     public void render(Graphics g, int width, int height) {
         int centerX = width / 2;
@@ -677,6 +687,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
             g2d.setColor(new Color(25, 25, 35));
             g2d.fillRect(0, 0, width, height);
         }
+
+
 
         // Si en cours de chargement, afficher un message de chargement
         if (isLoading) {
@@ -728,14 +740,42 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
                 // Centrer le message en bas
                 g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 20); 
+                undoButton.setEnabled(true);
+
+            }
+            else{
+                undoButton.setEnabled(false);
             }
 
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
 
             // Dessiner les pickers (prochain plateau)
-            drawPickerJ1(g2d, pastStartX, presentStartX, futureStartX, offsetY, tileWidth);
-            drawPickerJ2(g2d, pastStartX, presentStartX, futureStartX, offsetY, tileWidth);
+            //les faire moter de haut en bas avec framecountJ1 et framecountJ2 effet de vague
+            //fais frameJ1 et J2 ++ puis --
+            
+            if (isMyTurn() && gameClient.getMyPlayerId() == 1) {
+                
+                if (framecountJ1 < 1){ 
+                    frameJ1++;
+                }
+                else{
+                    frameJ1--;
+                }
+                
+            } 
+            else if (isMyTurn() && gameClient.getMyPlayerId() == 2) {
+                if (framecountJ2 < 1){ 
+                    frameJ2++;
+                }
+                else{
+                    frameJ2--;
+                }
+            }
+            
+            
+            drawPickerJ1(g2d, pastStartX, presentStartX, futureStartX, offsetY+frameJ1, tileWidth);
+            drawPickerJ2(g2d, pastStartX, presentStartX, futureStartX, offsetY+frameJ2, tileWidth);
 
             // Dessiner les plateaux
             drawPlateau(g2d, past, pastStartX, offsetY, tileWidth, "PASSÉ", null);
@@ -940,14 +980,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void drawPickerJ1(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
             int offsetY, int tileWidth) {
-        int size = tileWidth / 2; // Taille du picker du prochain plateau => 7% de height
+        float sizef = tileWidth / ((float) 1.6);
+        int size = (int) sizef; // Taille du picker du prochain plateau => 7% de height
         int spacing = tileWidth / 4; // Espace entre les boutons du picker => 4% de width
-        int pickerY = offsetY - spacing - size; // Position Y du picker, juste en dessous des plateaux
+        int pickerY = (int) (offsetY - spacing - size); // Position Y du picker, juste en dessous des plateaux
 
         int[] xPos = {
-            pastStartX + tileWidth * 2 - size / 2, // Position pour le plateau passé
-            presentStartX + tileWidth * 2 - size / 2, // Position pour le plateau présent
-            futureStartX + tileWidth * 2 - size / 2 // Position pour le plateau futur
+            pastStartX + tileWidth * 2 - (int) size / 2, // Position pour le plateau passé
+            presentStartX + tileWidth * 2 - (int) size / 2, // Position pour le plateau présent
+            futureStartX + tileWidth * 2 - (int) size / 2 // Position pour le plateau futur
         };
 
         Shape oldClip = g.getClip();
@@ -994,7 +1035,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void drawPickerJ2(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
             int offsetY, int tileWidth) {
-        int size = tileWidth / 2; // Taille du picker du prochain plateau => 7% de height
+        float sizef = tileWidth / ((float) 1.6);
+        int size = (int) sizef; // Taille du picker du prochain plateau => 7% de height
         int spacing = tileWidth / 4; // Espace entre les boutons du picker => 4% de width
         int pickerY = offsetY + tileWidth * jeu.getTAILLE() + spacing; // Position Y du picker, juste en dessous des
         // plateaux

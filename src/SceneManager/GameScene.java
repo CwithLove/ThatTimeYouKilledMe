@@ -604,18 +604,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
             return;
         }
 
-        // Utiliser le champ etapeCoup de GameScene
-        if (etapeCoup == 1 || etapeCoup == 2) {
-            // L'annulation n'a de sens que lorsque etapeCoup est égal à 1 ou 2
-            // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau:
-            // null>:<PlateauSélectionné>:<x>:<y>
-            String command = "1:null:" + selectedPlateauType.name() + ":" + selectedPiecePosition.x + ":"
-                    + selectedPiecePosition.y;
-            gameClient.sendPlayerAction(command);
-            statusMessage = "Demande d'annulation envoyée...";
-            resetSelection();
-            repaintPanel();
-        }
+        // Utiliser le champ etapeCoup de GameScene=
+        // L'annulation n'a de sens que lorsque etapeCoup est égal à 1 ou 2
+        // Format d'envoi : <Annuler ? 1 : 0>:<ProchainPlateau:
+        // null>:<PlateauSélectionné>:<x>:<y>
+        String command = "1:null:" + "PAST" + ":" + "0" + ":"
+                    + "0";
+        gameClient.sendPlayerAction(command);
+        statusMessage = "Demande d'annulation envoyée...";
+        resetSelection();
+        repaintPanel();
+        
     }
 
     @Override
@@ -641,20 +640,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 }
 
                 boolean myTurn = isMyTurn(); // Vérifie si c'est le tour du joueur
-                // Activer les boutons d'action seulement quand c'est notre tour
-                if (myTurn) {
-                    // Utiliser le champ etapeCoup de GameScene
-                    if (etapeCoup == 1 || etapeCoup == 2) {
-                        undoButton.update(mousePos);
-                    } else {
-                        undoButton.update(new Point(-1, -1));
-                    }
-                } else {
-                    // Si ce n'est pas notre tour, s'assurer que les boutons ne sont pas en survol
-                    undoButton.update(new Point(-1, -1));
-                    choosePlateauButton.update(new Point(-1, -1));
-                }
 
+                // Utiliser le champ etapeCoup de GameScene
+                undoButton.update(mousePos);
+                    
                 // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
                 repaintPanel();
             }
@@ -816,9 +805,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
             // pas égal à 3
-            if (isMyTurn() && (etapeCoup == 1 || etapeCoup == 2)) {
-                undoButton.render(g2d);
-            }
+            undoButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)
             g2d.setColor(Color.WHITE);
@@ -832,16 +819,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Rendu des boutons
         backButton.render(g2d);
-
-        // Afficher ces boutons uniquement si c'est le tour du joueur
-        boolean isMyTurn = isMyTurn();
-        if (isMyTurn) {
-            // Utiliser le champ etapeCoup de GameScene
-            if (etapeCoup == 1 || etapeCoup == 2) {
-                undoButton.render(g2d);
-            }
-
-        }
+        
         g2d.dispose();
     }
 
@@ -1168,13 +1146,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     return;
                 }
 
-                // Les boutons d'action ne sont traités que si c'est le tour du joueur
-                if (isMyTurn()) {
-                    // Gérer le bouton d'annulation
-                    if (undoButton.contains(mousePoint) && (etapeCoup == 1 || etapeCoup == 2)) {
-                        undoButton.onClick();
-                        return;
-                    }
+
+                if (undoButton.contains(mousePoint)) {
+                    undoButton.onClick();
+                    return;
                 }
                 handleBoardClick(mousePoint); // Gérer le clic sur le plateau de jeu
             }
@@ -1195,7 +1170,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 // Ajouter la gestion des nouveaux boutons
                 if (isMyTurn()) {
-                    if (undoButton.contains(mousePoint) && (etapeCoup == 1 || etapeCoup == 2)) {
+                    if (undoButton.contains(mousePoint)) {
                         undoButton.setClicked(true);
                         needsRepaint = true;
                     }

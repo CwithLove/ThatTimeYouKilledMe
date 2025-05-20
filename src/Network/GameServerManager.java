@@ -184,6 +184,10 @@ public class GameServerManager {
             Thread.sleep(500);
 
             while (isServerRunning) {
+
+                // Vérifier si la partie est terminée
+                if (checkGameOver()) break;
+
                 System.out.println("\nGameServerManager: Boucle de jeu en cours...");
                 int etapeCoup = gameInstance.getEtapeCoup();
                 System.out.println("GameServerManager: En attente de messages des clients (étape du coup: " + etapeCoup + ")...");
@@ -245,10 +249,11 @@ public class GameServerManager {
                 // Vérifier si c'est une commande Undo
                 int undo = Integer.parseInt(parts[0]);
                 if (undo == 1) {
-                    gameInstance.setEtapeCoup(0); // Réinitialiser l'étape à 0
                     gameInstance.Undo();
                     System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Undo effectué, vous pouvez choisir une nouvelle pièce.");
+                    gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                    gameInstance.setPieceCourante(null);
+                    sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
                     sendGameStateToAllClients();
                     continue;
                 }
@@ -384,6 +389,7 @@ public class GameServerManager {
 
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
+                            plateauCourant = gameInstance.getPlateauCourant();
                             possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
                             sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                             sendGameStateToAllClients();
@@ -451,16 +457,16 @@ public class GameServerManager {
                         gameInstance.setEtapeCoup(0);
                         gameInstance.joueurSuivant();
                         gameInstance.majPlateauCourant();
-
+                        gameInstance.updateHistoriqueJeu();
                         // Mettre à jour le joueur courant
                         currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
 
                         sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
                         gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                        
                         sendGameStateToAllClients();
 
-                        // Vérifier si la partie est terminée
-                        checkGameOver();
+
                         break;
                 }
             }
@@ -584,11 +590,7 @@ public class GameServerManager {
     }
 
     // Vérifie si le jeu est terminé et envoie les messages appropriés aux clients
-    private void checkGameOver() {
-        if (gameInstance == null) {
-            return;
-        }
-
+    private boolean checkGameOver() {
         // Vérifier l'état du jeu
         int gameState = gameInstance.gameOver(gameInstance.getJoueurCourant());
         int winnerId = 0;
@@ -629,6 +631,8 @@ public class GameServerManager {
 
             System.out.println("GameServerManager: Jeu terminé! Gagnant: " + winnerId);
         }
+
+        return winnerId != 0;
     }
 
     // Envoie l'état du jeu à tous les clients connectés

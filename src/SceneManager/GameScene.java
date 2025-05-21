@@ -1783,32 +1783,35 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             case "LOSE":
                 gameHasEnded = true;
                 String victoryTitle = ("WIN".equals(messageType) || "GAGNE".equals(messageType)) ? "FÉLICITATIONS !" : "DOMMAGE !";
-                
+
+                int winnerid = 0;
                 // Modifier le contenu affiché
                 String victoryContent = messageContent;
-                if (messageContent.contains("Joueur 1")) {
-                    victoryContent = messageContent.replace("Joueur 1", "Lemiel");
-                } else if (messageContent.contains("Joueur 2")) {
-                    victoryContent = messageContent.replace("Joueur 2", "Zarek");
+                if (messageContent.contains("1")) {
+                    winnerid = 1;
+                    victoryContent = messageContent.replace("1", "Lemiel");
+                } else if (messageContent.contains("2")) {
+                    winnerid = 2;
+                    victoryContent = messageContent.replace("2", "Zarek");
                 }
                 statusMessage = victoryContent;
-                
-                // Demander à l'utilisateur si il veut retourner au lobby ou quitter
-                int choice = JOptionPane.showConfirmDialog(
-                    sceneManager.getPanel(),
-                    victoryContent + "\n\nVoulez-vous retourner au lobby pour jouer une autre partie?",
-                    victoryTitle,
-                    JOptionPane.YES_NO_OPTION
-                );
-                
-                if (choice == JOptionPane.YES_OPTION) {
-                    // Retourner au lobby
-                    returnToLobby();
+
+
+                if (gameClient != null) {
+
+                ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent,
+                                                          gameClient, hostServerManager);
+                    gameClient = null;
+                    hostServerManager = null;
+                    sceneManager.setScene(resultScene);
                 } else {
-                    // Quitter le jeu
-                    cleanUpAndGoToMenu();
+
+                    ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent);
+                    sceneManager.setScene(resultScene);
                 }
-                break;
+             break;
+
+
 
             case "ADVERSAIRE":
                 // Gérer les erreurs du serveur ou les informations de tour
@@ -1830,7 +1833,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 statusMessage = modifiedContent;
                 break;
 
-            // 保留原来的处理，用于兼容性
+
             case "GAGNE":
             case "PERDU":
 

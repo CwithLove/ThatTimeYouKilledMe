@@ -56,7 +56,7 @@ public class IAminimax {
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
                 if (pieceCourante == null) {
-                    System.out.println("IAMinimax: Piece courante null");
+                    //System.out.println("IAMinimax: Piece courante null");
                     continue;
                 }
 
@@ -76,20 +76,20 @@ public class IAminimax {
             jeuClone.choisirPlateau(tour.getQuatrieme());
 
             int score = alphabeta(this.difficulte-1, alpha, beta, false, joueur, jeuClone);
-            //System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
+            ////System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
             lst_coup.add(new Couple<>(tour,score));
 
             if (score > best){
                 best = score;
                 best_coup = tour;
-                System.out.println("BESTCOUP "+best_coup);
+                //System.out.println("BESTCOUP "+best_coup);
             }
             alpha = Math.max(alpha, score);
         }
 
 
 
-        //System.out.println("Le meilleur coup est:"+best_coup.getPremier().getPosition().getX()+","+best_coup.getPremier().getPosition().getY()+","+best_coup.getSecond()+","+best_coup.getTroisieme()+","+best_coup.getQuatrieme());
+        ////System.out.println("Le meilleur coup est:"+best_coup.getPremier().getPosition().getX()+","+best_coup.getPremier().getPosition().getY()+","+best_coup.getSecond()+","+best_coup.getTroisieme()+","+best_coup.getQuatrieme());
         if (lst_coup.size() > 1){
             int seuil = 0;
             if (this.mode.equals("HARD")){
@@ -103,15 +103,15 @@ public class IAminimax {
                     lst_coup.remove(i);
                     i--;
                 }
-                //System.out.println("COUUUP: "+lst_coup.get(i).getSecond());
+                ////System.out.println("COUUUP: "+lst_coup.get(i).getSecond());
             }
             Couple<IAFields<Piece,String,String,Plateau.TypePlateau>,Integer> unMeilleurCoup = lst_coup.get(r.nextInt(lst_coup.size()));
             best_coup = unMeilleurCoup.getPremier();
         }
 
-        System.out.println("DEBUG -> "+best_coup);
+        //System.out.println("DEBUG -> "+best_coup);
         if (best_coup == null){
-            System.out.println("IAMinimax: best coup null");
+            //System.out.println("IAMinimax: best coup null");
             return null;
         }
         return best_coup;
@@ -124,7 +124,7 @@ public class IAminimax {
         Plateau present = jeu.getPresent();
         Plateau futur = jeu.getFuture();
         if (profondeur <= 0){
-            return heuristique(joueur, clone.getPlateauCourant(), passe, present, futur);
+            return heuristique(clone);
         }
 
         ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> tours = null;
@@ -183,24 +183,36 @@ public class IAminimax {
 
 
     //heuristique
-    private int heuristique(Joueur joueur,Plateau plateauCourant, Plateau passe, Plateau present, Plateau futur){
+    private int heuristique(Jeu jeu){
+        Plateau passe = jeu.getPast();
+        Plateau present = jeu.getPresent();
+        Plateau futur = jeu.getFuture();
+        Plateau plateauCourant = jeu.getPlateauCourant();
+        Joueur joueur = jeu.getJoueurCourant();
+        Joueur opponent =  null;
+        if (joueur.getId() == 1){
+            opponent = jeu.getJoueur2();
+        } else {
+            opponent = jeu.getJoueur1();
+        }
+
         int score = 0;
-        //heuristique 1: nb Pieces restantes, +2 pour chaque piece restante +1 pour celles dans l'inventaire
-        score += scorePiecesRestantes(joueur,passe,present,futur,2);
-        //heuritique 2: position sur plateau, +2 au milieu, 0 sur les bords, -2 dans les coins
-        score += scorePositionPlateau(joueur, plateauCourant,2);
-        //heuristique3: distance adversaire, +1 pour chaque case à distance du plus proche ennemi
-        //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
-        score += presencePlateau(joueur,passe,present,futur,2);
-        //heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*10
-        score += piecesContreAdversaire(joueur,passe,present,futur,1);
+        //heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique très efficace)
+        score += scorePiecesRestantes(joueur,passe,present,futur,5);
+        //heuritique 2: position sur plateau, +poids au milieu, 0 sur les bords, -poids dans les coins (heuristique peu efficace)
+        score += scorePositionPlateau(joueur, plateauCourant,1);
+        //heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
+        score += scorePionsInventaire(joueur, opponent, 4);
+        //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau (heuristique moyenne)
+        score += presencePlateau(joueur,passe,present,futur,3);
+        //heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*poids (heuristique très efficace)
+        score += piecesContreAdversaire(joueur,passe,present,futur,5);
         return score;
     }
 
-    //heuristique 1: nb Pieces restantes, +2 pour chaque piece restante +1 pour celles dans l'inventaire
+    //heuristique 1: nb Pieces restantes, +2 pour chaque piece restante
     private int scorePiecesRestantes(Joueur joueur, Plateau passe, Plateau present, Plateau futur, int poids){
         int score = 0;
-        score += joueur.getNbClones();
         if (joueur.getNom().equals("Blanc")){
             score += (passe.getNbBlancs() + present.getNbBlancs() + futur.getNbBlancs())*poids;
         }
@@ -231,6 +243,11 @@ public class IAminimax {
             }
         }
         return score;
+    }
+
+    //heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
+    private int scorePionsInventaire(Joueur joueur, Joueur opponent, int poids){
+        return (joueur.getNbClones() - opponent.getNbClones())*poids;
     }
 
     //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
@@ -284,11 +301,11 @@ public class IAminimax {
                 //sauvegarde de la position de la piece
                 int posx = (int)piece.getPosition().getX();
                 int posy = (int)piece.getPosition().getY();
-                System.out.println("DEBUG Etat GAME clone: " + clone.getGameStateAsString());
+                ////System.out.println("DEBUG Etat GAME clone: " + clone.getGameStateAsString());
 
                 ArrayList<Coup> coups = clone.getCoupPossibles(clone.getPlateauCourant(), piece);
                 if (coups == null){
-                    System.out.println("IAMinimax: coups null");
+                    //System.out.println("IAMinimax: coups null");
                     continue;
                 }
 
@@ -302,17 +319,17 @@ public class IAminimax {
                     
                     ArrayList<Coup> coups2 = jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), p2);
                     if (coups2 == null){
-                        System.out.println("IAMinimax: coups 2 null");
+                        //System.out.println("IAMinimax: coups 2 null");
                         for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
                             coup = new IAFields<>(piece, coup1.getTypeCoup().name(), null, plateau);
-                            //System.out.println("DEBUG "+coup+", "+posx+" "+posy);
+                            ////System.out.println("DEBUG "+coup+", "+posx+" "+posy);
                             listeCoups.add(coup);
                         }
                     } else {
                         for (Coup coup2 : jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), p2)){ // ERREUR, si on jump ou clone, ça change le plateau courant
                             for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
                                 coup = new IAFields<>(piece, coup1.getTypeCoup().name(), coup2.getTypeCoup().name(), plateau);
-                                //System.out.println("DEBUG "+coup+", "+posx+" "+posy);
+                                ////System.out.println("DEBUG "+coup+", "+posx+" "+posy);
                                 listeCoups.add(coup);
                             }
                         }
@@ -322,12 +339,12 @@ public class IAminimax {
                 piece.setPosition(new Point(posx,posy));
             }
         } else {
-            System.out.println("IAMinimax: pieces null");
+            //System.out.println("IAMinimax: pieces null");
             for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
                 coup = new IAFields<>(null,null,null, plateau);
                 listeCoups.add(coup);
             }
-            System.out.println("Liste des coups possibles: " + listeCoups);
+            //System.out.println("Liste des coups possibles: " + listeCoups);
         }
 
         return listeCoups;
@@ -346,7 +363,7 @@ public class IAminimax {
                 }
             }
         }
-        //System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
+        ////System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
         return listePieces;
     }
 

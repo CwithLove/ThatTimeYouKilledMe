@@ -375,6 +375,7 @@ public class GameServerManager {
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
 
+
                             continue; // Si le coup est réussi, continuer à l'étape 2
                         } else {
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
@@ -559,11 +560,10 @@ public class GameServerManager {
         // executer le mouvement
         boolean coupReussi = gameInstance.jouerCoup(coup);
         if (coupReussi) {
-            // mise a jour de etape
-            gameInstance.setEtapeCoup(nextEtape);
-            
+
             // confirme la validation de move
             if (nextEtape == 3) {
+                gameInstance.setEtapeCoup(3);
                 System.out.println("GameServerManager: Deuxième coup réussi, etapeCoup passé à 3");
             }
             
@@ -571,20 +571,22 @@ public class GameServerManager {
             Point newPosition = pieceCourante.getPosition();
             Plateau currentPlateau = gameInstance.getPlateauCourant();
             
-            if (nextEtape != 3) {
-                String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
-                if (!"null".equals(possibleMovesStr)) {
-                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
-                } else {
-                    gameInstance.setEtapeCoup(3); // Passer à l'étape 3 Vu que apres le 1er coups on n'a plus de coups possibles
-                }
-            }
-
             //retourne le message de reussite
             String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":" 
                                    + newPosition.x + ":" + newPosition.y + ":" 
                                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
+
+            if (nextEtape == 2) {
+                plateauCourant = gameInstance.getPlateauCourant();
+                String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                if (!"null".equals(possibleMovesStr)) {
+                    gameInstance.setEtapeCoup(2);
+                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                } else {
+                    gameInstance.setEtapeCoup(3);
+                }
+            }
             sendGameStateToAllClients();
             return true;
         } else {

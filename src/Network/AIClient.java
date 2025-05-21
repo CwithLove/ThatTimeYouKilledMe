@@ -130,7 +130,6 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
                     switch (code) {
                         case ETAT:
-                        
                         GameStateParser.parseAndUpdateJeu(this.gameInstance, content);
                         if (this.gameInstance.getJoueurCourant().getId() == this.myPlayerId) {
                                 System.out.println("BOT Adversaire ETAT:" + content);
@@ -165,32 +164,17 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     @Override
     public void onGameStateUpdate(Jeu newGameState) { // newGameState et this.gameInstance mis à jour
         // this.gameInstance a été mis à jour par GameStateParser avant l'appel de cette fonction.
-        if (this.gameInstance == null || this.gameInstance.getJoueurCourant() == null) {
+        if (newGameState == null || newGameState.getJoueurCourant() == null) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu invalide reçu pour décision.");
             return;
         }
 
         System.out.println("----- DEBUG MODE ------");
-        if (gameInstance.getJoueurCourant().getId() != myPlayerId) {
+        if (newGameState.getJoueurCourant().getId() != myPlayerId) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
             return;
         }
         
-
-
-        // try {
-        //     System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu reçu pour décision.");
-        //     AImove = ia.coupIA(gameInstance);
-        //     if (AImove == null) {
-        //         System.out.println("Erreur, le coup de l'IA est null");
-        //         return;
-        //     }
-        //     System.out.println("----------------------------------------------------------------------------------CoupIA : " + AImove);
-        // } catch (Exception e) {
-        //     e.printStackTrace(); // Affiche l’erreur
-        // }
-        // System.out.println(aiName + " (ID: " + myPlayerId + "): État jeu MAJ. Tour de Joueur ID: " + this.gameInstance.getJoueurCourant().getId());
-
         System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
         try {
             

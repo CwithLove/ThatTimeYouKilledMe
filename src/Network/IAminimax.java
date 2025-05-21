@@ -181,32 +181,32 @@ public class IAminimax {
     private int heuristique(Joueur joueur,Plateau plateauCourant, Plateau passe, Plateau present, Plateau futur){
         int score = 0;
         //heuristique 1: nb Pieces restantes, +2 pour chaque piece restante +1 pour celles dans l'inventaire
-        score += scorePiecesRestantes(joueur,passe,present,futur);
+        score += scorePiecesRestantes(joueur,passe,present,futur,2);
         //heuritique 2: position sur plateau, +2 au milieu, 0 sur les bords, -2 dans les coins
-        score += scorePositionPlateau(joueur, plateauCourant);
+        score += scorePositionPlateau(joueur, plateauCourant,2);
         //heuristique3: distance adversaire, +1 pour chaque case à distance du plus proche ennemi
         //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
-        score += presencePlateau(joueur,passe,present,futur);
+        score += presencePlateau(joueur,passe,present,futur,2);
         //heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*10
-        score += piecesContreAdversaire(joueur,passe,present,futur,10);
+        score += piecesContreAdversaire(joueur,passe,present,futur,1);
         return score;
     }
 
     //heuristique 1: nb Pieces restantes, +2 pour chaque piece restante +1 pour celles dans l'inventaire
-    private int scorePiecesRestantes(Joueur joueur, Plateau passe, Plateau present, Plateau futur){
+    private int scorePiecesRestantes(Joueur joueur, Plateau passe, Plateau present, Plateau futur, int poids){
         int score = 0;
         score += joueur.getNbClones();
         if (joueur.getNom().equals("Blanc")){
-            score += (passe.getNbBlancs() + present.getNbBlancs() + futur.getNbBlancs())*2;
+            score += (passe.getNbBlancs() + present.getNbBlancs() + futur.getNbBlancs())*poids;
         }
         else if (joueur.getNom().equals("Noir")){
-            score += (passe.getNbNoirs() + present.getNbNoirs() + futur.getNbNoirs())*2;
+            score += (passe.getNbNoirs() + present.getNbNoirs() + futur.getNbNoirs())*poids;
         }
         return score;
     }
 
     //heuritique 2: position sur plateau, +2 au milieu, 0 sur les bords, -2 dans les coins
-    private int scorePositionPlateau(Joueur joueur, Plateau plateauCourant){
+    private int scorePositionPlateau(Joueur joueur, Plateau plateauCourant, int poids){
         int score = 0;
         Piece tmp = null;
         for (int i = 0; i < plateauCourant.getSize(); i++){
@@ -214,13 +214,13 @@ public class IAminimax {
                 if (plateauCourant.getPiece(i,j) != null){
                     //Les bords
                     if ((i == 0 || i == 3) && (j == 0 || j == 3) && plateauCourant.getPiece(i,j).getOwner().equals(joueur)){
-                        score -= 2;
+                        score -= poids;
                     } //les cotes
                     else if ((i == 0 || i == 3) || (j == 0 || j == 3) && plateauCourant.getPiece(i,j).getOwner().equals(joueur)){
                         score += 0; //cette condition est la dans le cas ou il faut modifier le score pour une piece au bord
                     } //le centre (ce qu'il erste
                     else {
-                        score += 2;
+                        score += poids;
                     }
                 }
             }
@@ -229,7 +229,7 @@ public class IAminimax {
     }
 
     //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau
-    private int presencePlateau(Joueur joueur, Plateau passe, Plateau present, Plateau futur){
+    private int presencePlateau(Joueur joueur, Plateau passe, Plateau present, Plateau futur, int poids){
         int score = 0;
         int nbPlateau = 0;
         if (joueur.existePion(passe)){
@@ -243,13 +243,13 @@ public class IAminimax {
         }
         switch(nbPlateau){
             case 1:
-                score = -2;
+                score = -poids;
                 break;
             case 2:
-                score = 2;
+                score = poids;
                 break;
             case 3:
-                score = 4;
+                score = 2*poids;
                 break;
             default:
                 break;
@@ -331,7 +331,7 @@ public class IAminimax {
                 }
             }
         }
-        System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
+        //System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
         return listePieces;
     }
 

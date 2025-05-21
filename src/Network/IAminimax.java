@@ -295,7 +295,7 @@ public class IAminimax {
     private ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> getTourPossible(Joueur joueur, Jeu clone){
         ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> listeCoups = new ArrayList<>();
         IAFields<Piece,String,String,Plateau.TypePlateau> coup;
-        ArrayList<Piece> pieces = listePieces(joueur, clone.getPlateauCourant());
+        ArrayList<Piece> pieces = listePieces(clone);
         if (!pieces.isEmpty()){
             for (Piece piece : pieces){
                 //sauvegarde de la position de la piece
@@ -350,14 +350,14 @@ public class IAminimax {
         return listeCoups;
     }
 
-    private ArrayList<Piece> listePieces(Joueur joueur, Plateau plateauCourant){
+    private ArrayList<Piece> listePieces(Jeu jeu){
         ArrayList<Piece> listePieces = new ArrayList<>();
         Piece tmp = null;
-        for (int i = 0; i < plateauCourant.getSize(); i++){
-            for (int j = 0; j < plateauCourant.getSize(); j++){
-                if (plateauCourant.getPiece(i,j) != null){
-                    if (plateauCourant.getPiece(i,j).getOwner().equals(joueur)){
-                        tmp = plateauCourant.getPiece(i,j);
+        for (int i = 0; i < jeu.getPlateauCourant().getSize(); i++){
+            for (int j = 0; j < jeu.getPlateauCourant().getSize(); j++){
+                if (jeu.getPlateauCourant().getPiece(i,j) != null){
+                    if (jeu.getPlateauCourant().getPiece(i,j).getOwner().equals(jeu.getJoueurCourant())){
+                        tmp = jeu.getPlateauCourant().getPiece(i,j);
                         listePieces.add(tmp);
                     }
                 }

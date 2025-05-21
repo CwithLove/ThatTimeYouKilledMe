@@ -288,37 +288,39 @@ public class Jeu {
      * @param coup le coup correspondant
      */
     public void clonage(Coup coup) {
-        Piece pieceActuelle = coup.getPiece();
-        switch (coup.getPltCourant().getType()) {
-            case PRESENT:
-                past.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
-                present.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
-                coup.getPiece().getOwner().declone();
-                //joueurCourant.declone();
-                if (joueurCourant == joueur1) {
-                    past.incBlancs();
-                } else if (joueurCourant == joueur2) {
-                    past.incNoirs();
-                }
-                plateauCourant = past;
-                break;
+        if (coup.getPiece().getOwner().getNbClones() > 0){
+            Piece pieceActuelle = coup.getPiece();
+            switch (coup.getPltCourant().getType()) {
+                case PRESENT:
+                    past.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                    present.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                    coup.getPiece().getOwner().declone();
+                    //joueurCourant.declone();
+                    if (joueurCourant == joueur1) {
+                        past.incBlancs();
+                    } else if (joueurCourant == joueur2) {
+                        past.incNoirs();
+                    }
+                    plateauCourant = past;
+                    break;
 
-            case FUTURE:
-                present.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
-                future.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
-                coup.getPiece().getOwner().declone();
-                //joueurCourant.declone();
-                if (joueurCourant == joueur1) {
-                    present.incBlancs();
-                } else if (joueurCourant == joueur2) {
-                    present.incNoirs();
-                }
-                plateauCourant = present;
-                break;
+                case FUTURE:
+                    present.setPiece(pieceActuelle, pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                    future.setPiece(new Piece(pieceActuelle.getOwner(), pieceActuelle.getPosition()), pieceActuelle.getPosition().x, pieceActuelle.getPosition().y);
+                    coup.getPiece().getOwner().declone();
+                    //joueurCourant.declone();
+                    if (joueurCourant == joueur1) {
+                        present.incBlancs();
+                    } else if (joueurCourant == joueur2) {
+                        present.incNoirs();
+                    }
+                    plateauCourant = present;
+                    break;
 
-            default:
-                System.err.println("Erreur: Cloning - travel backward: le plateau n'est pas valide.");
-                break;
+                default:
+                    System.err.println("Erreur: Cloning - travel backward: le plateau n'est pas valide.");
+                    break;
+            }
         }
     }
 
@@ -741,6 +743,7 @@ public class Jeu {
             case FUTURE:
                 if (present.getPiece(piece.getPosition().x, piece.getPosition().y) == null && piece.getOwner().getNbClones() > 0) {
                     coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.CLONE));
+                    System.out.println("Joueur "+piece.getOwner().getNom()+", reste pions: "+ piece.getOwner().getNbClones());
                 }
                 break;
 

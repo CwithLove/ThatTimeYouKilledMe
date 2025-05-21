@@ -930,8 +930,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 plateauMouse = p;
                 if (p != null) {
                     casePoint = getCaseFromMousePoint(p, mousePoint);
-                    caseMouseX = (int) casePoint.getX();
-                    caseMouseY = (int) casePoint.getY();
+                    if (casePoint != null) {
+                        caseMouseX = (int) casePoint.getX();
+                        caseMouseY = (int) casePoint.getY();
+                    }
+
                 }
             }
 

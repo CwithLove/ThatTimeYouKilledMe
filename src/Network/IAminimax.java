@@ -13,7 +13,7 @@ import java.util.Random;
 
 public class IAminimax {
     private Jeu jeu;
-    private final int PROFONDEUR_MAX = 10;
+    private final int PROFONDEUR_MAX = 4;
     private int difficulte = 1;
     private String mode = "";
     private Random r = new Random();
@@ -95,7 +95,7 @@ public class IAminimax {
             if (this.mode.equals("HARD")){
                 seuil = (int)(best*0.95);
             } else if (this.mode.equals("MEDIUM")){
-                seuil = (int) (best*0.5);
+                seuil = (int) (best*0.75);
             }
 
             for (int i=0; i<lst_coup.size(); i++){
@@ -197,16 +197,16 @@ public class IAminimax {
         }
 
         int score = 0;
-        //heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique très efficace)
-        score += scorePiecesRestantes(joueur,passe,present,futur,5);
+        //heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique efficace)
+        score += scorePiecesRestantes(joueur,passe,present,futur,1);
         //heuritique 2: position sur plateau, +poids au milieu, 0 sur les bords, -poids dans les coins (heuristique peu efficace)
-        score += scorePositionPlateau(joueur, plateauCourant,1);
+        score += scorePositionPlateau(joueur, plateauCourant,3);
         //heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
-        score += scorePionsInventaire(joueur, opponent, 4);
+        score += scorePionsInventaire(joueur, opponent, 3);
         //heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau (heuristique moyenne)
-        score += presencePlateau(joueur,passe,present,futur,3);
+        score += presencePlateau(joueur,passe,present,futur,5);
         //heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*poids (heuristique très efficace)
-        score += piecesContreAdversaire(joueur,passe,present,futur,5);
+        score += piecesContreAdversaire(joueur,passe,present,futur,10);
         return score;
     }
 

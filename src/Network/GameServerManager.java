@@ -221,16 +221,6 @@ public class GameServerManager {
                     continue;
                 }
 
-                if (joueurCourant.getId() != 1) {
-                    if (plateauCourant.getNbBlancs() == 0) {
-                        gameInstance.setEtapeCoup(3);
-                    }
-                } else {
-                    if (plateauCourant.getNbNoirs() == 0) {
-                        gameInstance.setEtapeCoup(3);
-                    }
-                }
-
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
@@ -385,7 +375,11 @@ public class GameServerManager {
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
                             possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                            if (!"null".equals(possibleMovesStr)) {
+                                sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                            } else {
+                                gameInstance.setEtapeCoup(3); // Passer à l'étape 3 Vu que apres le 1er coups on n'a plus de coups possibles
+                            }
                             sendGameStateToAllClients();
                             continue; // Si le coup est réussi, continuer à l'étape 2
                         } else {
@@ -447,16 +441,31 @@ public class GameServerManager {
                         // Définir le prochain plateau pour le joueur
                         joueurCourant.setProchainPlateau(prochainPlateau);
 
+                        sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
+                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+
+                        System.out.println("FOR DEBUGGING 1: " + gameInstance.getGameStateAsString());
                         // Réinitialiser pour le prochain joueur
                         gameInstance.setEtapeCoup(0);
                         gameInstance.joueurSuivant();
                         gameInstance.majPlateauCourant();
 
+                        System.out.println("FOR DEBUGGING 2: " + gameInstance.getPlateauCourant().getType().name());
+
                         // Mettre à jour le joueur courant
                         currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
 
-                        sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
-                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                        System.out.println("FOR DEBUGGING 2: " + gameInstance.getGameStateAsString());
+
+                        if (gameInstance.getJoueurCourant().getId() == 1) {
+                            if (gameInstance.getPlateauCourant().getNbBlancs() == 0) {
+                                gameInstance.setEtapeCoup(3);
+                            }
+                        } else if (gameInstance.getJoueurCourant().getId() == 2) {
+                            if (gameInstance.getPlateauCourant().getNbNoirs() == 0) {
+                                gameInstance.setEtapeCoup(3);
+                            }
+                        }
                         sendGameStateToAllClients();
 
                         // Vérifier si la partie est terminée
@@ -573,9 +582,6 @@ public class GameServerManager {
                                    + newPosition.x + ":" + newPosition.y + ":" 
                                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
-            
-            // mise a jour de l'instance du Jeu
-            sendGameStateToAllClients();
             return true;
         } else {
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur lors de l'application du coup.");
@@ -724,6 +730,11 @@ public class GameServerManager {
 
     private String getPossibleMovesString(Jeu gameInstance, Plateau plateauCourant, Piece selectedPiece) {
         ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+
+        if (coupsPossibles.isEmpty()) {
+            return "null";
+        }
+
         StringBuilder possibleMovesStr = new StringBuilder();
         
         for (Coup coup : coupsPossibles) {

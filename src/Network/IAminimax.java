@@ -47,8 +47,6 @@ public class IAminimax {
         Joueur joueur = gameState.getJoueurCourant();
 
         ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> tours = getTourPossible(joueur, gameState);
-        System.out.println("DEBUG profondeur 0: " + tours);
-
 
         //Minimax de profondeur [difficulte] (max 3, 6 avec heuristique) avec elagage
         for (IAFields<Piece,String,String,Plateau.TypePlateau> tour : tours){
@@ -113,8 +111,8 @@ public class IAminimax {
 
         System.out.println("DEBUG -> "+best_coup);
         if (best_coup == null){
-            System.out.println("A CORRIGER -> SI LE 1ER ELEMENT EST NULL, ON SKIP L'APPLICATION DES COUPS, MAIS ON APPLIQUE LE CHANGEMENT DE PLATEAU");
-            System.out.println("A CORRIGER -> CERTAINES PIECES SONT NULLES, ET ON A DES SITUATIONS OU PAR EXEMPLE ON EST EN 0 3, ET ON PEUT FAIRE LEFT -> UP");
+            System.out.println("IAMinimax: best coup null");
+            return null;
         }
         return best_coup;
     }
@@ -129,49 +127,51 @@ public class IAminimax {
             return heuristique(joueur, clone.getPlateauCourant(), passe, present, futur);
         }
 
-        ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> coups = null;
+        ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> tours = null;
         if (!tourIA) {
             if (joueur.getId() == 1){
-                coups = getTourPossible(jeu.getJoueur2(), clone);
+                tours = getTourPossible(jeu.getJoueur2(), clone);
             } else {
-                coups = getTourPossible(jeu.getJoueur1(), clone);
+                tours = getTourPossible(jeu.getJoueur1(), clone);
             }
         } else {
-            coups = getTourPossible(joueur, clone);
+            tours = getTourPossible(joueur, clone);
         }
 
-        if (coups.isEmpty()){
+        if (tours.isEmpty()){
             return tourIA ? -1000 + profondeur : 1000 - profondeur;
         }
 
         int best = tourIA ? Integer.MIN_VALUE : Integer.MAX_VALUE;
-        for (IAFields<Piece,String,String,Plateau.TypePlateau> coup : coups){
-            Jeu jeuClone = new Jeu(clone);
-            int x = (int)coup.getPremier().getPosition().getX();
-            int y = (int)coup.getPremier().getPosition().getY();
-            Piece pieceCourant = jeuClone.getPlateauCourant().getPiece(x, y);
-            if (pieceCourant == null){
-                continue;
-            }
+        for (IAFields<Piece,String,String,Plateau.TypePlateau> tour : tours){
+            if (tour.getPremier() != null){
+                Jeu jeuClone = new Jeu(clone);
+                int x = (int)tour.getPremier().getPosition().getX();
+                int y = (int)tour.getPremier().getPosition().getY();
+                Piece pieceCourant = jeuClone.getPlateauCourant().getPiece(x, y);
+                if (pieceCourant == null){
+                    continue;
+                }
 
-            Coup coup1 = Coup.stringToCoup(pieceCourant, jeuClone.getPlateauCourant(), coup.getSecond());
-            if (coup1 == null){
-                continue;
-            }
-            jeuClone.appliquerCoup(coup1);
+                Coup coup1 = Coup.stringToCoup(pieceCourant, jeuClone.getPlateauCourant(), tour.getSecond());
+                if (coup1 == null){
+                    continue;
+                }
+                jeuClone.appliquerCoup(coup1);
 
-            Coup coup2 = Coup.stringToCoup(pieceCourant, jeuClone.getPlateauCourant(),coup.getTroisieme());
-            if (coup2 == null){
-                continue;
-            }
-            jeuClone.appliquerCoup(coup2);
-
-            if (tourIA){
-                best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, joueur, jeuClone));
-                alpha = Math.max(alpha, best);
-            } else {
-                best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, joueur, jeuClone));
-                beta = Math.min(beta, best);
+                Coup coup2 = Coup.stringToCoup(pieceCourant, jeuClone.getPlateauCourant(),tour.getTroisieme());
+                if (coup2 == null){
+                    continue;
+                }
+                jeuClone.appliquerCoup(coup2);
+            
+                if (tourIA){
+                    best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, joueur, jeuClone));
+                    alpha = Math.max(alpha, best);
+                } else {
+                    beta = Math.min(beta, best);
+                    best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, joueur, jeuClone));
+                }
             }
 
             if (beta <= alpha) {
@@ -279,7 +279,7 @@ public class IAminimax {
         ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> listeCoups = new ArrayList<>();
         IAFields<Piece,String,String,Plateau.TypePlateau> coup;
         ArrayList<Piece> pieces = listePieces(joueur, clone.getPlateauCourant());
-        if (pieces != null){
+        if (!pieces.isEmpty()){
             for (Piece piece : pieces){
                 //sauvegarde de la position de la piece
                 int posx = (int)piece.getPosition().getX();
@@ -292,49 +292,42 @@ public class IAminimax {
                     continue;
                 }
 
-                System.out.println("----------------------------------");
-                for (Coup c : coups) {
-                    System.out.println("DEBUG getCoupPossible Coup1: " + c.getTypeCoup().name());
-                }
-                System.out.println("----------------------------------");
-
                 for (Coup coup1 : clone.getCoupPossibles(clone.getPlateauCourant(), piece)){
                     Jeu jeuClone1 = new Jeu(clone);
-                    System.out.println("DEBUG Etat GAME clone1: " + jeuClone1.getGameStateAsString());
                     Piece p2 = jeuClone1.getPlateauCourant().getPiece((int)coup1.getPiece().getPosition().getX(), (int)coup1.getPiece().getPosition().getY());
 
                     Coup newCoup1 = new Coup(jeuClone1.getPlateauByType(clone.getPlateauCourant().getType()).getPiece(posx, posy), jeuClone1.getPlateauCourant(), coup1.getTypeCoup());
                     //traduction en coup et application
                     jeuClone1.appliquerCoup(newCoup1);
                     
-                    System.out.println("DEBUG Etat GAME clone1: " + jeuClone1.getGameStateAsString());
                     ArrayList<Coup> coups2 = jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), p2);
                     if (coups2 == null){
-                        System.out.println("IAMinimax: coups null");
-                        continue;
-                    }
-
-                    System.out.println("----------------------------------");
-                    System.out.println("With Coup1: " + coup1.getTypeCoup().name() + " -> ");
-                    for (Coup c : coups2) {
-                        System.out.println("DEBUG getCoupPossible Coup2: " + c.getTypeCoup().name());
-                    }
-                    System.out.println("----------------------------------");
-                    for (Coup coup2 : jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), p2)){ // ERREUR, si on jump ou clone, ça change le plateau courant
+                        System.out.println("IAMinimax: coups 2 null");
                         for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
-                            coup = new IAFields<>(piece, coup1.getTypeCoup().name(), coup2.getTypeCoup().name(), plateau);
+                            coup = new IAFields<>(piece, coup1.getTypeCoup().name(), null, plateau);
                             //System.out.println("DEBUG "+coup+", "+posx+" "+posy);
                             listeCoups.add(coup);
                         }
+                    } else {
+                        for (Coup coup2 : jeuClone1.getCoupPossibles(jeuClone1.getPlateauCourant(), p2)){ // ERREUR, si on jump ou clone, ça change le plateau courant
+                            for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
+                                coup = new IAFields<>(piece, coup1.getTypeCoup().name(), coup2.getTypeCoup().name(), plateau);
+                                //System.out.println("DEBUG "+coup+", "+posx+" "+posy);
+                                listeCoups.add(coup);
+                            }
+                        }
                     }
+
                 }
                 piece.setPosition(new Point(posx,posy));
             }
         } else {
+            System.out.println("IAMinimax: pieces null");
             for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())){
                 coup = new IAFields<>(null,null,null, plateau);
                 listeCoups.add(coup);
             }
+            System.out.println("Liste des coups possibles: " + listeCoups);
         }
 
         return listeCoups;

@@ -130,9 +130,12 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
                     switch (code) {
                         case ETAT:
-                            GameStateParser.parseAndUpdateJeu(this.gameInstance, content);
-                            System.out.println("BOT Adversaire ETAT:" + content);
-                            onGameStateUpdate(this.gameInstance); // Mettre à jour l'état du jeu
+                        
+                        GameStateParser.parseAndUpdateJeu(this.gameInstance, content);
+                        if (this.gameInstance.getJoueurCourant().getId() == this.myPlayerId) {
+                                System.out.println("BOT Adversaire ETAT:" + content);
+                                onGameStateUpdate(this.gameInstance); // Mettre à jour l'état du jeu
+                            }
                             break;
                         case GAGNE:
                         case PERDU:

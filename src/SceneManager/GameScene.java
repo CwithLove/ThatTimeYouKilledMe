@@ -756,6 +756,21 @@ public class GameScene implements Scene, GameStateUpdateListener {
     int framecountJ1 = 0;
     int framecountJ2 = 0; 
     int frameJ1=0, frameJ2= 0;
+
+    private static final int[][] INFINITY_POINTS = {
+        {0, 2}, {1, 1}, {1, 3}, {2, 0}, {2, 4},
+        {3, 1}, {3, 3}, {4, 2}, {5, 2}, {6, 1},
+        {6, 3}, {7, 0}, {7, 4}, {8, 1}, {8, 3},
+        {9, 2}
+    };
+
+    public static int[] getInfinityPoint(int index) {
+        if (index < 0 || index >= INFINITY_POINTS.length) {
+            throw new IllegalArgumentException("Index hors limites (0 à " + (INFINITY_POINTS.length - 1) + ")");
+        }
+        return INFINITY_POINTS[index];
+    }
+    
     @Override
     public void render(Graphics g, int width, int height) {
         int centerX = width / 2;
@@ -868,6 +883,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 else{
                     frameJ2--;
                 }
+            }
+            else {
+                frameJ1 = 0;
+                frameJ2 = 0;
             }
             
             
@@ -1287,9 +1306,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         case 1 -> {
                             // Joueur 1 (Lemiel)
                             if (gameClient.getMyPlayerId() == 1 && isMyTurn() && joueur1SelectedPlateau == plateau.getType() && plateauMouse != null && 
-                            joueur1SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
-                                g.drawImage(lemielAnimation[0][frame], (int) (pieceX - 5/6), (int) (pieceY - 5/6), imageWidth * 5/3, (int) (imageHeight * 5/3), null);
-                                g.drawImage(lemielAnimation[1][frame], (int) (pieceX - 5/6), (int) (pieceY - 5/6), imageWidth * 5/3,(int) (imageHeight * 5/3), null);
+                            joueur1SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY 
+                            && etapeCoup == 0) {
+                                
+                                g.drawImage(lemielAnimation[0][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), (int) imageWidth * 9/8, (int) imageHeight * 9/8, null);
+                                g.drawImage(lemielAnimation[1][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
                             }
                             else {
                                 g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
@@ -1299,9 +1320,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         case 2 -> {
                             // Joueur 2 (Zarek)
                             if (gameClient.getMyPlayerId() == 2 && isMyTurn() && joueur2SelectedPlateau == plateau.getType() && plateauMouse != null && 
-                            joueur2SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
-                                g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth * 5/3, imageHeight * 5/3, null);
-                                g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth * 5/3, imageHeight * 5/3, null);
+                            joueur2SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY
+                            && etapeCoup == 0) {
+                                g.drawImage(zarekAnimation[0][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
+                                g.drawImage(zarekAnimation[1][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
                             }
                             else {
                                 g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);

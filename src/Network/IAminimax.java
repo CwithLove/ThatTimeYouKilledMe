@@ -13,7 +13,7 @@ import java.util.Random;
 
 public class IAminimax {
     private Jeu jeu;
-    private final int PROFONDEUR_MAX = 3;
+    private final int PROFONDEUR_MAX = 10;
     private int difficulte = 1;
     private String mode = "";
     private Random r = new Random();
@@ -130,7 +130,7 @@ public class IAminimax {
         }
 
         ArrayList<IAFields<Piece,String,String,Plateau.TypePlateau>> coups = null;
-        if (tourIA) {
+        if (!tourIA) {
             if (joueur.getId() == 1){
                 coups = getTourPossible(jeu.getJoueur2(), clone);
             } else {
@@ -148,7 +148,7 @@ public class IAminimax {
         for (IAFields<Piece,String,String,Plateau.TypePlateau> coup : coups){
             Jeu jeuClone = new Jeu(clone);
             int x = (int)coup.getPremier().getPosition().getX();
-            int y = (int)coup.getPremier().getPosition().getX();
+            int y = (int)coup.getPremier().getPosition().getY();
             Piece pieceCourant = jeuClone.getPlateauCourant().getPiece(x, y);
             if (pieceCourant == null){
                 continue;

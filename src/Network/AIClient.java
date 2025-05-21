@@ -165,37 +165,59 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             return;
         }
 
-        // if (this.gameInstance.getJoueurCourant().getId() != this.myPlayerId) {
-        //     System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
-        //     return;
-        // }
-
         System.out.println("----- DEBUG MODE ------");
         if (gameInstance.getJoueurCourant().getId() != myPlayerId) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
             return;
         }
         
-        try {
-            System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu reçu pour décision.");
-            AImove = ia.coupIA(gameInstance);
-            if (AImove == null) {
-                System.out.println("Erreur, le coup de l'IA est null");
-                return;
-            }
-            System.out.println("----------------------------------------------------------------------------------CoupIA : " + AImove);
-        } catch (Exception e) {
-            e.printStackTrace(); // Affiche l’erreur
-        }
+
+
+        // try {
+        //     System.out.println(aiName + " (ID: " + myPlayerId + "): État du jeu reçu pour décision.");
+        //     AImove = ia.coupIA(gameInstance);
+        //     if (AImove == null) {
+        //         System.out.println("Erreur, le coup de l'IA est null");
+        //         return;
+        //     }
+        //     System.out.println("----------------------------------------------------------------------------------CoupIA : " + AImove);
+        // } catch (Exception e) {
+        //     e.printStackTrace(); // Affiche l’erreur
+        // }
         // System.out.println(aiName + " (ID: " + myPlayerId + "): État jeu MAJ. Tour de Joueur ID: " + this.gameInstance.getJoueurCourant().getId());
 
         System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
         try {
-            for (int i = 0; i < 4; i++){
-                Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
-                //L'ia joue un coup
-                joueCoup(AImove,this.gameInstance,i);
+            
+            Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
+            //L'ia joue un coup
+            switch (this.gameInstance.getEtape()) {
+                case 0: // AI peut calculer le coup ici
+                    try {
+                        // IA choisit un coup
+                        AImove = ia.coupIA(gameInstance);
+                    } catch (Exception e) {
+                        System.err.println(aiName + ": Exception lors du calcul du coup IA: " + e.getMessage());
+                    }
+                    if (AImove == null) {
+                        System.out.println("Erreur, le coup de l'IA est null");
+                        return;
+                    }
+                    joueCoup(AImove, this.gameInstance, 0);
+                    break;
+                case 1:
+                    joueCoup(AImove, this.gameInstance, 1);
+                    break;
+                case 2:
+                    joueCoup(AImove, newGameState, 2);
+                    break;
+                case 3:
+                    joueCoup(AImove, newGameState, 3);
+                    break;
+                default:
+                    System.out.println("Etape inconnue");
             }
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println(aiName + ": Thread interrompu pendant la réflexion.");

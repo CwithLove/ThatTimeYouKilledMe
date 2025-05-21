@@ -54,8 +54,8 @@ public class Jeu {
 
     public Jeu(Jeu jeu){
         // Initialiser les joueurs
-        joueur1 = new Joueur("Blanc", 1, 4, jeu.getJoueur1().getProchainPlateau());
-        joueur2 = new Joueur("Noir", 2, 4, jeu.getJoueur2().getProchainPlateau());
+        joueur1 = new Joueur("Blanc", 1, jeu.getJoueur1().getNbClones(), jeu.getJoueur1().getProchainPlateau());
+        joueur2 = new Joueur("Noir", 2, jeu.getJoueur2().getNbClones(), jeu.getJoueur2().getProchainPlateau());
         //IAminmax ia = new IAminmax(1);
 
         // Initialiser les plateaux
@@ -575,9 +575,9 @@ public class Jeu {
     public boolean estCoupValide(Coup coup) {
         System.out.println("Coup: " + coup.getTypeCoup());
         ArrayList<Coup> coupsPossibles = getCoupPossibles(coup.getPltCourant(), coup.getPiece());
-        for (Coup possibleCoup : coupsPossibles) {
-            System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
-        }
+        // for (Coup possibleCoup : coupsPossibles) {
+            // System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
+        // }
         for (Coup possibleCoup : coupsPossibles) {
             if (possibleCoup.equals(coup)) {
                 return true; //attention peut etre overide le equals
@@ -604,7 +604,6 @@ public class Jeu {
                 return 1;
             }
         } else if (joueur.equals(joueur2)) {
-            System.out.println("Joueur 2: " + past.getNbBlancs() + " " + present.getNbBlancs() + " " + future.getNbBlancs());
             if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0) {
                 gameState = 2;
                 return 2;

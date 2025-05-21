@@ -32,7 +32,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private int currentPosX = -1;
     private int currentPosY = -1;
     IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
-    private IAminimax ia = new IAminimax(6,gameInstance);
+    private IAminimax ia = new IAminimax(4,gameInstance);
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;

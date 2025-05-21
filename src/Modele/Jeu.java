@@ -54,8 +54,8 @@ public class Jeu {
 
     public Jeu(Jeu jeu){
         // Initialiser les joueurs
-        joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
-        joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+        joueur1 = new Joueur("Blanc", 1, 4, jeu.getJoueur1().getProchainPlateau());
+        joueur2 = new Joueur("Noir", 2, 4, jeu.getJoueur2().getProchainPlateau());
         //IAminmax ia = new IAminmax(1);
 
         // Initialiser les plateaux
@@ -393,7 +393,7 @@ public class Jeu {
     }
 
     // 
-    boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
+    public boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
         try {
             if (gameOver(joueurCourant) != 0 && etapeCoup != 3) {
                 return false;

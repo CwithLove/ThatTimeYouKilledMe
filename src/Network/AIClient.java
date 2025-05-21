@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Random;
 
 public class AIClient implements GameStateUpdateListener, Runnable {
+    private boolean calculatedIn0 = false;
     private String serverIpAddress;
     private int serverPort = 12345;
     private Socket socket;
@@ -130,7 +131,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                     switch (code) {
                         case ETAT:
                             GameStateParser.parseAndUpdateJeu(this.gameInstance, content);
-                            System.out.println("BOT Adversaire ETAT" + content);
+                            System.out.println("BOT Adversaire ETAT:" + content);
                             onGameStateUpdate(this.gameInstance); // Mettre à jour l'état du jeu
                             break;
                         case GAGNE:
@@ -193,8 +194,10 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             //L'ia joue un coup
             switch (this.gameInstance.getEtape()) {
                 case 0: // AI peut calculer le coup ici
+                    calculatedIn0 = true;
                     try {
                         // IA choisit un coup
+                        System.out.println(aiName + "Calculer a l'etape 0");
                         AImove = ia.coupIA(gameInstance);
                     } catch (Exception e) {
                         System.err.println(aiName + ": Exception lors du calcul du coup IA: " + e.getMessage());
@@ -212,7 +215,25 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                     joueCoup(AImove, newGameState, 2);
                     break;
                 case 3:
+                    // L'IA joue le coup de la phase 3
+                    if (!calculatedIn0) {
+                        System.out.println(aiName + "Calculer a l'etape 3");
+                        try {
+                            // IA choisit un coup
+                            AImove = ia.coupIA(gameInstance);
+                        } catch (Exception e) {
+                            System.err.println(aiName + ": Exception lors du calcul du coup IA: " + e.getMessage());
+                        }
+                        if (AImove == null) {
+                            System.out.println(aiName + ": Erreur, le coup de l'IA est null a etape 3");
+                            System.out.println("Erreur, le coup de l'IA est null");
+                            return;
+                        }
+                    }
                     joueCoup(AImove, newGameState, 3);
+                    calculatedIn0 = false; // Réinitialiser le calcul
+                    AImove = null; // Réinitialiser le coup IA après l'avoir joué
+                    
                     break;
                 default:
                     System.out.println("Etape inconnue");

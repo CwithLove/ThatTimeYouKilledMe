@@ -13,7 +13,7 @@ import java.util.Random;
 
 public class IAminimax {
     private Jeu jeu;
-    private final int PROFONDEUR_MAX = 4;
+    private final int PROFONDEUR_MAX = 5;
     private int difficulte = 1;
     private String mode = "";
     private Random r = new Random();

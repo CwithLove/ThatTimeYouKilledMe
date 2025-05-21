@@ -124,7 +124,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                                     SwingUtilities.invokeLater(() -> {
                                         try {
                                             // GameScene prendra en charge le GameServerManager et le hostClient.
-                                            GameScene gameScene = new GameScene(sceneManager, hostClient, gameServerManager);
+                                            GameScene gameScene = new GameScene(sceneManager, hostClient, gameServerManager, false);
                                             System.out.println("HostingScene: GameScene créée, gameServerManager transféré.");
                                             // HostingScene ne gère plus gameServerManager.
                                             HostingScene.this.gameServerManager = null;

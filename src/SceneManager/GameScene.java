@@ -117,9 +117,9 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     // Constructeur pour l'hôte en mode multijoueur (avec un GameClient déjà
     // connecté depuis HostingScene)
     public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient,
-            GameServerManager serverManager) {
+            GameServerManager serverManager, boolean isSinglePlayerMode) {
         this.sceneManager = sceneManager;
-        this.isOperatingInSinglePlayerMode = false;
+        this.isOperatingInSinglePlayerMode = isSinglePlayerMode;
         this.gameClient = alreadyConnectedHostClient; // Utilise le client déjà connecté
         this.hostServerManager = serverManager; // Reprend la gestion du serveur
         
@@ -240,7 +240,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
     // Modifie le constructeur original pour maintenir la compatibilité
     public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient) {
-        this(sceneManager, alreadyConnectedHostClient, null);
+        this(sceneManager, alreadyConnectedHostClient, null, false);
     }
 
     private void commonUIInit() {
@@ -446,6 +446,12 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 publish("Serveur solo démarré. Connexion du joueur UI...");
 
                 gameClient = new GameClient("127.0.0.1", GameScene.this);
+                // Ensure le client utilise le port correct du serveur
+                if (localSinglePlayerServerManager != null) {
+                    int serverPort = localSinglePlayerServerManager.getCurrentPort();
+                    gameClient.setServerPort(serverPort);
+                    System.out.println("GameScene (Solo): Configuration du client UI pour utiliser le port " + serverPort);
+                }
                 gameClient.connect(); // Le joueur UI se connecte
                 publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + "). Démarrage de l'IA...");
 
@@ -458,6 +464,12 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 }
 
                 aiClientInstance = new AIClient("127.0.0.1");
+                // 确保AI客户端使用正确的端口号
+                if (localSinglePlayerServerManager != null) {
+                    int serverPort = localSinglePlayerServerManager.getCurrentPort();
+                    aiClientInstance.setServerPort(serverPort);
+                    System.out.println("GameScene (Solo): Configuration de l'AI pour utiliser le port " + serverPort);
+                }
                 aiClientInstance.connect(); // L'IA se connecte
                 if (aiClientInstance.isConnected()) {
                     aiClientInstance.startListeningAndPlaying(); // Démarrer le thread de l'IA
@@ -1564,6 +1576,13 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 // Le serveur est en train de se fermer
                 statusMessage = "Le serveur a été fermé: " + messageContent;
                 
+                // En mode solo, ignorer les messages SERVER_SHUTDOWN lors de la transition vers ResultScene
+                // car ils sont envoyés pendant le nettoyage normal des ressources
+                if (isOperatingInSinglePlayerMode && gameHasEnded) {
+                    System.out.println("GameScene: Ignorant le message SERVER_SHUTDOWN en mode solo pendant la transition");
+                    break;
+                }
+                
                 // Afficher un message et retourner au menu principal
                 JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                             "Le serveur a été fermé: " + messageContent,
@@ -1798,14 +1817,13 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
 
                 if (gameClient != null) {
-
-                ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent,
-                                                          gameClient, hostServerManager);
+                    System.out.println("GameScene: Création d'une nouvelle instance de ResultScene pour le mode " + (isOperatingInSinglePlayerMode ? "solo" : "multijoueur"));
+                    ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent,
+                                                          gameClient, hostServerManager, isOperatingInSinglePlayerMode);
                     gameClient = null;
                     hostServerManager = null;
                     sceneManager.setScene(resultScene);
                 } else {
-
                     ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent);
                     sceneManager.setScene(resultScene);
                 }

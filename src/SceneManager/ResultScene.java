@@ -2,7 +2,6 @@ package SceneManager;
 
 import Network.GameClient;
 import Network.GameServerManager;
-
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -58,6 +57,9 @@ public class ResultScene implements Scene {
     private GameClient gameClient;
     private GameServerManager serverManager;
     private boolean canReturnToLobby;
+    
+    // Flag pour identifier si c'est un mode solo contre IA
+    private boolean isSinglePlayerMode;
 
     /**
      * Constructeur pour un résultat de jeu sans connexion réseau.
@@ -70,6 +72,7 @@ public class ResultScene implements Scene {
         this.winnerId = winnerId;
         this.winnerMessage = winnerMessage;
         this.canReturnToLobby = false;
+        this.isSinglePlayerMode = false;
 
         loadResources();
         initButtons();
@@ -77,25 +80,27 @@ public class ResultScene implements Scene {
     }
 
     /**
-     * Constructeur pour un résultat de jeu avec connexion réseau (possibilité de retourner au lobby).
+     * Constructeur pour un résultat de jeu avec connexion réseau, spécifiant s'il s'agit d'un mode solo.
      * @param sceneManager Le gestionnaire de scènes
      * @param winnerId L'ID du joueur gagnant (1 pour Lemiel, 2 pour Zarek)
      * @param winnerMessage Le message de victoire à afficher
      * @param gameClient Le client de jeu connecté
      * @param serverManager Le gestionnaire de serveur (si c'est l'hôte)
+     * @param isSinglePlayerMode True si c'est un mode solo (IA), false si c'est multijoueur
      */
     public ResultScene(SceneManager sceneManager, int winnerId, String winnerMessage,
-                       GameClient gameClient, GameServerManager serverManager) {
+                      GameClient gameClient, GameServerManager serverManager, boolean isSinglePlayerMode) {
         this.sceneManager = sceneManager;
         this.winnerId = winnerId;
         this.winnerMessage = winnerMessage;
         this.gameClient = gameClient;
         this.serverManager = serverManager;
         this.canReturnToLobby = gameClient != null && gameClient.isConnected();
+        this.isSinglePlayerMode = isSinglePlayerMode;
 
         loadResources();
         initButtons();
-        System.out.println("ResultScene: Constructeur appelé (mode multijoueur)");
+        System.out.println("ResultScene: Constructeur appelé (mode " + (isSinglePlayerMode ? "solo contre IA" : "multijoueur") + ")");
     }
 
     /**
@@ -154,6 +159,7 @@ public class ResultScene implements Scene {
         alpha = 0f;
         fadeComplete = false;
 
+        System.out.println("ResultScene: isSinglePlayerMode = " + isSinglePlayerMode);
         // Configurer l'écouteur de souris
         setupMouseListeners();
 
@@ -404,7 +410,37 @@ public class ResultScene implements Scene {
         this.gameClient = null;
         this.serverManager = null;
 
-        // Déterminer la scène de lobby appropriée selon l'ID du joueur
+        // Vérifier si c'est un mode solo (contre IA)
+        if (isSinglePlayerMode) {
+            // En mode solo, transmettre les références du serveur et du client pour éviter "Address already in use"
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    System.out.println("ResultScene: Création d'une nouvelle instance de SinglePlayerLobbyScene avec les connexions existantes");
+                    SinglePlayerLobbyScene singlePlayerLobbyScene = new SinglePlayerLobbyScene(sceneManager, clientToTransfer, serverToTransfer);
+                    sceneManager.setScene(singlePlayerLobbyScene);
+                } catch (Exception e) {
+                    System.err.println("ResultScene: Erreur lors du retour au lobby Solo: " + e.getMessage());
+                    e.printStackTrace();
+                    
+                    // Maintenant on peut nettoyer les ressources en cas d'erreur
+                    if (clientToTransfer != null) {
+                        clientToTransfer.disconnect();
+                        System.out.println("ResultScene: Déconnexion du client en mode solo (après erreur)");
+                    }
+                    
+                    if (serverToTransfer != null) {
+                        serverToTransfer.stopServer();
+                        System.out.println("ResultScene: Arrêt du serveur en mode solo (après erreur)");
+                    }
+                    
+                    // En cas d'erreur, retour au menu
+                    sceneManager.setScene(new MenuScene(sceneManager));
+                }
+            });
+            return;
+        }
+        
+        // Mode multijoueur normal - Déterminer la scène de lobby appropriée selon l'ID du joueur
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("ResultScene: ID du joueur: " + clientToTransfer.getMyPlayerId());

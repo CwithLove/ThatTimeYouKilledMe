@@ -268,4 +268,9 @@ public class Button {
     public boolean isEnabled() {
         return enabled;
     }
+
+    public void setFontsize(int size) {
+        this.font = this.font.deriveFont((float) size);
+    }
+    
 }

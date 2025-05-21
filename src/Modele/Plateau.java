@@ -33,6 +33,27 @@ public class Plateau {
         this.size = 4;
     }
 
+    //Permet de faire des copies du plateau
+    public Plateau(Plateau copie, Joueur joueur1, Joueur joueur2) {
+        this.type = copie.getType();
+        this.nbBlancs = copie.getNbBlancs();
+        this.nbNoirs = copie.getNbNoirs();
+        this.size = copie.getSize();
+
+        this.grille = new Piece[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                Piece p = copie.getPiece(i, j);
+                if (p != null) {
+                    Joueur owner = (copie.getPiece(i, j).getOwner().getId() == 1) ? joueur1 : joueur2;
+                    this.grille[i][j] = new Piece(owner, copie.getPiece(i, j).getPosition());
+                } else {
+                    this.grille[i][j] = null;
+                }
+            }
+        }
+    }
+
     public int getSize() { return size; }
 
     public void setPiece(Piece p, int lig, int col) {

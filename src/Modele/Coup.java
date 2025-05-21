@@ -33,7 +33,7 @@ public class Coup {
         return typeCoup;
     }
 
-    public Coup stringToCoup(Piece piece, Plateau plateau, String coupstr) {
+    public static Coup stringToCoup(Piece piece, Plateau plateau, String coupstr) {
         //System.out.println("pendant: " + plateau.getType());
         switch(coupstr){
             case "UP":

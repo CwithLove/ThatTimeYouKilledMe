@@ -225,16 +225,6 @@ public class GameServerManager {
                     continue;
                 }
 
-                if (joueurCourant.getId() != 1) {
-                    if (plateauCourant.getNbBlancs() == 0) {
-                        gameInstance.setEtapeCoup(3);
-                    }
-                } else {
-                    if (plateauCourant.getNbNoirs() == 0) {
-                        gameInstance.setEtapeCoup(3);
-                    }
-                }
-
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
@@ -453,6 +443,10 @@ public class GameServerManager {
                         // Définir le prochain plateau pour le joueur
                         joueurCourant.setProchainPlateau(prochainPlateau);
 
+                        sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
+                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+
+                        System.out.println("FOR DEBUGGING 1: " + gameInstance.getGameStateAsString());
                         // Réinitialiser pour le prochain joueur
                         gameInstance.setEtapeCoup(0);
                         gameInstance.joueurSuivant();
@@ -461,9 +455,17 @@ public class GameServerManager {
                         // Mettre à jour le joueur courant
                         currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
 
-                        sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
-                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
-                        
+                        System.out.println("FOR DEBUGGING 2: " + gameInstance.getGameStateAsString());
+
+                        if (gameInstance.getJoueurCourant().getId() == 1) {
+                            if (gameInstance.getPlateauCourant().getNbBlancs() == 0) {
+                                gameInstance.setEtapeCoup(3);
+                            }
+                        } else if (gameInstance.getJoueurCourant().getId() == 2) {
+                            if (gameInstance.getPlateauCourant().getNbNoirs() == 0) {
+                                gameInstance.setEtapeCoup(3);
+                            }
+                        }
                         sendGameStateToAllClients();
 
 
@@ -562,11 +564,10 @@ public class GameServerManager {
         // executer le mouvement
         boolean coupReussi = gameInstance.jouerCoup(coup);
         if (coupReussi) {
-            // mise a jour de etape
-            gameInstance.setEtapeCoup(nextEtape);
-            
+
             // confirme la validation de move
             if (nextEtape == 3) {
+                gameInstance.setEtapeCoup(3);
                 System.out.println("GameServerManager: Deuxième coup réussi, etapeCoup passé à 3");
             }
             
@@ -579,8 +580,17 @@ public class GameServerManager {
                                    + newPosition.x + ":" + newPosition.y + ":" 
                                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
-            
-            // mise a jour de l'instance du Jeu
+
+            if (nextEtape == 2) {
+                plateauCourant = gameInstance.getPlateauCourant();
+                String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                if (!"null".equals(possibleMovesStr)) {
+                    gameInstance.setEtapeCoup(2);
+                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                } else {
+                    gameInstance.setEtapeCoup(3);
+                }
+            }
             sendGameStateToAllClients();
             return true;
         } else {
@@ -728,6 +738,11 @@ public class GameServerManager {
 
     private String getPossibleMovesString(Jeu gameInstance, Plateau plateauCourant, Piece selectedPiece) {
         ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
+
+        if (coupsPossibles.isEmpty()) {
+            return "null";
+        }
+
         StringBuilder possibleMovesStr = new StringBuilder();
         
         for (Coup coup : coupsPossibles) {

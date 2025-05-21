@@ -845,17 +845,29 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau future = jeu.getFuture();
 
             if (isMyTurn()){
-                g2d.setColor(Color.YELLOW);
+                
+                
+                
+
+                
                 g2d.setFont(new Font("Arial", Font.BOLD, 36));
                 String selectBoardMessage = "Votre tour!";
                 FontMetrics metrics = g2d.getFontMetrics();
                 int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+
+                //rectangle autour du text
+                g2d.setColor(new Color(0, 0, 0, 150));
+                g2d.fillRoundRect(((width - selectMsgWidth) / 2)-100, height-60, selectMsgWidth + 200, 50, 10, 10);
+                g2d.drawRoundRect(((width - selectMsgWidth) / 2)-100, height-60, selectMsgWidth + 200, 50, 10, 10);
                 // Centrer le message en bas
+                g2d.setColor(Color.YELLOW);
                 g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 20); 
+
                 undoButton.setEnabled(true);
 
             }
             else{
+
                 undoButton.setEnabled(false);
             }
 
@@ -905,13 +917,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est
                 // affiché
                 if (isMyTurn()) {
+                    
                     // Afficher le texte d'invite
                     g2d.setColor(Color.YELLOW);
                     g2d.setFont(new Font("Arial", Font.BOLD, 18));
                     String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
                     FontMetrics metrics = g2d.getFontMetrics();
                     int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
-                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
+                    //rectangle autour du texte
+                    g2d.setColor(new Color(0, 0, 0, 150));
+                    g2d.fillRoundRect((width - selectMsgWidth) / 2, offsetY - 40, choosePlateauWidth + 200, 50, 10, 10);
+                    g2d.drawRoundRect((width - selectMsgWidth) / 2, offsetY - 40, choosePlateauWidth + 200, 50, 10, 10);
+                    g2d.setColor(Color.YELLOW);
+                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 30);
                 }
             }
 

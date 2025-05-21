@@ -1225,8 +1225,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(0xe8e7de);
-                        black = new Color(0xbfb9b4);
+                        white = new Color(230, 220, 200);
+                        black = new Color(120, 100, 90);
                     }
                     case PRESENT -> {
                         if (casesPresent.contains(new Point(row, col))) {
@@ -1234,8 +1234,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(0xb3afac);
-                        black = new Color(0x8e8a84);
+                        white = new Color(232, 222, 196);
+                        black = new Color(115, 95, 100);
                     }
                     case FUTURE -> {
                         if (casesFutur.contains(new Point(row, col))) {
@@ -1245,8 +1245,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(0x777871);
-                        black = new Color(0x545251);
+                        white = new Color(232, 216, 202);
+                        black = new Color(130, 95, 85);
                     }
                 }
 

@@ -29,7 +29,7 @@ public class HistoriqueJeu {
         this.present.push(present.copie(joueur1, joueur2));
         this.future.push(future.copie(joueur1, joueur2));
 
-        this.nbTours = 1;
+        this.nbTours = 0;
     }
 
     public void add(Plateau past, Plateau present, Plateau future, Joueur joueur1, Joueur joueur2) {

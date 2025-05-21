@@ -374,13 +374,7 @@ public class GameServerManager {
 
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
-                            possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
-                            if (!"null".equals(possibleMovesStr)) {
-                                sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
-                            } else {
-                                gameInstance.setEtapeCoup(3); // Passer à l'étape 3 Vu que apres le 1er coups on n'a plus de coups possibles
-                            }
-                            sendGameStateToAllClients();
+
                             continue; // Si le coup est réussi, continuer à l'étape 2
                         } else {
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
@@ -577,11 +571,21 @@ public class GameServerManager {
             Point newPosition = pieceCourante.getPosition();
             Plateau currentPlateau = gameInstance.getPlateauCourant();
             
+            if (nextEtape != 3) {
+                String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
+                if (!"null".equals(possibleMovesStr)) {
+                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                } else {
+                    gameInstance.setEtapeCoup(3); // Passer à l'étape 3 Vu que apres le 1er coups on n'a plus de coups possibles
+                }
+            }
+
             //retourne le message de reussite
             String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":" 
                                    + newPosition.x + ":" + newPosition.y + ":" 
                                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
+            sendGameStateToAllClients();
             return true;
         } else {
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur lors de l'application du coup.");

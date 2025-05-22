@@ -7,21 +7,33 @@ import Modele.Jeu;
 import Modele.Joueur;
 import Modele.Piece;
 import Modele.Plateau;
+
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.HashMap;
 
 public class IAminimax {
+
+    private static class Memoisation {
+        int evaluation;
+        int profondeur;
+        Memoisation(int evaluation, int profondeur) {
+            this.evaluation = evaluation;
+            this.profondeur = profondeur;
+        }
+    }
 
     private Jeu jeu;
     private final int PROFONDEUR_MAX = 5;
     private int difficulte = 1;
     private String mode = "";
     private Random r = new Random();
+    private static HashMap<String, Memoisation> memoisation = new HashMap<>();
 
     //builder de l'ia
     public IAminimax(int diff, Jeu jeu) {
-        if (difficulte > PROFONDEUR_MAX) {
+        if (diff > PROFONDEUR_MAX) {
             diff = PROFONDEUR_MAX;
         }
         this.difficulte = diff;
@@ -56,12 +68,12 @@ public class IAminimax {
         //Minimax de profondeur [difficulte] (max 3, 6 avec heuristique) avec elagage
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
             Jeu jeuClone = new Jeu(gameState);
-            if (tour.getPremier() != null) {
+            if (tour.getPremier() != null && tour.getSecond() != null && tour.getTroisieme() != null) {
                 Jeu sim = new Jeu(jeuClone);
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourante = sim.getPlateauCourant().getPiece(x, y);
-                if (pieceCourante == null || tour.getSecond() == null || tour.getTroisieme() == null) {
+                if (pieceCourante == null) {
                     continue;
                 }
 
@@ -102,6 +114,8 @@ public class IAminimax {
                 seuil = best; // (int) (best * 0.95);
             } else if (this.mode.equals("MEDIUM")) {
                 seuil = (int) (best * 0.9);
+            } else {
+                seuil = (int) (best * 0.5);
             }
 
             for (int i = 0; i < lst_coup.size(); i++) {
@@ -131,9 +145,17 @@ public class IAminimax {
     }
 
     private int alphabeta(int profondeur, int alpha, int beta, boolean tourIA, Jeu clone) {
+        String hash = getHash(clone);
+
+        Memoisation memoisation1 = memoisation.get(hash);
+        if (memoisation1 != null && memoisation1.profondeur >= profondeur) {
+            return memoisation1.evaluation;
+        }
+
         if (profondeur <= 0) {
-            // return heuristique(clone);
-            return heuristique(clone);
+            int score = heuristique(clone);
+            memoisation.put(hash, new Memoisation(score, profondeur));
+            return score;
         }
 
         ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> tours = null;
@@ -148,8 +170,12 @@ public class IAminimax {
         }
 
         if (tours.isEmpty()) {
-            return tourIA ? -1000 + profondeur : 1000 - profondeur;
+            int val = tourIA ? -1000 + profondeur : 1000 - profondeur;
+            memoisation.put(hash, new Memoisation(val, profondeur));
+            return val;
         }
+
+        trierToursParHeuristique(tours, tourIA, clone);
 
         int best = tourIA ? Integer.MIN_VALUE : Integer.MAX_VALUE;
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
@@ -174,12 +200,16 @@ public class IAminimax {
                 }
                 jeuClone.appliquerCoup(coup2);
 
+
+
+
+
                 if (tourIA) {
                     best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, jeuClone));
                     alpha = Math.max(alpha, best);
                 } else {
-                    beta = Math.min(beta, best);
                     best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, jeuClone));
+                    beta = Math.min(beta, best);
                 }
             }
 
@@ -187,19 +217,66 @@ public class IAminimax {
                 break;
             }
         }
+        memoisation.put(hash, new Memoisation(best, profondeur));
         return best;
     }
 
+    private String getHash(Jeu clone) {
+        return clone.getGameStateAsString();
+    }
 
+    private void trierToursParHeuristique(ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> tours, boolean tourIA, Jeu jeu) {
+        int n = tours.size();
+        int[] evaluations = new int[n];
 
+        // Calculer l'évaluation de chaque coup une seule fois
+        for (int i = 0; i < n; i++) {
+            evaluations[i] = evaluerTour(tours.get(i), jeu);
+        }
 
+        // Tri simple par insertion basé sur evaluations, tri décroissant si tourIA, croissant sinon
+        for (int i = 1; i < n; i++) {
+            IAFields<Piece, String, String, Plateau.TypePlateau> currentTour = tours.get(i);
+            int currentEval = evaluations[i];
+            int j = i - 1;
 
+            while (j >= 0 && ((tourIA && evaluations[j] < currentEval) || (!tourIA && evaluations[j] > currentEval))) {
+                tours.set(j + 1, tours.get(j));
+                evaluations[j + 1] = evaluations[j];
+                j--;
+            }
+            tours.set(j + 1, currentTour);
+            evaluations[j + 1] = currentEval;
+        }
+    }
 
+    private int evaluerTour(IAFields<Piece, String, String, Plateau.TypePlateau> tour, Jeu jeuOriginal) {
+        if (tour.getPremier() == null) {
+            return Integer.MIN_VALUE;
+        }
 
+        // Cloner une seule fois le jeu ici
+        Jeu jeu = new Jeu(jeuOriginal);
 
+        int x = (int) tour.getPremier().getPosition().getX();
+        int y = (int) tour.getPremier().getPosition().getY();
+        Piece piece = jeu.getPlateauCourant().getPiece(x, y);
+        if (piece == null) {
+            return Integer.MIN_VALUE;
+        }
 
+        Coup coup1 = Coup.stringToCoup(piece, jeu.getPlateauCourant(), tour.getSecond());
+        if (coup1 != null) {
+            jeu.appliquerCoup(coup1);
+        }
 
+        Coup coup2 = Coup.stringToCoup(piece, jeu.getPlateauCourant(), tour.getTroisieme());
+        if (coup2 != null) {
+            jeu.appliquerCoup(coup2);
+        }
 
+        return heuristique(jeu);
+    }
 
 
 
@@ -218,21 +295,23 @@ public class IAminimax {
         }
         int score = 0;
         // heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique efficace)
-        score += scorePiecesRestantes(joueur, passe, present, futur, 3);
+        score += scorePiecesRestantes(joueur, passe, present, futur, 9);
         // heuritique 2: position sur plateau, +poids au milieu, 0 sur les bords, -poids dans les coins (heuristique peu efficace)
-        score += scorePositionPlateau(joueur, plateauCourant, 1);
+        score += scorePositionPlateau(joueur, plateauCourant, 2);
         // heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
-        score += scorePionsInventaire(joueur, opponent, 4);
+        score += scorePionsInventaire(joueur, opponent, 6);
         // heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau (heuristique moyenne)
         //score += presencePlateau(joueur, passe, present, futur, 5);
         // heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*poids (heuristique très efficace)
-        score += piecesContreAdversaire(joueur, passe, present, futur, 8);
+        score += piecesContreAdversaire(joueur, passe, present, futur, 10);
         //heuristique 6: plus de pièces que l'adversaire sur chaque plateau
-        score += scoreInitiative(joueur, jeu, 4);
+        score += scoreInitiative(joueur, jeu, 8);
         //heuristique 7: triangulation temporelle, nb de pieces sur chaque plateau, version améliorée de l'heuristique 4
         score +=scoreTriangulation(joueur,jeu,5);
         //heuristique 8: menace
-        score += scorePiecesMenacees(joueur, plateauCourant, 4);
+        score += scorePiecesMenacees(joueur, plateauCourant, 5);
+        //heuristique 9: malus choix d'un plateau sans pion
+        score += scoreChoixPlateau(jeu, 2);
         return score;
     }
 
@@ -268,6 +347,7 @@ public class IAminimax {
         }
         return score;
     }
+
 
     // heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
     private int scorePionsInventaire(Joueur joueur, Joueur opponent, int poids) {
@@ -408,6 +488,14 @@ public class IAminimax {
         }
 
         return score;
+    }
+
+    //heuristique 9: malus choix d'un plateau sans pion
+    private int scoreChoixPlateau(Jeu jeu, int poids){
+        if (!jeu.getJoueurCourant().existePion(jeu.getPlateauCourant())){
+            return (-2*poids);
+        }
+        return 0;
     }
 
 

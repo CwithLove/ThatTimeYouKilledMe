@@ -32,7 +32,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private int currentPosX = -1;
     private int currentPosY = -1;
     IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
-    private IAminimax ia = new IAminimax(4,gameInstance);
+    private IAminimax ia = new IAminimax(5,gameInstance);
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;
@@ -169,7 +169,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             return;
         }
 
-        System.out.println("----- DEBUG MODE ------");
+        //System.out.println("----- DEBUG MODE ------");
         if (newGameState.getJoueurCourant().getId() != myPlayerId) {
             System.out.println(aiName + " (ID: " + myPlayerId + "): Ce n'est pas mon tour, je ne fais rien.");
             return;

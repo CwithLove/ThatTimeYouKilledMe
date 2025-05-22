@@ -98,6 +98,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private Plateau plateauMouse;
     private int caseMouseX;
     private int caseMouseY;
+    private int modeSolo = 1;
+    private AIClient aiClient1;
+    private AIClient aiClient2;
+
 
     // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
@@ -438,58 +442,58 @@ public class GameScene implements Scene, GameStateUpdateListener {
             @Override
             protected Boolean doInBackground() throws Exception {
                 publish("Démarrage du serveur solo...");
-                // Assurez-vous d'arrêter le serveur précédent s'il existe et qu'il appartient à
-                // ce mode solo
+
                 if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
-                    System.out.println(
-                            "GameScene (Solo Worker): Serveur local solo déjà actif, tentative de réutilisation ou redémarrage.");
-                    // Il peut être nécessaire de l'arrêter et de le réinitialiser pour garantir un
-                    // état propre
+                    System.out.println("GameScene (Solo Worker): Serveur local solo déjà actif, tentative de réinitialisation.");
                     localSinglePlayerServerManager.stopServer();
                 }
-                localSinglePlayerServerManager = new GameServerManager(null); // null pour le callback
-                localSinglePlayerServerManager.startServer(); // Le serveur fonctionne sur 127.0.0.1
-                publish("Serveur solo démarré. Connexion du joueur UI...");
 
-                gameClient = new GameClient("127.0.0.1", GameScene.this);
-                gameClient.connect(); // Le joueur UI se connecte
-                publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + "). Démarrage de l'IA...");
+                localSinglePlayerServerManager = new GameServerManager(null); // callback = null
+                localSinglePlayerServerManager.startServer(); // Lancement serveur local 127.0.0.1
+                Thread.sleep(300); // Petit délai pour éviter les courses
 
-                // Arrêter l'ancienne IA si elle existe
-                if (localAIClientThread != null && localAIClientThread.isAlive()) {
-                    if (aiClientInstance != null) {
-                        aiClientInstance.disconnect();
+                if (modeSolo == 1) {
+                    publish("Mode : UI vs IA");
+
+                    gameClient = new GameClient("127.0.0.1", GameScene.this);
+                    gameClient.connect();
+                    publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + ")");
+
+                    aiClientInstance = new AIClient("127.0.0.1");
+                    aiClientInstance.connect();
+                    if (aiClientInstance.isConnected()) {
+                        aiClientInstance.startListeningAndPlaying();
+                        publish("IA connectée (ID: " + aiClientInstance.getMyPlayerId() + ")");
+                    } else {
+                        throw new IOException("L'IA n'a pas pu se connecter.");
                     }
-                    localAIClientThread.interrupt();
+
+                } else if (modeSolo == 2) {
+                    // Démarre les deux IA
+                    publish("Mode : IA vs IA");
+                    gameClient = new GameClient("127.0.0.1", GameScene.this);
+                    // IA1
+                    aiClient1 = new AIClient("127.0.0.1");
+                    aiClient1.connect();
+                    aiClient1.startListeningAndPlaying();
+
+                    // IA2
+                    aiClient2 = new AIClient("127.0.0.1");
+                    aiClient2.connect();
+                    aiClient2.startListeningAndPlaying();
+
+
+
                 }
 
-                aiClientInstance = new AIClient("127.0.0.1");
-                aiClientInstance.connect(); // L'IA se connecte
-                if (aiClientInstance.isConnected()) {
-                    aiClientInstance.startListeningAndPlaying(); // Démarrer le thread de l'IA
-                    publish("IA (ID: " + aiClientInstance.getMyPlayerId() + ") connectée et à l'écoute.");
-                } else {
-                    publish("Erreur: L'IA n'a pas pu se connecter.");
-                    throw new IOException("Échec de la connexion du client IA.");
-                }
+                Thread.sleep(500); // Attente pour que le serveur détecte les connexions
 
-                // GameServerManager appellera automatiquement startGameEngine lorsqu'il y aura
-                // 2 clients
-                // (Joueur UI et Client IA) si configuré correctement.
-                // Nous pouvons attendre un peu pour nous assurer que le serveur a le temps de
-                // traiter.
-                Thread.sleep(500); // Attendre que le serveur traite la connexion de l'IA
                 if (localSinglePlayerServerManager.areAllPlayersConnected()) {
-                    // startGameEngine a été appelé automatiquement par GameServerManager
-                    publish("Moteur de jeu solo prêt.");
+                    publish("Moteur de jeu prêt.");
                 } else {
-                    publish("En attente que le serveur démarre le moteur ("
-                            + (localSinglePlayerServerManager.areAllPlayersConnected() ? "OK"
-                            : "Pas encore assez de joueurs")
-                            + ")");
-                    // On peut ajouter une boucle d'attente ici si nécessaire, mais idéalement
-                    // GameServerManager gère cela
+                    publish("En attente des connexions...");
                 }
+
                 return true;
             }
 
@@ -508,18 +512,16 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 try {
                     Boolean success = get();
                     if (success) {
-                        if (gameClient == null || !gameClient.isConnected()) {
-                            statusMessage = "Erreur connexion joueur UI en mode solo.";
+                        if (modeSolo == 1 && (gameClient == null || !gameClient.isConnected())) {
+                            statusMessage = "Erreur connexion joueur UI.";
                         }
-                        // statusMessage sera mis à jour par le premier onGameStateUpdate
                     } else {
                         statusMessage = "Échec du démarrage du mode solo.";
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    statusMessage = "Erreur critique mode solo: " + e.getMessage();
-                    JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Solo",
-                            JOptionPane.ERROR_MESSAGE);
+                    statusMessage = "Erreur critique : " + e.getMessage();
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur", JOptionPane.ERROR_MESSAGE);
                     cleanUpAndGoToMenu();
                 }
                 repaintPanel();
@@ -527,6 +529,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         };
         worker.execute();
     }
+
 
     private void connectToRemoteServer() {
         isLoading = true;

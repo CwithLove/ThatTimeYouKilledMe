@@ -323,25 +323,29 @@ public class IAminimax {
             score += scorePiecesMenacees(joueur, plateauCourant, poids.get(7));
             //heuristique 9: malus choix d'un plateau sans pion
             score += scoreChoixPlateau(jeu, poids.get(8));
+            //heuristique 10: eliminer dans une temporalite
+            score += scoreExtinction(jeu,opponent,10);
         } else {
             // heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique efficace)
             score += scorePiecesRestantes(joueur, passe, present, futur, 9);
             // heuritique 2: position sur plateau, +poids au milieu, 0 sur les bords, -poids dans les coins (heuristique peu efficace)
             score += scorePositionPlateau(joueur, plateauCourant, 5);
             // heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
-            score += scorePionsInventaire(joueur, opponent, 8);
+            score += scorePionsInventaire(joueur, opponent, 10);
             // heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau (heuristique moyenne)
-            score += presencePlateau(joueur, passe, present, futur, 5);
+            score += presencePlateau(joueur, passe, present, futur, 4);
             // heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*poids (heuristique très efficace)
-            score += piecesContreAdversaire(joueur, passe, present, futur, 10);
+            score += piecesContreAdversaire(joueur, passe, present, futur, 12);
             //heuristique 6: plus de pièces que l'adversaire sur chaque plateau
             score += scoreInitiative(joueur, jeu, 8);
             //heuristique 7: triangulation temporelle, nb de pieces sur chaque plateau, version améliorée de l'heuristique 4
-            score +=scoreTriangulation(joueur,jeu,5);
+            score +=scoreTriangulation(joueur,jeu,6);
             //heuristique 8: menace
-            score += scorePiecesMenacees(joueur, plateauCourant, 6);
+            score += scorePiecesMenacees(joueur, plateauCourant, 8);
             //heuristique 9: malus choix d'un plateau sans pion
-            score += scoreChoixPlateau(jeu, 10);
+            score += scoreChoixPlateau(jeu, 50);
+            //heuristique 10: eliminer dans une temporalite
+            score += scoreExtinction(jeu,opponent,4);
         }
 
         return score;
@@ -528,6 +532,21 @@ public class IAminimax {
             return (-2*poids);
         }
         return 0;
+    }
+
+    //heuristique 10: extinction sur une temporalite
+    private int scoreExtinction(Jeu jeu, Joueur opponent, int poids){
+        int score = 0;
+        if (!opponent.existePion(jeu.getPast())){
+            score += poids;
+        }
+        if (!opponent.existePion(jeu.getPresent())){
+            score += poids;
+        }
+        if (!opponent.existePion(jeu.getFuture())){
+            score += poids;
+        }
+        return score;
     }
 
 

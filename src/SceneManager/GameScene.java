@@ -27,6 +27,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
 
+    private String police = "Utopia";
+
     // Ressources pour le fond et les images
     private BufferedImage backgroundImage;
     private BufferedImage crackPresentImage;
@@ -62,6 +64,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     Point mousePoint;
     boolean transparent = false;
+    boolean clone = false;
     Plateau.TypePlateau activeur = null;
     Point caseActivatrice = null;
 
@@ -829,11 +832,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
         // Mettre à jour la position du bouton "Retour" et "Annuler"
         
         undoButton.setSize(150*width/1920, 60*width/1920);
-        undoButton.setFont(new Font("Arial", Font.BOLD, 20*width/1920));
+        undoButton.setFont(new Font(police, Font.BOLD, 20*width/1920));
         undoButton.setLocation((width-(150*width/1920) )/ 2, height / 11 + 20);
 
         backButton.setSize(150*width/1920, 60*width/1920);
-        backButton.setFont(new Font("Arial", Font.BOLD, 20*width/1920));
+        backButton.setFont(new Font(police, Font.BOLD, 20*width/1920));
 
         
 
@@ -904,7 +907,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 
 
                 
-                g2d.setFont(new Font("Arial", Font.BOLD, 36*width/1920));
+                g2d.setFont(new Font(police, Font.BOLD, 36*width/1920));
                 String selectBoardMessage = "Votre tour !";
                 FontMetrics metrics = g2d.getFontMetrics();
                 int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
@@ -964,17 +967,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 if (isMyTurn()) {
                     
                     // Afficher le texte d'invite
-                    g2d.setColor(Color.YELLOW);
-                    g2d.setFont(new Font("Arial", Font.BOLD, 26*width/1920));
+                    //g2d.setColor(Color.YELLOW);
+                    g2d.setFont(new Font(police, Font.BOLD, 26*width/1920));
                     String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
                     FontMetrics metrics = g2d.getFontMetrics();
                     int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
                     //rectangle autour du texte
                     g2d.setColor(new Color(0, 0, 0, 150));
-                    g2d.fillRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 90*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
-                    g2d.drawRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 90*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
-                    g2d.setColor(Color.YELLOW);
-                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 50*width/1920);
+                    g2d.fillRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
+                    g2d.drawRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
+                    g2d.setColor(Color.WHITE);
+                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 65*width/1920);
                 }
             }
 
@@ -1009,7 +1012,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
-                g2d.setColor(new Color(83, 202, 54));
+                //g2d.setColor(new Color(0x8DE2DE));
+                g2d.setColor(Color.WHITE);
 
                 Stroke originalStroke = g2d.getStroke();
                 g2d.setStroke(new BasicStroke(8f*width/1920f)); // Épaisseur de la bordure
@@ -1096,12 +1100,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
         String J1text = null, J2text = null;
         switch (gameClientId) {
             case 1 -> {
-                J1text = "YOU: ";
-                J2text = "RIV: ";
+                J1text = "VOUS ";
+                J2text = "RIVAL ";
             }
             case 2 -> {
-                J1text = "RIV: ";
-                J2text = "YOU: ";
+                J1text = "RIVAL ";
+                J2text = "VOUS ";
             }
             default -> {
                 // Do nothing
@@ -1126,7 +1130,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         g.drawRoundRect(zarekCloneX, cloneY, rectWidth, rectHeight, 12, 12);
 
         // Dessiner le texte "YOU:"
-        g.setFont(new Font("Arial", Font.BOLD, 18)); // Il est préférable de choisir une taille de police adaptée à rectHeight
+        g.setFont(new Font(police, Font.BOLD, 18)); // Il est préférable de choisir une taille de police adaptée à rectHeight
         FontMetrics fm = g.getFontMetrics();
         int textAscent = fm.getAscent(); // Hauteur du sommet de la police à partir de la ligne de base
         int textHeight = fm.getHeight(); // Hauteur totale de la police
@@ -1140,7 +1144,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
         // Centrer le texte verticalement dans rectHeight
         int textY = cloneY + (rectHeight - textHeight) / 2 + textAscent;
 
-        g.setColor(Color.CYAN);
+        //g.setColor(Color.CYAN);
         g.drawString(J1text, J1textX, textY);
         g.drawString(J2text, J2textX, textY);
 
@@ -1163,8 +1167,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int currentImageX = startImagesJ1X + i * (singleImageDisplayWidth + imageSpacing);
             // Centrer l'image verticalement dans rectY et rectHeight
             int currentImageY = cloneY + (rectHeight - singleImageDisplayHeight) / 2;
-
+            if (clone == true && gameClient.getMyPlayerId() == 1 && i == actualLemielClones-1) {
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+            }
             g.drawImage(lemielAnimation[0][0], currentImageX, currentImageY, singleImageDisplayWidth, singleImageDisplayHeight, null);
+
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
 
         // Dessiner les images de clones de Zarek
@@ -1172,8 +1180,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
             int currentImageX = startImagesJ2X + i * (singleImageDisplayWidth + imageSpacing);
             // Centrer l'image verticalement dans rectY et rectHeight
             int currentImageY = cloneY + (rectHeight - singleImageDisplayHeight) / 2;
-
+            if (clone == true && gameClient.getMyPlayerId() == 2 && i == actualLemielClones-1) {
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+            }
             g.drawImage(zarekAnimation[0][0], currentImageX, currentImageY, singleImageDisplayWidth, singleImageDisplayHeight, null);
+
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
 
     }
@@ -1296,7 +1308,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Bordure
         g.setColor(new Color(80, 80, 80));
-        g.drawRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1);
+        g.setStroke(new BasicStroke(boardPixelSize/100));
+        g.drawRoundRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1, 2, 2);
 
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
@@ -1390,8 +1403,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                     activeur = Plateau.TypePlateau.PAST;
                                     caseActivatrice = point;
                                     //System.out.println("TRANSPARENT PASSE !!!");
-                                    System.out.println(n);
+                                    //System.out.println(n);
                                     transparent = true;
+                                    if (selectedPlateauType == Plateau.TypePlateau.PRESENT) {
+                                        clone = true;
+                                        //System.out.println("CLONE !!!");
+                                    }
                                 }
                                 else if (gameClient.getMyPlayerId() == 2) {
                                     g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
@@ -1399,12 +1416,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                     activeur = Plateau.TypePlateau.PAST;
                                     caseActivatrice = point;
                                     transparent = true;
+                                    if (selectedPlateauType == Plateau.TypePlateau.PRESENT) {
+                                        clone = true;
+                                    }
                                 }
                             }
                             else if (activeur == Plateau.TypePlateau.PAST && caseActivatrice.equals(point) && transparent == true) {
                                 transparent = false;
+                                clone = false;
                                 //System.out.println(" PLUS TRANSPARENT PASSE !!!");
                                 System.out.println(n);
+                                //System.out.println("PLUS CLONE !!!");
                             }
                         }
                     }
@@ -1419,6 +1441,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                     g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     transparent = true;
                                     caseActivatrice = point;
+                                    System.out.println("TRANSPARENT PASSE !!!");
+                                    if (selectedPlateauType == Plateau.TypePlateau.FUTURE) {
+                                        clone = true;
+                                        System.out.println("CLONE !!!");
+                                    }
                                     //System.out.println("TRANSPARENT PRESENT !!!");
                                     activeur = Plateau.TypePlateau.PRESENT;
                                 }
@@ -1426,12 +1453,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                     g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     transparent = true;
+                                    
                                     caseActivatrice = point;
+                                    if (selectedPlateauType == Plateau.TypePlateau.FUTURE) {
+                                        clone = true;
+                                    }
                                     activeur = Plateau.TypePlateau.PRESENT;
                                 }
                             }
                             else if (activeur == Plateau.TypePlateau.PRESENT && caseActivatrice.equals(point) && transparent == true) {
                                 transparent = false;
+                                clone = false;
+                                System.out.println("PLUS CLONE !!!");
                                 //System.out.println(" PLUS TRANSPARENT PRESENT !!!");
                             }
                         }
@@ -2009,6 +2042,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 casesPasse.clear();
                 casesPresent.clear();
                 casesFutur.clear();
+                transparent = false;
+                clone = false;
+                System.out.println("PLUS CLONE !!!");
                 // Gérer le message de succès du mouvement
                 // Format : TYPE_COUP:succes:newX:newY:newPlateauType
                 String[] coupParts = messageContent.split(":");

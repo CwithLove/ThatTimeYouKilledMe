@@ -30,7 +30,9 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
     public AIClient(String serverIpAddress) {
         this.serverIpAddress = serverIpAddress;
-        this.gameInstance = new Jeu(); // Initialiser l'instance de jeu
+        // Creer un joueur temporaire pour initialiser l'instance de Jeu
+        Joueur tempJoueur = new Joueur("AI", 2, 4, Plateau.TypePlateau.FUTURE);
+        this.gameInstance = new Jeu(tempJoueur); // Utiliser le joueur temporaire pour initialiser l'instance de Jeu
     }
 
     public void connect() throws IOException {

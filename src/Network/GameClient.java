@@ -1,6 +1,8 @@
 package Network;
 
 import Modele.Jeu;
+import Modele.Joueur;
+import Modele.Plateau;
 import java.io.*;
 import java.net.*;
 // import Modele.Plateau; // Ne pas utiliser Plateau directement
@@ -21,8 +23,9 @@ public class GameClient {
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
         this.listener = listener;
-        this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
-                                      // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        // Creer un joueur temporaire pour initialiser l'instance de Jeu
+        Joueur tempJoueur = new Joueur("Temp", 1, 4, Plateau.TypePlateau.PAST);
+        this.gameInstance = new Jeu(tempJoueur); // Utiliser le joueur temporaire pour initialiser l'instance de Jeu
     }
 
     public void connect() throws IOException {

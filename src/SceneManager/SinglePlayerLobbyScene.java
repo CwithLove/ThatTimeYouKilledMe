@@ -31,6 +31,11 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
     private String selectedDifficulty = "Facile"; // Difficulté par défaut: facile
     private final String[] DIFFICULTY_OPTIONS = {"Facile", "Moyen", "Difficile"};
 
+    // 添加选择先行玩家的下拉菜单
+    private JComboBox<String> firstPlayerComboBox;
+    private String[] playerOptions = {"Joueur commence", "IA commence"};
+    private int selectedFirstPlayer = 1; // 默认玩家1（人类）先行
+    
     private GameClient hostClient;
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean aiPlayerConnected = false;
@@ -55,12 +60,26 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
         this.sceneManager = sceneManager;
         this.transitioningToGameScene = false;
 
-        // Initialisation du menu déroulant
+        // Initialisation du menu déroulant de difficulté
         difficultyComboBox = new JComboBox<>(DIFFICULTY_OPTIONS);
         difficultyComboBox.setSelectedItem("Facile"); // Sélection par défaut: facile
         difficultyComboBox.addActionListener(e -> {
             selectedDifficulty = (String) difficultyComboBox.getSelectedItem();
             System.out.println("Difficulté changée à: " + selectedDifficulty);
+            repaintPanel();
+        });
+
+        // 初始化选择先行玩家的下拉菜单
+        firstPlayerComboBox = new JComboBox<>(playerOptions);
+        firstPlayerComboBox.setSelectedIndex(0); // 默认选择玩家先行
+        firstPlayerComboBox.addActionListener(e -> {
+            selectedFirstPlayer = firstPlayerComboBox.getSelectedIndex() + 1; // 1代表玩家先行，2代表AI先行
+            System.out.println("SinglePlayerLobbyScene: Premier joueur sélectionné: " + 
+                              (selectedFirstPlayer == 1 ? "Joueur" : "IA"));
+            // 如果服务器已经启动，则更新设置
+            if (gameServerManager != null && serverSuccessfullyStarted) {
+                gameServerManager.setFirstPlayer(selectedFirstPlayer);
+            }
             repaintPanel();
         });
 
@@ -80,6 +99,10 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
                                 publish("Initialisation du moteur de jeu...");
                                 // Définir la difficulté de l'IA
                                 gameServerManager.setAIDifficulty(selectedDifficulty);
+                                // 设置先行玩家
+                                gameServerManager.setFirstPlayer(selectedFirstPlayer);
+                                System.out.println("SinglePlayerLobbyScene: Configuration du premier joueur: " + 
+                                                  (selectedFirstPlayer == 1 ? "Joueur" : "IA"));
                                 gameServerManager.startGameEngine();
                                 Thread.sleep(800);
 
@@ -261,6 +284,12 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
         alpha = 0f;
         fadeComplete = false;
         transitioningToGameScene = false;
+        
+        // 重置选择
+        selectedFirstPlayer = 1;
+        if (firstPlayerComboBox != null) {
+            firstPlayerComboBox.setSelectedIndex(0);
+        }
         
         // 维持状态，但不重置连接状态
         boolean existingResourcesAvailable = hostClient != null && hostClient.isConnected() && 
@@ -548,7 +577,36 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
         String difficultyText = "Sélectionner la difficulté:";
         FontMetrics diffMetrics = g2d.getFontMetrics();
         int diffTextWidth = diffMetrics.stringWidth(difficultyText);
-        g2d.drawString(difficultyText, (width - diffTextWidth) / 2, height / 4 + 30);
+        g2d.drawString(difficultyText, (width - diffTextWidth) / 2, height / 4 - 20);
+
+        // 绘制"选择先行玩家"的标题
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
+        g2d.setColor(Color.LIGHT_GRAY);
+        String firstPlayerText = "Choisir qui commence:";
+        FontMetrics firstPlayerMetrics = g2d.getFontMetrics();
+        int firstPlayerTextWidth = firstPlayerMetrics.stringWidth(firstPlayerText);
+        g2d.drawString(firstPlayerText, (width - firstPlayerTextWidth) / 2, height / 4 + 40);
+
+        // 添加下拉菜单到面板
+        if (sceneManager.getPanel() != null) {
+            // 添加难度选择下拉菜单
+            if (!sceneManager.getPanel().isAncestorOf(difficultyComboBox)) {
+                sceneManager.getPanel().add(difficultyComboBox);
+            }
+            int comboBoxWidth = 150;
+            int comboBoxHeight = 30;
+            difficultyComboBox.setBounds((width - comboBoxWidth) / 2, height / 4, comboBoxWidth, comboBoxHeight);
+            difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2/3)));
+            difficultyComboBox.setVisible(fadeComplete);
+            
+            // 添加先行玩家选择下拉菜单
+            if (!sceneManager.getPanel().isAncestorOf(firstPlayerComboBox)) {
+                sceneManager.getPanel().add(firstPlayerComboBox);
+            }
+            firstPlayerComboBox.setBounds((width - comboBoxWidth) / 2, height / 4 + 60, comboBoxWidth, comboBoxHeight);
+            firstPlayerComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2/3)));
+            firstPlayerComboBox.setVisible(fadeComplete);
+        }
 
         // Zone des joueurs
         int zoneWidth = width / 2 - 20;
@@ -576,16 +634,6 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
         int btnHeight = Math.max(45, height / 13);
         int btnFontSize = Math.min(width, height) / 35;
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
-
-        // Placement du menu déroulant de sélection de difficulté
-        if (sceneManager.getPanel() != null && !sceneManager.getPanel().isAncestorOf(difficultyComboBox)) {
-            sceneManager.getPanel().add(difficultyComboBox);
-        }
-        int comboBoxWidth = 150;
-        int comboBoxHeight = 30;
-        difficultyComboBox.setBounds((width - comboBoxWidth) / 2, height / 4 + 40, comboBoxWidth, comboBoxHeight);
-        difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(12, btnFontSize * 2/3)));
-        difficultyComboBox.setVisible(fadeComplete); // Seulement visible après la fin de la transition
 
         // Bouton de démarrage du jeu
         startGameButton.setSize(btnWidth, btnHeight);
@@ -729,8 +777,13 @@ public class SinglePlayerLobbyScene implements Scene, GameStateUpdateListener {
         System.out.println("SinglePlayerLobbyScene: Dispose appelé. transitioningToGameScene = " + transitioningToGameScene);
 
         // Suppression du menu déroulant de sélection de difficulté
-        if (sceneManager.getPanel() != null && difficultyComboBox != null) {
-            sceneManager.getPanel().remove(difficultyComboBox);
+        if (sceneManager.getPanel() != null) {
+            if (difficultyComboBox != null) {
+                sceneManager.getPanel().remove(difficultyComboBox);
+            }
+            if (firstPlayerComboBox != null) {
+                sceneManager.getPanel().remove(firstPlayerComboBox);
+            }
         }
 
         if (!transitioningToGameScene) {

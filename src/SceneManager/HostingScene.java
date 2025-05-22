@@ -10,6 +10,7 @@ import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker; // Nécessaire pour l'implémentation de GameStateUpdateListener
@@ -26,6 +27,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private Button startGameButton;             // Bouton pour lancer la partie une fois les conditions remplies.
     private Button backButton;                  // Bouton pour retourner à la scène précédente (MultiplayerScene).
 
+    // 添加选择先行玩家的下拉菜单
+    private JComboBox<String> firstPlayerComboBox;
+    private String[] playerOptions = {"Joueur 1 commence", "Joueur 2 commence"};
+    private int selectedFirstPlayer = 1; // 默认玩家1先行
+    
     private GameClient hostClient;              // Le client de l'hôte, qui se connecte à son propre serveur.
     private volatile boolean serverSuccessfullyStarted = false; // Indique si le GameServerManager a démarré correctement.
     private volatile boolean playerTwoConfirmedConnected = false; // Indique si le Joueur 2 s'est connecté (via callback).
@@ -51,6 +57,19 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         this.sceneManager = sceneManager;
         this.transitioningToGameScene = false; // Initialise le drapeau de transition.
 
+        // 初始化选择先行玩家的下拉菜单
+        firstPlayerComboBox = new JComboBox<>(playerOptions);
+        firstPlayerComboBox.setSelectedIndex(0); // 默认选择玩家1先行
+        firstPlayerComboBox.addActionListener(e -> {
+            selectedFirstPlayer = firstPlayerComboBox.getSelectedIndex() + 1; // 1代表J1先行，2代表J2先行
+            System.out.println("HostingScene: Premier joueur sélectionné: Joueur " + selectedFirstPlayer);
+            // 如果服务器已经启动，则更新设置
+            if (gameServerManager != null && serverSuccessfullyStarted) {
+                gameServerManager.setFirstPlayer(selectedFirstPlayer);
+            }
+            repaintPanel();
+        });
+
         // Configuration du bouton "Lancer la partie"
         startGameButton = new Button(300, 400, 200, 50, "Lancer la partie", () -> {
             // Conditions pour lancer la partie : serveur démarré, joueur 2 connecté, client hôte connecté.
@@ -69,6 +88,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                         protected Void doInBackground() throws Exception {
                             try {
                                 publish("Initialisation du moteur de jeu...");
+                                // 在游戏引擎启动前设置先行玩家
+                                gameServerManager.setFirstPlayer(selectedFirstPlayer);
+                                System.out.println("HostingScene: Configuration du premier joueur: Joueur " + selectedFirstPlayer);
                                 gameServerManager.startGameEngine(); // Démarre la logique du jeu sur le serveur.
 
                                 // Pause pour laisser le temps au moteur de jeu de s'initialiser complètement
@@ -231,6 +253,12 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         alpha = 0f;
         fadeComplete = false;
         transitioningToGameScene = false; // Réinitialise à chaque init
+        
+        // 初始化下拉菜单的选项
+        selectedFirstPlayer = 1; // 重置为默认值
+        if (firstPlayerComboBox != null) {
+            firstPlayerComboBox.setSelectedIndex(0);
+        }
         
         // Vérifie si un serveur et un client existent déjà, pour éviter de les réinitialiser lorsque le joueur revient au lobby
         boolean hasExistingServer = (gameServerManager != null && gameServerManager.isServerRunning());
@@ -439,6 +467,24 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         int ipTextWidth = ipMetrics.stringWidth(ipText);
         g2d.drawString(ipText, (width - ipTextWidth) / 2, height / 4);
 
+        // 绘制"选择先行玩家"的标题
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
+        String firstPlayerText = "Choisir qui commence:";
+        FontMetrics firstPlayerMetrics = g2d.getFontMetrics();
+        int firstPlayerTextWidth = firstPlayerMetrics.stringWidth(firstPlayerText);
+        g2d.drawString(firstPlayerText, (width - firstPlayerTextWidth) / 2, height / 4 + 40);
+        
+        // 添加下拉菜单到面板
+        if (sceneManager.getPanel() != null && !sceneManager.getPanel().isAncestorOf(firstPlayerComboBox)) {
+            sceneManager.getPanel().add(firstPlayerComboBox);
+        }
+        int comboBoxWidth = 200;
+        int comboBoxHeight = 30;
+        firstPlayerComboBox.setBounds((width - comboBoxWidth) / 2, height / 4 + 50, comboBoxWidth, comboBoxHeight);
+        firstPlayerComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2/3)));
+        firstPlayerComboBox.setVisible(fadeComplete); // 只有当淡入效果完成后才显示
+
         // Division de l'écran en deux zones pour J1 et J2
         int zoneWidth = width / 2 - 20; // Un peu moins que la moitié pour avoir de l'espace entre
         int zoneHeight = height / 3;
@@ -623,6 +669,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         clearMouseListeners();
         System.out.println("HostingScene: Dispose appelé. transitioningToGameScene = " + transitioningToGameScene);
 
+        // 从面板移除下拉菜单
+        if (sceneManager.getPanel() != null && firstPlayerComboBox != null) {
+            sceneManager.getPanel().remove(firstPlayerComboBox);
+        }
+        
         // Si nous ne passons PAS à GameScene (ex: retour au menu), alors arrêtez le serveur et le client hôte.
         // Si nous passons à GameScene, GameScene prendra la relève de la gestion du serveur.
         if (!transitioningToGameScene) {

@@ -52,6 +52,8 @@ public class GameServerManager {
     private String aiDifficulty = "Facile"; // Par défaut: facile
     private Thread aiPlayerThread;
     
+    private int firstPlayerId = 1; // 1 = J1 commence, 2 = J2 commence
+    
     // Interface pour le callback de déconnexion
     public interface PlayerDisconnectionListener {
         void onPlayerDisconnected();
@@ -395,14 +397,30 @@ public class GameServerManager {
         }
         if (connectedClientIds.size() == maxClients) {
             System.out.println("GameServerManager: Démarrage du moteur de jeu...");
-            // Initialiser l'instance de jeu
-            gameInstance = new Jeu(); // => Liaison entre le reseau et le modèle Jeu  
+            
+            // 创建一个临时Jeu实例来获取joueur1和joueur2
+            Jeu tempJeu = new Jeu(new Joueur("Temp", 1, 4, Plateau.TypePlateau.PAST));
+            Joueur joueur1 = tempJeu.getJoueur1();
+            Joueur joueur2 = tempJeu.getJoueur2();
+            
+            // 根据firstPlayerId决定哪个joueur先行
+            Joueur joueurCommence = (firstPlayerId == 1) ? joueur1 : joueur2;
+            System.out.println("GameServerManager: Premier joueur défini à Joueur " + joueurCommence.getId());
+            
+            // 使用正确的joueurCommence创建游戏实例
+            gameInstance = new Jeu(joueurCommence);
 
-            // Définir le premier joueur (au début du jeu, cela devrait être le joueur 1)
-            if (gameInstance.getJoueurCourant().getId() != 1) {
-                System.out.println("GameServerManager: Le joueur courant n'est pas le joueur 1, changement...");
-                gameInstance.joueurSuivant(); // S'assurer que le premier joueur est le joueur 1
+            // 确保当前玩家是我们设置的firstPlayerId
+            if (gameInstance.getJoueurCourant().getId() != firstPlayerId) {
+                System.out.println("GameServerManager: Le joueur courant n'est pas le joueur " + firstPlayerId + ", changement...");
+                // gameInstance.joueurSuivant(); // 切换到指定的先行玩家
             }
+            
+            // 确保根据当前玩家更新当前棋盘
+            gameInstance.majPlateauCourant();
+            System.out.println("GameServerManager: Plateau courant mis à jour selon le joueur " + gameInstance.getJoueurCourant().getId() + 
+                              " - Plateau: " + gameInstance.getPlateauCourant().getType());
+            
             currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
             System.out.println("GameServerManager: Joueur courant initialisé à " + currentTurnPlayerId);
 
@@ -695,17 +713,43 @@ public class GameServerManager {
 
                         // Définir le prochain plateau pour le joueur
                         joueurCourant.setProchainPlateau(prochainPlateau);
+                        
+                        // Enregistrer le plateau sélectionné pour le joueur
+                        System.out.println("GameServerManager: Plateau suivant défini pour le Joueur " + 
+                                          joueurCourant.getId() + " à " + prochainPlateau + 
+                                          " (ancienne valeur: " + currentPlateauJoueur + ")");
+
+                        // Verifier si le plateau a ete correctement defini
+                        if (joueurCourant.getProchainPlateau() != prochainPlateau) {
+                            System.err.println("GameServerManager: ERREUR - Le plateau n'a pas été correctement défini!");
+                        }
+
+                        // Enregistrer l'ID du joueur et le plateau selectionne
+                        int currentPlayerId = joueurCourant.getId();
+                        TypePlateau selectedPlateau = prochainPlateau;
 
                         // Réinitialiser pour le prochain joueur
                         gameInstance.setEtapeCoup(0);
                         gameInstance.joueurSuivant();
                         gameInstance.majPlateauCourant();
                         gameInstance.updateHistoriqueJeu();
-                        // Mettre à jour le joueur courant
-                        currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
 
                         sendMessageToClient(clientId, Code.PLATEAU.name() + ":" + prochainPlateau + ":success");
                         gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                        
+                        // Mettre à jour le joueur courant pour le prochain tour
+                        currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
+                        
+                        // Verifier si le plateau a ete correctement defini
+                        Joueur previousPlayer = (currentPlayerId == 1) ? gameInstance.getJoueur1() : gameInstance.getJoueur2();
+                        if (previousPlayer.getProchainPlateau() != selectedPlateau) {
+                            System.err.println("GameServerManager: ALERTE - Le plateau de Joueur " + 
+                                             currentPlayerId + " n'a pas été correctement enregistré!");
+                            // Forcer la valeur correcte (pour fixer le bug...)
+                            previousPlayer.setProchainPlateau(selectedPlateau);
+                            System.out.println("GameServerManager: Correction appliquée - Plateau de Joueur " + 
+                                              currentPlayerId + " défini à " + selectedPlateau);
+                        }
                         
                         sendGameStateToAllClients();
 
@@ -1267,6 +1311,27 @@ public class GameServerManager {
         });
         acceptConnectionsThread.setName(threadName);
         acceptConnectionsThread.start();
+    }
+
+    /**
+     * 设置先行玩家
+     * @param playerId 先行玩家的ID (1 为J1先行, 2 为J2先行)
+     */
+    public void setFirstPlayer(int playerId) {
+        if (playerId == 1 || playerId == 2) {
+            this.firstPlayerId = playerId;
+            System.out.println("GameServerManager: Premier joueur défini: Joueur " + playerId);
+        } else {
+            System.err.println("GameServerManager: ID de joueur invalide pour le premier joueur: " + playerId);
+        }
+    }
+    
+    /**
+     * 获取当前设置的先行玩家ID
+     * @return 先行玩家ID
+     */
+    public int getFirstPlayer() {
+        return this.firstPlayerId;
     }
 
 }

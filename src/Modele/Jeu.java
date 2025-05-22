@@ -33,7 +33,7 @@ public class Jeu {
      * Crée une nouvelle instance du jeu. Initialise les joueurs, les plateaux
      * et l'état du jeu
      */
-    public Jeu() {
+    public Jeu(Joueur joueurCommence) {
         // Initialiser les joueurs
         joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
         joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
@@ -45,10 +45,10 @@ public class Jeu {
         future = new Plateau(Plateau.TypePlateau.FUTURE, joueur1, joueur2);
         etapeCoup = 0; // Par défaut, on commence par choisir une pièce
 
-        joueurCourant = joueur1;
+        joueurCourant = joueurCommence;
         pieceCourante = null;
         gameState = 0;
-        plateauCourant = past; // Par défaut, on commence par le plateau passé
+        plateauCourant = joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PAST ? past : joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PRESENT ? present : future;
         historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
     }
 

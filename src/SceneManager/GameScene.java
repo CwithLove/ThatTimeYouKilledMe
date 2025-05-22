@@ -1009,7 +1009,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
-                g2d.setColor(new Color(0x8DE2DE));
+                g2d.setColor(new Color(83, 202, 54));
 
                 Stroke originalStroke = g2d.getStroke();
                 g2d.setStroke(new BasicStroke(8f*width/1920f)); // Épaisseur de la bordure
@@ -1365,7 +1365,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 int pieceX = x + col * tileWidth + (tileWidth - imageWidth) / 2;
                 int pieceY = y + row * tileWidth + (tileWidth - imageHeight) / 2;
 
-                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
 
                 //System.out.println("activeur : " + activeur);
                 //n++;
@@ -1495,7 +1495,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                 System.out.println(transparent);*/
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
                                     g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
@@ -1517,7 +1517,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             else {
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
                                     g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));

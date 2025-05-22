@@ -37,6 +37,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private BufferedImage[][] zarekAnimation;
     private BufferedImage[][] lemielAnimation;
     private int frame = 0; // Pour l'animation
+    int n = 0;
 
     // État de sélection de l'interface utilisateur
     private Point selectedPiecePosition = null;
@@ -60,6 +61,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
 
     Point mousePoint;
+    boolean transparent = false;
+    Plateau.TypePlateau activeur = null;
+    Point caseActivatrice = null;
 
     ArrayList<Point> casesPasse = new ArrayList<>();
     ArrayList<Point> casesPresent = new ArrayList<>();
@@ -930,14 +934,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 plateauMouse = p;
                 if (p != null) {
                     casePoint = getCaseFromMousePoint(p, mousePoint);
-                    caseMouseX = (int) casePoint.getX();
-                    caseMouseY = (int) casePoint.getY();
+                    if (casePoint != null) {
+                        caseMouseY = (int) casePoint.getY();
+                        caseMouseX = (int) casePoint.getX();
+                    }
+
                 }
             }
 
-            if (casePoint != null) {
+            /*if (casePoint != null) {
                 System.out.println("Plateau " + p.getType() + " CASE : " + casePoint.getX() + ", " + casePoint.getY());
-            }
+            }*/
 
 
 
@@ -1236,36 +1243,37 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 Piece p = plateau.getPiece(row, col);
                 // Set up les couleurs de fond des cases
                 Color white = null, black = null;
-                int vfonce = 0x66D7D1, vclaire = 0x8DE2DE;
+                Color vfonce = new Color(83, 202, 54);
+                Color vclaire = new Color(83, 202, 54);
                 switch (plateau.getType()) {
                     case PAST -> {
                         if (casesPasse.contains(new Point(row, col))) {
-                            white = new Color(vclaire);
-                            black = new Color(vclaire);
+                            white = vclaire;
+                            black = vfonce;
                             break;
                         }
-                        white = new Color(230, 220, 200);
-                        black = new Color(120, 100, 90);
+                        white = new Color(210, 230, 210);
+                        black = new Color(140, 90, 80);
                     }
                     case PRESENT -> {
                         if (casesPresent.contains(new Point(row, col))) {
-                            white = new Color(vclaire);
-                            black = new Color(vclaire);
+                            white = vclaire;
+                            black = vfonce;
                             break;
                         }
-                        white = new Color(232, 222, 196);
-                        black = new Color(115, 95, 100);
+                        white = new Color(210, 230, 210);
+                        black = new Color(120, 110, 90);
                     }
                     case FUTURE -> {
                         if (casesFutur.contains(new Point(row, col))) {
                             // white = new Color(100, 255, 90);
                             // black = new Color(60, 240, 50);
-                            white = new Color(vclaire);
-                            black = new Color(vclaire);
+                            white = vclaire;
+                            black = vfonce;
                             break;
                         }
-                        white = new Color(232, 216, 202);
-                        black = new Color(130, 95, 85);
+                        white = new Color(210, 230, 210);
+                        black = new Color(110, 90, 110);
                     }
                 }
 
@@ -1288,6 +1296,116 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 g.fillRect(x + col * tileWidth, y + row * tileWidth, tileWidth, tileWidth);
 
                 g.setStroke(new BasicStroke(1f)); // Réinitialiser l'épaisseur des lignes
+
+                // Affichage feedforward CLONE et JUMP
+
+                int imageHeight = tileWidth; // Taille de l'image du personnage
+                int imageWidth = imageHeight * zarekAnimation[0][0].getWidth() / zarekAnimation[0][0].getHeight();
+
+                int pieceX = x + col * tileWidth + (tileWidth - imageWidth) / 2;
+                int pieceY = y + row * tileWidth + (tileWidth - imageHeight) / 2;
+
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+
+                //System.out.println("activeur : " + activeur);
+                //n++;
+
+                switch (plateau.getType()) {
+                    case PAST -> {
+                        Point point = new Point(row, col);
+                        if (casesPasse.contains(point) && isMyTurn()) {
+                            //System.out.println("SALUT");
+                            /*if (plateauMouse != null)
+                                System.out.println("plateauMouse : " + plateauMouse.getType());
+                            if (caseMouseX >= 0 && caseMouseY >= 0) {
+                                System.out.println("caseMouseX : " + caseMouseX);
+                                System.out.println("caseMouseY : " + caseMouseY);
+                                System.out.println(n);
+                            }*/
+                            if (plateauMouse != null && plateauMouse.getType() == plateau.getType() &&
+                            caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
+                                if (gameClient.getMyPlayerId() == 1) {
+                                    g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    activeur = Plateau.TypePlateau.PAST;
+                                    caseActivatrice = point;
+                                    //System.out.println("TRANSPARENT PASSE !!!");
+                                    System.out.println(n);
+                                    transparent = true;
+                                }
+                                else if (gameClient.getMyPlayerId() == 2) {
+                                    g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    activeur = Plateau.TypePlateau.PAST;
+                                    caseActivatrice = point;
+                                    transparent = true;
+                                }
+                            }
+                            else if (activeur == Plateau.TypePlateau.PAST && caseActivatrice.equals(point) && transparent == true) {
+                                transparent = false;
+                                //System.out.println(" PLUS TRANSPARENT PASSE !!!");
+                                System.out.println(n);
+                            }
+                        }
+                    }
+                    case PRESENT -> {
+                        Point point = new Point(row, col);
+                        if (casesPresent.contains(point) && isMyTurn()) {
+                            //System.out.println("SALUT");
+                            if (plateauMouse != null && plateauMouse.getType() == plateau.getType() && 
+                            caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
+                                if (gameClient.getMyPlayerId() == 1) {
+                                    g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    transparent = true;
+                                    caseActivatrice = point;
+                                    //System.out.println("TRANSPARENT PRESENT !!!");
+                                    activeur = Plateau.TypePlateau.PRESENT;
+                                }
+                                else if (gameClient.getMyPlayerId() == 2) {
+                                    g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    transparent = true;
+                                    caseActivatrice = point;
+                                    activeur = Plateau.TypePlateau.PRESENT;
+                                }
+                            }
+                            else if (activeur == Plateau.TypePlateau.PRESENT && caseActivatrice.equals(point) && transparent == true) {
+                                transparent = false;
+                                //System.out.println(" PLUS TRANSPARENT PRESENT !!!");
+                            }
+                        }
+                        
+                        
+                    }
+                    case FUTURE -> {
+                        Point point = new Point(row, col);
+                        if (casesFutur.contains(new Point(row, col)) && isMyTurn()) {
+                            if (plateauMouse != null && plateauMouse.getType() == plateau.getType() && 
+                            caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY) {
+                                if (gameClient.getMyPlayerId() == 1) {
+                                    g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    transparent = true;
+                                    activeur = Plateau.TypePlateau.FUTURE;
+                                    caseActivatrice = point;
+                                }
+                                else if (gameClient.getMyPlayerId() == 2) {
+                                    g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    transparent = true;
+                                    activeur = Plateau.TypePlateau.FUTURE;
+                                    caseActivatrice = point;
+                                }
+                            }
+                            else if (activeur == Plateau.TypePlateau.FUTURE && caseActivatrice.equals(point) && transparent == true) {
+                                transparent = false;
+                            }
+                        }
+                    }
+                }
+
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
             }
         }
 
@@ -1308,13 +1426,24 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             if (gameClient.getMyPlayerId() == 1 && isMyTurn() && joueur1SelectedPlateau == plateau.getType() && plateauMouse != null && 
                             joueur1SelectedPlateau == plateauMouse.getType() && caseMouseX >= 0 && caseMouseY >= 0 && col == caseMouseX && row == caseMouseY 
                             && etapeCoup == 0) {
-                                
                                 g.drawImage(lemielAnimation[0][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), (int) imageWidth * 9/8, (int) imageHeight * 9/8, null);
                                 g.drawImage(lemielAnimation[1][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
                             }
                             else {
-                                g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
-                                g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                /*System.out.println(selectedPlateauType);
+                                System.out.println(selectedPiecePosition);
+                                System.out.println(transparent);*/
+                                if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
+                                selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent) {
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+                                    g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+                                }
+                                else {
+                                    g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                }
                             }
                         }
                         case 2 -> {
@@ -1326,8 +1455,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                 g.drawImage(zarekAnimation[1][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
                             }
                             else {
-                                g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
-                                g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
+                                selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent) {
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+                                    g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+                                }
+                                else {       
+                                    g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                    g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
+                                }
                             }
                         }
                         default -> {

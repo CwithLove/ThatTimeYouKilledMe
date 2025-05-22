@@ -1308,8 +1308,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Bordure
         g.setColor(new Color(80, 80, 80));
-        g.setStroke(new BasicStroke(boardPixelSize/100));
-        g.drawRoundRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1, 2, 2);
+        //g.setStroke(new BasicStroke(boardPixelSize/100));
+        g.drawRect(x - 1, y - 1, boardPixelSize + 1, boardPixelSize + 1);
 
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {

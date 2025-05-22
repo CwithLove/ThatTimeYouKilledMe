@@ -786,7 +786,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
 
         // Mettre à jour la position du bouton "Retour" et "Annuler"
-        undoButton.setLocation(width / 2 - 50, height / 11 + 20);
+        
+        undoButton.setSize(150*width/1920, 60*width/1920);
+        undoButton.setFont(new Font("Arial", Font.BOLD, 20*width/1920));
+        undoButton.setLocation((width-(150*width/1920) )/ 2, height / 11 + 20);
+
+        backButton.setSize(150*width/1920, 60*width/1920);
+        backButton.setFont(new Font("Arial", Font.BOLD, 20*width/1920));
+
+        
 
         
         // Créer un Graphics2D pour le rendu
@@ -849,17 +857,30 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau future = jeu.getFuture();
 
             if (isMyTurn()){
-                g2d.setColor(Color.YELLOW);
-                g2d.setFont(new Font("Arial", Font.BOLD, 36));
-                String selectBoardMessage = "Votre tour!";
+                
+                
+                
+                
+
+                
+                g2d.setFont(new Font("Arial", Font.BOLD, 36*width/1920));
+                String selectBoardMessage = "Votre tour !";
                 FontMetrics metrics = g2d.getFontMetrics();
                 int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+
+                //rectangle autour du text
+                g2d.setColor(new Color(0, 0, 0, 150));
+                g2d.fillRoundRect(((width-(selectMsgWidth + 200*width/1920)) / 2), (height-100*width/1920), (selectMsgWidth + 200*width/1920), 50*width/1920, 10, 10);
+                g2d.drawRoundRect(((width-(selectMsgWidth + 200*width/1920)) / 2), (height-100*width/1920), (selectMsgWidth + 200*width/1920), 50*width/1920, 10, 10);
                 // Centrer le message en bas
-                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 20); 
+                g2d.setColor(Color.YELLOW);
+                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 62*width/1920); 
+
                 undoButton.setEnabled(true);
 
             }
             else{
+
                 undoButton.setEnabled(false);
             }
 
@@ -909,13 +930,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // À l'étape etapeCoup=3, assurez-vous que le bouton "Choisir un plateau" est
                 // affiché
                 if (isMyTurn()) {
+                    
                     // Afficher le texte d'invite
                     g2d.setColor(Color.YELLOW);
-                    g2d.setFont(new Font("Arial", Font.BOLD, 18));
+                    g2d.setFont(new Font("Arial", Font.BOLD, 26*width/1920));
                     String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
                     FontMetrics metrics = g2d.getFontMetrics();
                     int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
-                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
+                    //rectangle autour du texte
+                    g2d.setColor(new Color(0, 0, 0, 150));
+                    g2d.fillRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 90*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
+                    g2d.drawRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 90*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
+                    g2d.setColor(Color.YELLOW);
+                    g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 50*width/1920);
                 }
             }
 
@@ -950,10 +977,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
-                g2d.setColor(Color.WHITE);
+                g2d.setColor(new Color(0x8DE2DE));
 
                 Stroke originalStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(4f));
+                g2d.setStroke(new BasicStroke(5f*width/1920f)); // Épaisseur de la bordure
 
                 if (gameClient.getMyPlayerId() == 1) {
                     activePlateau = joueur1SelectedPlateau;
@@ -977,22 +1004,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 g2d.setStroke(originalStroke);
 
                 // Dessiner le texte d'invite
-                g2d.setColor(Color.YELLOW);
-                g2d.setFont(new Font("Arial", Font.BOLD, 18));
-                String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
-                FontMetrics metrics = g2d.getFontMetrics();
-                int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
-                g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
+                // g2d.setColor(Color.YELLOW);
+                // g2d.setFont(new Font("Arial", Font.BOLD, 18));
+                // String selectBoardMessage = "Sélectionnez un plateau pour le prochain tour";
+                // FontMetrics metrics = g2d.getFontMetrics();
+                // int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
+                // g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
             }
 
             // Message de statut
-            g2d.setColor(Color.CYAN);
-            g2d.setFont(new Font("Consolas", Font.BOLD, 18));
-            if (statusMessage != null && !statusMessage.isEmpty()) {
-                FontMetrics metrics = g2d.getFontMetrics();
-                int msgWidth = metrics.stringWidth(statusMessage);
-                g2d.drawString(statusMessage, (width - msgWidth) / 2, 40);
-            }
+            //Message status of
+            // g2d.setColor(Color.CYAN);
+            // g2d.setFont(new Font("Consolas", Font.BOLD, 18));
+            // if (statusMessage != null && !statusMessage.isEmpty()) {
+            //     FontMetrics metrics = g2d.getFontMetrics();
+            //     int msgWidth = metrics.stringWidth(statusMessage);
+            //     g2d.drawString(statusMessage, (width - msgWidth) / 2, 40);
+            // }
 
             // Rendre les boutons
             backButton.render(g2d);
@@ -1120,7 +1148,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void drawPickerJ1(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
             int offsetY, int tileWidth) {
-        float sizef = tileWidth / ((float) 1.6);
+        float sizef = tileWidth / ((float) 1.9);
         int size = (int) sizef; // Taille du picker du prochain plateau => 7% de height
         int spacing = tileWidth / 4; // Espace entre les boutons du picker => 4% de width
         int pickerY = (int) (offsetY - spacing - size); // Position Y du picker, juste en dessous des plateaux
@@ -1175,7 +1203,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private void drawPickerJ2(Graphics2D g, int pastStartX, int presentStartX, int futureStartX,
             int offsetY, int tileWidth) {
-        float sizef = tileWidth / ((float) 1.6);
+        float sizef = tileWidth / ((float) 1.9);
         int size = (int) sizef; // Taille du picker du prochain plateau => 7% de height
         int spacing = tileWidth / 4; // Espace entre les boutons du picker => 4% de width
         int pickerY = offsetY + tileWidth * jeu.getTAILLE() + spacing; // Position Y du picker, juste en dessous des

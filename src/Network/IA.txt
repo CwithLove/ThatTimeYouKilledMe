@@ -1,0 +1,6 @@
+package Network;
+
+public abstract class IA {
+    private Jeu jeu;
+    
+}

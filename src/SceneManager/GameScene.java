@@ -757,6 +757,47 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
     }
 
+
+    private float time = 0f;
+    private float speed = 0.5f; // Contrôle de la vitesse du mouvement
+    private float centerX, centerY; // Centre du mouvement infini
+    private float amplitude = 17f; // Taille du mouvement
+    private float xinfJ1;
+    private float yinfJ1;
+    private float xinfJ2;
+    private float yinfJ2;
+
+    public void initInfiniteMovement(float centerX, float centerY, float speed) {
+        this.centerX = centerX;
+        this.centerY = centerY;
+        this.speed = speed;
+    }
+    public void changespeed(float speed){
+        this.speed = speed;
+    }
+    
+    private void updatePickerPositionJ1(float delta) {
+        time += delta * speed;
+
+        // Lemniscate de Bernoulli version simplifiée avec sinus/cosinus
+         xinfJ1 = amplitude * (float)Math.sin(time) / (1 + (float)Math.pow(Math.cos(time), 2));
+         yinfJ1 = amplitude * (float)Math.sin(time) * (float)Math.cos(time) / (1 + (float)Math.pow(Math.cos(time), 2)); 
+          
+        // Positionner le picker
+        
+    }
+
+    private void updatePickerPositionJ2(float delta) {
+        time += delta * speed;
+
+        // Lemniscate de Bernoulli version simplifiée avec sinus/cosinus
+         xinfJ2 = amplitude * (float)Math.sin(time) / (1 + (float)Math.pow(Math.cos(time), 2));
+         yinfJ2 = amplitude * (float)Math.sin(time) * (float)Math.cos(time) / (1 + (float)Math.pow(Math.cos(time), 2)); 
+          
+        // Positionner le picker
+        
+    }
+
     int framecountJ1 = 0;
     int framecountJ2 = 0; 
     int frameJ1=0, frameJ2= 0;
@@ -887,36 +928,27 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
 
-            // Dessiner les pickers (prochain plateau)
-            //les faire moter de haut en bas avec framecountJ1 et framecountJ2 effet de vague
-            //fais frameJ1 et J2 ++ puis --
             
+            //dessiner le picker
+            changespeed(0.6f*width/1920);
             if (isMyTurn() && gameClient.getMyPlayerId() == 1) {
                 
-                if (framecountJ1 < 1){ 
-                    frameJ1++;
-                }
-                else{
-                    frameJ1--;
-                }
+                updatePickerPositionJ1(0.1f); // Mettre à jour la position du picker
                 
             } 
             else if (isMyTurn() && gameClient.getMyPlayerId() == 2) {
-                if (framecountJ2 < 1){ 
-                    frameJ2++;
-                }
-                else{
-                    frameJ2--;
-                }
+                updatePickerPositionJ2(0.1f); // Mettre à jour la position du picker
             }
             else {
-                frameJ1 = 0;
-                frameJ2 = 0;
+                xinfJ1 = 0;
+                yinfJ1 = 0;
+                xinfJ2 = 0;
+                yinfJ2 = 0;
             }
             
             
-            drawPickerJ1(g2d, pastStartX, presentStartX, futureStartX, offsetY+frameJ1, tileWidth);
-            drawPickerJ2(g2d, pastStartX, presentStartX, futureStartX, offsetY+frameJ2, tileWidth);
+            drawPickerJ1(g2d, pastStartX+(int)xinfJ1, presentStartX+(int)xinfJ1, futureStartX+(int)xinfJ1, offsetY+(int)yinfJ1, tileWidth);
+            drawPickerJ2(g2d, pastStartX+(int)xinfJ2, presentStartX+(int)xinfJ2, futureStartX+(int)xinfJ2, offsetY+(int)yinfJ2, tileWidth);
 
             // Dessiner les plateaux
             drawPlateau(g2d, past, pastStartX, offsetY, tileWidth, "PASSÉ", null);
@@ -980,7 +1012,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 g2d.setColor(new Color(0x8DE2DE));
 
                 Stroke originalStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(5f*width/1920f)); // Épaisseur de la bordure
+                g2d.setStroke(new BasicStroke(8f*width/1920f)); // Épaisseur de la bordure
 
                 if (gameClient.getMyPlayerId() == 1) {
                     activePlateau = joueur1SelectedPlateau;

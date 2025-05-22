@@ -475,6 +475,12 @@ public class Jeu {
 
                         printGamePlay();
                     }
+                    //redo test
+                    if (lig == 44 && col == 44) {
+                        Redo();
+
+                        printGamePlay();
+                    }
                 } while (!choisirPiece(lig, col));
 
             } catch (Exception e) {
@@ -509,6 +515,14 @@ public class Jeu {
                         printGamePlay();
                         break;
                     }
+                    //redo test
+                    if (input.equals("REDO")) {
+                        Redo();
+                        undo = 1;
+                        saute_tour = 1;
+                        printGamePlay();
+                        break;
+                    }
                     System.out.println(input);
                     while (!input.equals("UP") && !input.equals("DOWN") && !input.equals("LEFT") && !input.equals("RIGHT") && !input.equals("JUMP") && !input.equals("CLONE")) {
                         System.out.print("\nMauvaise saisie : Veuillez entrer le coup (UP, DOWN, LEFT, RIGHT, JUMP, CLONE) : ");
@@ -526,6 +540,7 @@ public class Jeu {
 
                 // Affichage
                 printGamePlay();
+                setEtapeCoup(etapeCoup+1);
             } while (etapeCoup < 3 && etapeCoup >= 1);
 
             if (breakFlag) {
@@ -1048,6 +1063,7 @@ public class Jeu {
     public void Undo() {
         //si EtapeCoup == 0,
         if (historiqueJeu.getNbTours() > 0 && etapeCoup == 0) {
+            historiqueJeu.setRedo(true);
             historiqueJeu.pop();
             joueur1 = historiqueJeu.getJoueur1();
             joueur2 = historiqueJeu.getJoueur2();
@@ -1078,4 +1094,22 @@ public class Jeu {
         historiqueJeu.add(past, present, future, joueur1, joueur2);
     }
 
+    public HistoriqueJeu getHistoriqueJeu() {
+        return historiqueJeu;
+    }
+
+    public void setHistoriqueJeu(HistoriqueJeu historiqueJeu) {
+        this.historiqueJeu = historiqueJeu;
+    }
+
+    public void Redo() {
+        if (historiqueJeu.getNbTours() >= 0 && historiqueJeu.isRedoPossible()) {
+            historiqueJeu.redo();
+            joueur1 = historiqueJeu.getJoueur1();
+            joueur2 = historiqueJeu.getJoueur2();
+            past = historiqueJeu.getPast(joueur1, joueur2);
+            present = historiqueJeu.getPresent(joueur1, joueur2);
+            future = historiqueJeu.getFuture(joueur1, joueur2);
+        }
+    }
 }

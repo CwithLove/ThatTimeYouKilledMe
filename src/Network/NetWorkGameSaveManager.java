@@ -28,6 +28,7 @@ public class NetWorkGameSaveManager {
     static {
         // Ensure save directory exists
         try {
+            System.out.println("NetWorkGameSaveManager : ");
             Files.createDirectories(Paths.get(SAVE_DIRECTORY));
         } catch (IOException e) {
             System.err.println("NetworkGameSaveManager: Unable to create save directory: " + e.getMessage());

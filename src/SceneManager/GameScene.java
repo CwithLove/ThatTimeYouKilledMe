@@ -1016,7 +1016,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 g2d.setColor(Color.WHITE);
 
                 Stroke originalStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(8f*width/1920f)); // Épaisseur de la bordure
+                g2d.setStroke(new BasicStroke(4f*width/1920f)); // Épaisseur de la bordure
 
                 if (gameClient.getMyPlayerId() == 1) {
                     activePlateau = joueur1SelectedPlateau;

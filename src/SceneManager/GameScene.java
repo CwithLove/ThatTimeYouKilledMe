@@ -995,7 +995,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     g2d.setColor(new Color(0, 0, 0, 150));
                     g2d.fillRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
                     g2d.drawRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
-                    g2d.setColor(Color.WHITE);
+                    //g2d.setColor(Color.WHITE);
+                    g2d.setColor(Color.YELLOW);
                     g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 65*width/1920);
                 }
             }
@@ -1031,11 +1032,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
-                //g2d.setColor(new Color(0x8DE2DE));
-                g2d.setColor(Color.WHITE);
+                g2d.setColor(new Color(0x8DE2DE));
+                //g2d.setColor(Color.WHITE);
 
                 Stroke originalStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(4f*width/1920f)); // Épaisseur de la bordure
+                g2d.setStroke(new BasicStroke(6f*width/1920f)); // Épaisseur de la bordure
 
                 if (gameClient.getMyPlayerId() == 1) {
                     activePlateau = joueur1SelectedPlateau;
@@ -1335,37 +1336,36 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 Piece p = plateau.getPiece(row, col);
                 // Set up les couleurs de fond des cases
                 Color white = null, black = null;
-                Color vfonce = new Color(83, 202, 54);
-                Color vclaire = new Color(83, 202, 54);
+                int vfonce = 0x66D7D1, vclaire = 0x8DE2DE;
                 switch (plateau.getType()) {
                     case PAST -> {
                         if (casesPasse.contains(new Point(row, col))) {
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(140, 90, 80);
+                        white = new Color(230, 220, 200);
+                        black = new Color(120, 100, 90);
                     }
                     case PRESENT -> {
                         if (casesPresent.contains(new Point(row, col))) {
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(120, 110, 90);
+                        white = new Color(232, 222, 196);
+                        black = new Color(115, 95, 100);
                     }
                     case FUTURE -> {
                         if (casesFutur.contains(new Point(row, col))) {
                             // white = new Color(100, 255, 90);
                             // black = new Color(60, 240, 50);
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(110, 90, 110);
+                        white = new Color(232, 216, 202);
+                        black = new Color(130, 95, 85);
                     }
                 }
 

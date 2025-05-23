@@ -66,9 +66,8 @@ public class Coup {
         if (dx == 0 && dy == -1) return TypeCoup.LEFT;
         if (dx == 0 && dy == 1) return TypeCoup.RIGHT;
         
-        // 如果两个棋子在不同的棋盘上，可能是JUMP或CLONE
+
         if (piece1.getPosition().equals(piece2.getPosition())) {
-            // 相同位置，可能是跨时间的移动
             if (pltCourant.getType() == Plateau.TypePlateau.PAST || 
                 pltCourant.getType() == Plateau.TypePlateau.PRESENT) {
                 return TypeCoup.JUMP;
@@ -77,7 +76,7 @@ public class Coup {
             }
         }
         
-        // 默认情况
+
         return TypeCoup.LEFT;
     }
 

@@ -4,10 +4,8 @@ import Modele.Coup;
 import Modele.Jeu;
 import Modele.Piece;
 import Modele.Plateau;
-import Network.AIClient;
-import Network.GameClient;
-import Network.GameServerManager;
-import Network.GameStateUpdateListener;
+import Network.*;
+
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -26,7 +24,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
-
     private String police = "Utopia";
 
     // Ressources pour le fond et les images
@@ -109,6 +106,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private AIClient aiClient1;
     private AIClient aiClient2;
 
+    private Button saveButton; // Bouton pour sauvegarder la partie
+    private Button loadButton; //Bouton pour load
 
     // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
@@ -270,6 +269,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         // Ajouter un bouton pour choisir un plateau
         choosePlateauButton = new Button(0, 0, 180, 40, "Choisir ce plateau", this::handleChoosePlateauAction);
+
+        saveButton = new Button(0, 0, 150, 40, "Sauvegarder", this::handleSaveGame);
+        loadButton = new Button(0, 0, 150, 40, "Charger Partie", this::handleLoadGame);
+
     }
 
     private void handleBackButton() {
@@ -289,7 +292,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     private void cleanUpAndGoToMenu() {
         isLoading = false; // Arrête tous les états de chargement
         
-        // 先询问玩家是否想要重新连接，如果是玩家2
+
         if (gameClient != null && !gameClient.isConnected() && gameClient.getMyPlayerId() == 2) {
             int choice = JOptionPane.showConfirmDialog(
                 sceneManager.getPanel(),
@@ -299,7 +302,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 
             if (choice == JOptionPane.YES_OPTION) {
                 try {
-                    // 尝试重新连接
+
                     if (gameClient.reconnect()) {
                         System.out.println("GameScene: Reconnexion réussie avec client ID: " + gameClient.getMyPlayerId());
                         this.gameClient.setListener(this); // 重新设置监听器
@@ -309,7 +312,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                 "Reconnexion réussie! La partie va continuer.",
                                 "Reconnexion", JOptionPane.INFORMATION_MESSAGE);
-                            return; // 成功重连，不返回主菜单
+                            return;
                         } else {
                             System.out.println("GameScene: Reconnexion réussie mais état du jeu est null");
                         }
@@ -371,6 +374,218 @@ public class GameScene implements Scene, GameStateUpdateListener {
         }
         sceneManager.setScene(new MenuScene(sceneManager));
     }
+
+    private void handleSaveGame() {
+        if (gameClient == null || !gameClient.isConnected()) {
+            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                    "Impossible de sauvegarder : non connecté au serveur.",
+                    "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+    // Demander le nom de la sauvegarde à l'utilisateur
+    String saveName = JOptionPane.showInputDialog(sceneManager.getPanel(),
+            "Entrez un nom pour cette sauvegarde (non nulle):",
+            "Sauvegarder le Jeu",
+            JOptionPane.PLAIN_MESSAGE);
+
+    if (saveName != null && !saveName.trim().isEmpty()) {
+        // Utiliser SwingWorker pour éviter de bloquer l'interface
+        SwingWorker<Boolean, Void> saveWorker = new SwingWorker<Boolean, Void>() {
+            @Override
+            protected Boolean doInBackground() throws Exception {
+                return gameClient.saveClientGame(saveName.trim());
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    boolean success = get();
+                    if (success) {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Partie sauvegardée avec succès !",
+                                "Sauvegarde Réussie", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Erreur lors de la sauvegarde.",
+                                "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                            "Erreur lors de la sauvegarde : " + e.getMessage(),
+                            "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        saveWorker.execute();
+      }
+    }
+
+    private void handleLoadGame() {
+    if (gameClient == null || gameClient.getMyPlayerId() != 1) {
+        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Seul l'hôte (Joueur 1) peut charger une partie.",
+                "Accès Refusé", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    if (!gameClient.isConnected()) {
+        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Impossible de charger : non connecté au serveur.",
+                "Erreur de Connexion", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    List<NetWorkGameSaveManager.SaveInfo> saves = NetWorkGameSaveManager.listAvailableSaves();
+
+    if (saves.isEmpty()) {
+        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Aucune sauvegarde trouvée dans le dossier 'saves'.",
+                "Aucune Sauvegarde", JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+
+    String[] saveDescriptions = saves.stream()
+            .map(save -> String.format("%s (Joueur %d, %s, %.1fKB)",
+                 save.saveName, save.playerId,
+                 formatSaveTime(save.saveTime), save.fileSize / 1024.0))
+            .toArray(String[]::new);
+
+    String selected = (String) JOptionPane.showInputDialog(
+            sceneManager.getPanel(),
+            "Sélectionnez une sauvegarde à charger :\n" +
+            "Attention : Cela remplacera la partie en cours !",
+            "Charger une Partie",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            saveDescriptions,
+            saveDescriptions[0]);
+
+    if (selected != null) {
+        int confirm = JOptionPane.showConfirmDialog(
+                sceneManager.getPanel(),
+                "Êtes-vous sûr de vouloir charger cette sauvegarde ?\n" +
+                "La partie en cours sera perdue !",
+                "Confirmer le Chargement",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            String saveName = extractSaveNameFromDescription(selected);
+            loadGameFromSave(saveName);
+        }
+    }
+}
+
+private String formatSaveTime(String saveTime) {
+    try {
+        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse(saveTime);
+        java.time.format.DateTimeFormatter formatter =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        return dateTime.format(formatter);
+    } catch (Exception e) {
+        return saveTime; // 如果解析失败，返回原始格式
+    }
+}
+
+
+private String extractSaveNameFromDescription(String description) {
+    int firstParen = description.indexOf(" (");
+    if (firstParen != -1) {
+        return description.substring(0, firstParen);
+    }
+    return description;
+}
+
+
+private void loadGameFromSave(String saveName) {
+
+    SwingWorker<Boolean, String> loadWorker = new SwingWorker<Boolean, String>() {
+        @Override
+        protected Boolean doInBackground() throws Exception {
+            publish("Chargement de la sauvegarde en cours...");
+
+
+            boolean success = NetWorkGameSaveManager.loadClientState(gameClient, saveName);
+
+            if (success) {
+                publish("Synchronisation de l'état du jeu...");
+                Thread.sleep(500);
+            }
+
+            return success;
+        }
+
+        @Override
+        protected void process(java.util.List<String> chunks) {
+            if (!chunks.isEmpty()) {
+                statusMessage = chunks.get(chunks.size() - 1);
+                repaintPanel();
+            }
+        }
+
+        @Override
+        protected void done() {
+            try {
+                boolean success = get();
+
+                if (success) {
+
+                    jeu = gameClient.getGameInstance();
+
+
+                    System.out.println(jeu.getPlateauCourant().getType() == Plateau.TypePlateau.PRESENT);
+
+                    if (jeu != null) {
+
+                        System.out.println("Get jeu");
+                        etapeCoup = jeu.getEtapeCoup();
+
+
+                        resetSelection();
+
+
+                        updateStatusFromCurrentGame(false);
+
+
+                        repaintPanel();
+
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Partie chargée avec succès !",
+                                "Chargement Réussi", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        throw new Exception("L'état du jeu chargé est null");
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                            "Erreur lors du chargement de la sauvegarde.",
+                            "Erreur de Chargement", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception e) {
+                System.err.println("Erreur lors du chargement: " + e.getMessage());
+                e.printStackTrace();
+
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                        "Erreur lors du chargement : " + e.getMessage(),
+                        "Erreur de Chargement", JOptionPane.ERROR_MESSAGE);
+            }
+
+
+            if (jeu != null) {
+                updateStatusFromCurrentGame(false);
+            }
+            repaintPanel();
+        }
+    };
+
+
+    loadButton.setEnabled(false);
+    saveButton.setEnabled(false);
+
+    loadWorker.execute();
+}
+
 
     @Override
     public void init() {
@@ -725,6 +940,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     }
     int framePicker = 0;
     int tictac = 0;
+
     @Override
     public void update() {
         // Mettre à jour l'animation de Zarek
@@ -752,6 +968,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 } else if (!backContained && mousePos.x != -1) {
                     backButton.update(new Point(-1, -1));
                 }
+
+                saveButton.update(mousePos);
 
                 boolean myTurn = isMyTurn(); // Vérifie si c'est le tour du joueur
 
@@ -903,6 +1121,30 @@ public class GameScene implements Scene, GameStateUpdateListener {
             Plateau past = jeu.getPast();
             Plateau present = jeu.getPresent();
             Plateau future = jeu.getFuture();
+
+
+            //Save
+            int saveButtonX = (width + (150 * width / 1920)) / 2 + 10; // À droite du bouton undo
+            int saveButtonY = height / 11 + 20; // Même hauteur que le bouton undo
+
+            saveButton.setSize(150 * width / 1920, 60 * width / 1920);
+            saveButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
+            saveButton.setLocation(saveButtonX, saveButtonY);
+
+            // Activer le bouton seulement si c'est le tour du joueur ou si le jeu n'est pas terminé
+            saveButton.setEnabled(!gameHasEnded && gameClient != null && gameClient.isConnected());
+
+            int loadButtonX = (width + (300 * width / 1920)) / 2 + 20;
+            int loadButtonY = height / 11 + 20;
+
+            loadButton.setSize(150 * width / 1920, 60 * width / 1920);
+            loadButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
+            loadButton.setLocation(loadButtonX, loadButtonY);
+
+            loadButton.setEnabled(!gameHasEnded && gameClient != null && gameClient.isConnected());
+
+
+            //Fin save
 
             if (isMyTurn()){
                 
@@ -1068,6 +1310,12 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
             // pas égal à 3
             undoButton.render(g2d);
+
+            if(myPlayerId == 1){
+            // Rendre le bouton
+                 saveButton.render(g2d);
+                 loadButton.render(g2d);
+            }
 
         } else { // jeu est null (état initial non encore reçu)
             g2d.setColor(Color.WHITE);
@@ -1596,6 +1844,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     undoButton.onClick();
                     return;
                 }
+
+
+                // Ajouter la gestion du clic sur le bouton save
+                if (saveButton.contains(mousePoint)) {
+                    saveButton.onClick();
+                    return;
+                }
+
+                if(loadButton.contains(mousePoint)){
+                    loadButton.onClick();
+                    return;
+                }
                 handleBoardClick(mousePoint); // Gérer le clic sur le plateau de jeu
             }
 
@@ -1612,6 +1872,18 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     backButton.setClicked(true);
                     needsRepaint = true;
                 }
+
+                 // Ajouter la gestion du bouton save pressé
+               if (saveButton.contains(mousePoint)) {
+                   saveButton.setClicked(true);
+                    needsRepaint = true;
+               }
+
+               if(loadButton.contains(mousePoint)){
+                   loadButton.setClicked(true);
+                   needsRepaint = true;
+               }
+
 
                 // Ajouter la gestion des nouveaux boutons
                 if (isMyTurn()) {
@@ -1651,6 +1923,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
                 undoButton.setClicked(false);
+                saveButton.setClicked(false); // Ajouter cette ligne
+                loadButton.setClicked(false);
                 choosePlateauButton.setClicked(false);
                 repaintPanel();
             }
@@ -2191,7 +2465,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 statusMessage = modifiedContent;
                 break;
 
-            // 保留原来的处理，用于兼容性
             case "GAGNE":
             case "PERDU":
 
@@ -2466,4 +2739,6 @@ public class GameScene implements Scene, GameStateUpdateListener {
         });
         timerAnim.start();
     }*/
+
+
 }

@@ -3,8 +3,7 @@ package Network;
 import Modele.Jeu;
 import java.io.*;
 import java.net.*;
-// import Modele.Plateau; // Ne pas utiliser Plateau directement
-// import Modele.Piece; // Ne pas utiliser Piece directement
+
 
 public class GameClient {
     private String serverIpAddress;
@@ -17,13 +16,17 @@ public class GameClient {
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
     private ObjectInputStream inputStream;
+    NetWorkGameSaveManager NetworkGameSaveManager;
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
         this.listener = listener;
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
-                                      // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        NetworkGameSaveManager = new NetWorkGameSaveManager();
     }
+
+
 
     public void connect() throws IOException {
         System.out.println("GameClient: Tentative de connexion à " + serverIpAddress + ":" + serverPort + "...");
@@ -31,20 +34,20 @@ public class GameClient {
             // Établir la connexion socket
             socket = new Socket(serverIpAddress, serverPort);
             isConnected = true;
-            
+
             // L'ordre du protocole doit correspondre exactement au serveur:
             // 1. Le serveur crée un flux de sortie et le vide
             // 2. Le client crée un flux d'entrée
             inputStream = new ObjectInputStream(socket.getInputStream());
-            
+
             // 3. Le client crée un flux de sortie et le vide
             outputStream = new ObjectOutputStream(socket.getOutputStream());
             outputStream.flush();
-            
+
             // 4. Le serveur crée un flux d'entrée
             // 5. Le serveur envoie un message ID, le client le lit
             System.out.println("GameClient: Flux établis. En attente de l'ID du joueur...");
-            
+
             try {
                 Object idMessageObj = inputStream.readObject();
                 if (idMessageObj instanceof String) {
@@ -70,7 +73,7 @@ public class GameClient {
 
             // Démarrer le thread de réception
             setupReceptionThread();
-            
+
         } catch (IOException e) {
             isConnected = false;
             System.err.println("GameClient: Échec de la connexion initiale au serveur: " + e.getMessage());
@@ -85,7 +88,7 @@ public class GameClient {
             throw e; // Relancer l'exception pour que l'appelant puisse la gérer
         }
     }
-    
+
     /**
      * Tente de reconnecter au serveur si la connexion a été perdue.
      * Conserve l'ID du joueur et autres informations de session si possible.
@@ -96,9 +99,9 @@ public class GameClient {
             System.out.println("GameClient: Déjà connecté, pas besoin de reconnexion");
             return true;
         }
-        
+
         System.out.println("GameClient: Tentative de reconnexion avec ID: " + myPlayerId);
-        
+
         // Nettoyage des ressources existantes
         try {
             if (outputStream != null) outputStream.close();
@@ -107,21 +110,21 @@ public class GameClient {
         } catch (IOException e) {
             // Ignorer les erreurs de fermeture
         }
-        
+
         outputStream = null;
         inputStream = null;
         socket = null;
-        
+
         try {
             // Établir une nouvelle connexion socket
             socket = new Socket(serverIpAddress, serverPort);
             isConnected = true;
-            
+
             // Recréer les flux dans le bon ordre (comme pour connect())
             inputStream = new ObjectInputStream(socket.getInputStream());
             outputStream = new ObjectOutputStream(socket.getOutputStream());
             outputStream.flush();
-            
+
             // Lire l'ID envoyé par le serveur
             Object idMessageObj = inputStream.readObject();
             if (idMessageObj instanceof String) {
@@ -129,7 +132,7 @@ public class GameClient {
                 if (idMessage.startsWith("ID:")) {
                     int newPlayerId = Integer.parseInt(idMessage.substring(3));
                     System.out.println("GameClient: Reconnexion réussie. Nouvel ID: " + newPlayerId);
-                    
+
                     // Mise à jour de l'ID si nécessaire
                     this.myPlayerId = newPlayerId;
                 } else {
@@ -138,20 +141,20 @@ public class GameClient {
             } else {
                 throw new IOException("Type de message d'ID invalide lors de la reconnexion");
             }
-            
+
             // Recréer le thread de réception
             setupReceptionThread();
-            
+
             if (listener != null) {
                 listener.onGameMessage("RECONNECTED", "Reconnexion réussie avec ID: " + myPlayerId);
             }
-            
+
             return true;
-            
+
         } catch (Exception e) {
             System.err.println("GameClient: Échec de la tentative de reconnexion: " + e.getMessage());
             isConnected = false;
-            
+
             // Nettoyage en cas d'échec
             try {
                 if (outputStream != null) outputStream.close();
@@ -160,15 +163,15 @@ public class GameClient {
             } catch (IOException closeEx) {
                 // Ignorer les erreurs de fermeture
             }
-            
+
             if (listener != null) {
                 listener.onGameMessage("ERROR", "Échec de la reconnexion: " + e.getMessage());
             }
-            
+
             return false;
         }
     }
-    
+
     // Déplacer la configuration du thread de réception dans une méthode séparée pour améliorer la clarté du code
     private void setupReceptionThread() {
         receptionThread = new Thread(() -> {
@@ -193,7 +196,7 @@ public class GameClient {
                             if (listener != null) listener.onGameMessage("UNKNOWN_CODE", "Code serveur inconnu: " + parts[0]);
                             continue;
                         }
-                        
+
                         String content = parts[1];
 
                         // Utiliser SwingUtilities pour s'assurer que les mises à jour sont faites sur le thread EDT
@@ -209,12 +212,12 @@ public class GameClient {
                                 case ETAT:
                                     // dans la reponse du serveur on a deja etapeCoup
                                     System.out.println("GameClient: Received game state: " + finalContent);
-                                    
+
                                     // decoder l'etat du jeu et la mise a jour
                                     GameStateParser.parseAndUpdateJeu(gameInstance, finalContent);
 
                                     System.out.println("GameClient: Current etapeCoup after parsing: " + gameInstance.getEtapeCoup());
-                                    
+
                                     listener.onGameStateUpdate(gameInstance);
                                     break;
 
@@ -224,7 +227,7 @@ public class GameClient {
                                 case PERDU:
                                     listener.onGameMessage("LOSE", finalContent);
                                     break;
-                                    
+
                                 case PIECE:
                                     // nouveau format：PIECE:x:y:possibleMoves
                                     // possibleMoves format：TYPE_COUP:x:y;TYPE_COUP:x:y;...
@@ -243,7 +246,7 @@ public class GameClient {
                                     if (listener != null) {
                                         listener.onGameMessage("PLATEAU", finalContent);
                                     }
-                                    break;                                
+                                    break;
                                 case ADVERSAIRE: // Exemple："Ce n'est pas votre tour" ou d'autres messages d'erreurs
                                     listener.onGameMessage("ADVERSAIRE", finalContent);
                                     break;
@@ -359,13 +362,13 @@ public class GameClient {
     public void setListener(GameStateUpdateListener newListener){
         this.listener = newListener;
     }
-    
+
 
     private String extractEtapeCoupFromState(String stateContent) {
         if (stateContent == null || stateContent.isEmpty()) {
             return null;
         }
-        
+
         try {
             // etapeCoup:value;key1:value1;key2:value2;...
             String[] parts = stateContent.split(";");
@@ -374,7 +377,7 @@ public class GameClient {
                     return part.substring("etapeCoup:".length());
                 }
             }
-            
+
             // si on arrive pas a trouver etapeCoup，on le recupere dans gameInstance
             return String.valueOf(gameInstance.getEtapeCoup());
         } catch (Exception e) {
@@ -382,4 +385,53 @@ public class GameClient {
             return "0"; //valeur de default
         }
     }
+
+    // ========== INTEGRATION METHODS FOR EXISTING CLASSES ==========
+
+//  ---------- Add these methods to GameClient.java ----------
+
+/**
+ * Save current client game state
+ * @param saveName Name for the save file
+ * @return true if successful
+ */
+public boolean saveClientGame(String saveName) {
+    try {
+        if(myPlayerId != 1){
+            System.out.println("Save : sauvgarde non autorise pour le non-host");
+            return false;
+        }
+        return NetworkGameSaveManager.saveClientState(this, saveName);
+    } catch (Exception e) {
+        System.err.println("GameClient: Error saving game: " + e.getMessage());
+        if (listener != null) {
+            listener.onGameMessage("ERROR", "Failed to save game: " + e.getMessage());
+        }
+        return false;
+    }
+}
+
+/**
+ * Load client game state
+ * @param saveName Name of the save file to load
+ * @return true if successful
+ */
+public boolean loadClientGame(String saveName) {
+    try {
+        boolean success = NetworkGameSaveManager.loadClientState(this, saveName);
+        if (success && listener != null) {
+            listener.onGameStateUpdate(this.gameInstance);
+            listener.onGameMessage("INFO", "Game loaded successfully: " + saveName);
+        }
+        return success;
+    } catch (Exception e) {
+        System.err.println("GameClient: Error loading game: " + e.getMessage());
+        if (listener != null) {
+            listener.onGameMessage("ERROR", "Failed to reload game: " + e.getMessage());
+        }
+        return false;
+    }
+}
+
+
 }

@@ -29,8 +29,8 @@ public class AIClient implements GameStateUpdateListener, Runnable {
     private Jeu gameInstance;
     private Random random = new Random();
     private final String aiName = "Bot Adversaire";
-    private int currentPosX = -1;
-    private int currentPosY = -1;
+    // private int currentPosX = -1;
+    // private int currentPosY = -1;
     IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
     private IAminimax ia = new IAminimax(5,gameInstance);
 
@@ -196,15 +196,11 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         System.out.println("Erreur, le coup de l'IA est null");
                         return;
                     }
-                    System.out.println("Coup IA 0_0: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                     cmd = joueCoup(newGameState, 0);
-                    System.out.println("Coup IA 0_1: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                     System.out.println("Jai calcule a 0");
                     break;
                 case 1:
-                    System.out.println("Coup IA 1_0: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                     cmd = joueCoup(newGameState, 1);
-                    System.out.println("Coup IA 1_1: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                     System.out.println("Jai calcule a 1");
                     break;
                 case 2:
@@ -265,8 +261,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         if (numCoup == 0){
             return 0 +":"+ null +":"+ jeu.getJoueurCourant().getProchainPlateau().name() + ":" + AImove.getPremier().getPosition().x + ":" + AImove.getPremier().getPosition().y;
         }
-        else if (numCoup == 1 || numCoup == 2){
-            System.out.println("Coup IA ITM_0: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);        
+        else if (numCoup == 1 || numCoup == 2){      
             return IAtoMessage(jeu,numCoup);
                    
         } else if (numCoup == 3) {
@@ -279,11 +274,12 @@ public class AIClient implements GameStateUpdateListener, Runnable {
 
     private String IAtoMessage(Jeu jeu, int numCoup){
         String coup = null;
-        if (currentPosX < 0 || currentPosY < 0){
+        int currentPosX, currentPosY;
+        // if (currentPosX < 0 || currentPosY < 0){
             currentPosX = AImove.getPremier().getPosition().x;
             currentPosY = AImove.getPremier().getPosition().y;
-        }
-        System.out.println("Coup IA ITM_SUB_0: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
+        // }
+
         if (numCoup == 1){
             coup = AImove.getSecond();
         } else if (numCoup == 2){
@@ -303,46 +299,41 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
             coup = AImove.getTroisieme();
         }
-        System.out.println("Coup IA ITM_SUB_1: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
+
                     
         if (coup == null) {
             System.out.println("Erreur, le coup de l'IA est null");
             return null;
         }
 
-        System.out.println("Coup IA ITM_SUB_2: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                     
         switch (coup) {
             case "UP":
-                System.out.println("I have acces to UP_0");
+                System.out.println("Coup IA UP 1: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 currentPosX -=1;
                 AImove.getPremier().setPosition(new Point(currentPosX, currentPosY));
-
-                System.out.println("I have acces to UP_0");
-                System.out.println("Coup IA UP: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
+                System.out.println("Coup IA UP 2: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 return 0 +":"+ null +":"+ jeu.getPlateauCourant().getType()+ ":" + currentPosX + ":" + currentPosY;
                 
             case "DOWN":
-                System.out.println("I have acces to DOWN");
+                System.out.println("Coup IA DOWN: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y); 
                 currentPosX +=1;
                 AImove.getPremier().setPosition(new Point(currentPosX, currentPosY));
-
-                System.out.println("I have acces to DOWN");
                 System.out.println("Coup IA DOWN: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y); 
                 return 0 +":"+ null +":"+ jeu.getPlateauCourant().getType() + ":" + currentPosX + ":" + currentPosY;
                 
             case "LEFT":
-                System.out.println("I have acces to LEFT");
+                System.out.println("Coup IA LEFT: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 currentPosY -=1;
                 AImove.getPremier().setPosition(new Point(currentPosX, currentPosY));
                 System.out.println("Coup IA LEFT: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 return 0 +":"+ null +":"+ jeu.getPlateauCourant().getType() + ":" + currentPosX + ":" + currentPosY;
                 
             case "RIGHT":
-                System.out.println("I have acces to RIGHT");
+                System.out.println("Coup IA RIGHT: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 currentPosY +=1;
                 AImove.getPremier().setPosition(new Point(currentPosX, currentPosY));
-                System.out.println("Coup IA 1_0: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
+                System.out.println("Coup IA RIGHT: " + AImove.getPremier().getPosition().x + " " + AImove.getPremier().getPosition().y);
                 return 0 +":"+ null +":"+ jeu.getPlateauCourant().getType() + ":" + currentPosX + ":" + currentPosY;
 
             case "JUMP":

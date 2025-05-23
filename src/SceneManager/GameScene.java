@@ -1547,7 +1547,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                                 System.out.println(transparent);*/
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent && clone == false) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
                                     g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
@@ -1569,7 +1569,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                             else {
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent && clone == false) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
                                     g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));

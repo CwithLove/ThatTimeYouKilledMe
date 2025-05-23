@@ -253,7 +253,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         
     }
 
-    private String joueCoup(Jeu jeu,int numCoup){
+    protected String joueCoup(Jeu jeu,int numCoup){
         if (AImove == null) {
             System.out.println("Erreur, le coup de l'IA est null");
             return null;
@@ -541,5 +541,9 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         } else {
             System.err.println(aiName + ": AI non prête pour démarrer (non connectée ou flux non initialisés).");
         }
+    }
+
+    public void setAIMove(IAFields<Piece,String,String,Plateau.TypePlateau> AImove){
+        this.AImove = AImove;
     }
 }

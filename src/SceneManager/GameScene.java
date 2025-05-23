@@ -49,6 +49,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // Boutons UI
     private Button backButton; // Bouton pour revenir au menu principal
     private Button undoButton; // Bouton pour annuler une action
+    private Button switchToAiButton; // Bouton pour se mettre en IA
     private Button choosePlateauButton; // Bouton pour choisir un plateau
 
     // Réseau et Mode de Jeu
@@ -265,11 +266,19 @@ public class GameScene implements Scene, GameStateUpdateListener {
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
         // Ajouter un bouton pour annuler une action
         int undoX = sceneManager.getPanel().getWidth() / 2 - 50;
-        int undoY = sceneManager.getPanel().getHeight() / 11 + 20;
+        int undoY = sceneManager.getPanel().getHeight() / 12 + 20;
         undoButton = new Button(undoX, undoY, 100, 40, "UNDO", this::handleUndoAction);
+
+        int switchToAiX = undoX;
+        int switchToAiY = undoY + 50;
+        switchToAiButton = new Button(switchToAiX, switchToAiY, 100, 40, "IA", this::handleSwitchToAiAction);
 
         // Ajouter un bouton pour choisir un plateau
         choosePlateauButton = new Button(0, 0, 180, 40, "Choisir ce plateau", this::handleChoosePlateauAction);
+    }
+
+    private void handleSwitchToAiAction() {
+        gameClient.switchToAIMode();
     }
 
     private void handleBackButton() {
@@ -299,17 +308,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 
             if (choice == JOptionPane.YES_OPTION) {
                 try {
-                    // 尝试重新连接
+                    // Essayer de se reconnecter
                     if (gameClient.reconnect()) {
                         System.out.println("GameScene: Reconnexion réussie avec client ID: " + gameClient.getMyPlayerId());
-                        this.gameClient.setListener(this); // 重新设置监听器
-                        this.jeu = this.gameClient.getGameInstance(); // 获取游戏状态
+                        this.gameClient.setListener(this); // Réinitialiser le listener
+                        this.jeu = this.gameClient.getGameInstance(); // Obtenir l'état du jeu
                         if (this.jeu != null) {
                             updateStatusFromCurrentGame(false);
                             JOptionPane.showMessageDialog(sceneManager.getPanel(),
                                 "Reconnexion réussie! La partie va continuer.",
                                 "Reconnexion", JOptionPane.INFORMATION_MESSAGE);
-                            return; // 成功重连，不返回主菜单
+                            return;
                         } else {
                             System.out.println("GameScene: Reconnexion réussie mais état du jeu est null");
                         }
@@ -757,6 +766,9 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 // Utiliser le champ etapeCoup de GameScene
                 undoButton.update(mousePos);
+                switchToAiButton.update(mousePos);
+
+
                     
                 // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
                 repaintPanel();
@@ -841,6 +853,10 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
         backButton.setSize(150*width/1920, 60*width/1920);
         backButton.setFont(new Font(police, Font.BOLD, 20*width/1920));
+
+        switchToAiButton.setSize(150*width/1920, 60*width/1920);
+        switchToAiButton.setFont(new Font(police, Font.BOLD, 20*width/1920));
+        switchToAiButton.setLocation((width-(150*width/1920) )/ 2, height / 11 + 20 + 50);
 
         
 
@@ -1068,6 +1084,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
             // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
             // pas égal à 3
             undoButton.render(g2d);
+            switchToAiButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)
             g2d.setColor(Color.WHITE);
@@ -1596,6 +1613,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     undoButton.onClick();
                     return;
                 }
+
+                if (switchToAiButton.contains(mousePoint)) {
+                    switchToAiButton.onClick();
+                    return;
+                }
                 handleBoardClick(mousePoint); // Gérer le clic sur le plateau de jeu
             }
 
@@ -1610,6 +1632,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
                 if (backButton.contains(mousePoint)) {
                     backButton.setClicked(true);
+                    needsRepaint = true;
+                }
+
+                if (switchToAiButton.contains(mousePoint)) {
+                    switchToAiButton.setClicked(true);
                     needsRepaint = true;
                 }
 
@@ -1651,7 +1678,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
                 undoButton.setClicked(false);
-                choosePlateauButton.setClicked(false);
+                switchToAiButton.setClicked(false);
+                // choosePlateauButton.setClicked(false);
                 repaintPanel();
             }
         };

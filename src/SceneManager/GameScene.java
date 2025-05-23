@@ -43,6 +43,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
     // État de sélection de l'interface utilisateur
     private Point selectedPiecePosition = null;
+    private Point previousPiecePosition = null;
     private Plateau.TypePlateau selectedPlateauType = null;
     private Coup.TypeCoup nextActionType = null; // On attend un clic pour DÉPLACER
 
@@ -820,6 +821,15 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         
     }
 
+    private Point vecteur;
+    private int animX;
+    private int animY;
+
+    private void updatePieceAnimation(float t) {
+        animY += (int) (t * vecteur.getX() * tileWidth);
+        animX += (int) (t * vecteur.getY() * tileWidth);
+    }
+
     int framecountJ1 = 0;
     int framecountJ2 = 0; 
     int frameJ1=0, frameJ2= 0;
@@ -971,6 +981,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             
             drawPickerJ1(g2d, pastStartX+(int)xinfJ1, presentStartX+(int)xinfJ1, futureStartX+(int)xinfJ1, offsetY+(int)yinfJ1, tileWidth);
             drawPickerJ2(g2d, pastStartX+(int)xinfJ2, presentStartX+(int)xinfJ2, futureStartX+(int)xinfJ2, offsetY+(int)yinfJ2, tileWidth);
+
+            if (animX < 0 || animY < 0) {
+                System.out.println(animX + " " + animY);
+                updatePieceAnimation(0.1f);
+            }
 
             // Dessiner les plateaux
             drawPlateau(g2d, past, pastStartX, offsetY, tileWidth, "PASSÉ", null);
@@ -1521,6 +1536,16 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             }
         }
 
+        drawPieces(g, plateau, x, y, tileWidth);
+    }
+
+    private void drawPieces(Graphics2D g, Plateau plateau, int x, int y, int tileWidth) {
+        //int boardSize = plateau.getSize();
+        //int boardPixelSize = boardSize * tileWidth;
+        //int tileHeight = tileWidth * 1; // A changer pour dessiner isométriquement)
+
+        //System.out.println(previousPiecePosition);
+
         for (int row = 0; row < boardSize; row++) {
             for (int col = 0; col < boardSize; col++) {
                 Piece piece = plateau.getPiece(row, col);
@@ -1542,15 +1567,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                                 g.drawImage(lemielAnimation[1][frame], (int) (pieceX - ((imageWidth * 9/8)-imageWidth)/2), (int) (pieceY - ((imageHeight * 9/8)-imageHeight)/2), imageWidth * 9/8, imageHeight * 9/8, null);
                             }
                             else {
-                                /*System.out.println(selectedPlateauType);
                                 System.out.println(selectedPiecePosition);
-                                System.out.println(transparent);*/
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent && clone == false) {
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
                                     g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+                                }
+                                else if (selectedPiecePosition != null && selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col) {
+                                    g.drawImage(lemielAnimation[0][frame], pieceX + animX, pieceY + animY, imageWidth, imageHeight, null);
+                                    g.drawImage(lemielAnimation[1][frame], pieceX + animX, pieceY + animY, imageWidth, imageHeight, null);
                                 }
                                 else {
                                     g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
@@ -2110,9 +2137,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                                     + ", plateau de " + selectedPlateauType + " à " + newPlateauType);
 
                             // Mettre à jour selectedPiecePosition et selectedPlateauType
+                            previousPiecePosition = new Point(selectedPiecePosition);
                             selectedPiecePosition = new Point(newX, newY);
+                            vecteur = new Point((int) (selectedPiecePosition.getX() - previousPiecePosition.getX()),
+                            (int) (selectedPiecePosition.getY() - previousPiecePosition.getY()));   // vecteur pour l'animation de déplacement
+                            System.out.println("vecteur : " + vecteur);
                             selectedPlateauType = newPlateauType;
                             this.activePlateau = newPlateauType;
+
+                            animX = - (int) vecteur.getY() * tileWidth;
+                            animY = - (int) vecteur.getX() * tileWidth;
+                            
                         } catch (Exception e) {
                             System.err.println("GameScene: Échec de l'analyse de la nouvelle position de la pièce: "
                                     + e.getMessage());

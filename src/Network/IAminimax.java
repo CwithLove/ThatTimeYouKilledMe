@@ -49,7 +49,7 @@ public class IAminimax {
         }
         System.out.println("REMPLISSAGE...");
         for (int i = 0; i < 9; i++) {
-            poids.add(r.nextInt(1, 15));
+            poids.add(r.nextInt(15));
             System.out.println(i + " : " + poids.get(i));
         }
     }
@@ -147,6 +147,11 @@ public class IAminimax {
             //System.out.println("IAMinimax: best coup null");
             return null;
         }
+        System.out.println("CONFIGURATIONS H:");
+        for (int i = 0; i < 9; i++) {
+            System.out.println(i + " : " + poids.get(i));
+        }
+
         return best_coup;
     }
 
@@ -319,38 +324,42 @@ public class IAminimax {
             //heuristique 9: malus choix d'un plateau sans pion
 
             //heuristique 10: eliminer dans une temporalite
-            score += scoreExtinction(jeu,opponent,10);
+            score += scoreExtinction(jeu,opponent,poids.get(8));
         } else {
             // heuristique 1: nb Pieces restantes, +poids pour chaque piece restante (heuristique efficace) (nbpions*poids)
-            //score += scorePiecesRestantes(joueur, passe, present, futur, 4); //bien, 8/10
+            score += scorePiecesRestantes(joueur, passe, present, futur, 9); //bien, 8/10
             //System.out.println("H1 : "+score);
 
             // heuritique 2: position sur plateau, +poids au milieu, 0 sur les bords, -poids dans les coins (heuristique peu efficace)
-            //score += scorePositionPlateau(joueur, plateauCourant, 5); //A chier, 1/10
+            score += scorePositionPlateau(joueur, plateauCourant, 11); //A chier, 1/10
 
             // heuristique3: nombre de pieces restantes dans l'inventaire (currentPlayer - opp.Player)*poids (heuristique efficace)
-            score += scorePionsInventaire(joueur, opponent, 16); //nul seul, exploitable avec H1 < H3
+            score += scorePionsInventaire(joueur, opponent, 9); //nul seul, exploitable avec H1 < H3
             //System.out.println("H2 : "+score);
 
             // heurisitque 4: presence plateau, +2 pour chaque plateau ou l'ia se situe, -2 si elle n'est que sur 1 plateau (heuristique moyenne)
-            //score += presencePlateau(joueur, passe, present, futur, 4); //bof, 2/10
+            score += presencePlateau(joueur, passe, present, futur, 5); //bof, 2/10
 
             // heuristique 5: nombre de pièces par rapport à l'adversaire, (own piece - opponent piece)*poids (heuristique très efficace)
-            score += piecesContreAdversaire(joueur, passe, present, futur, 20); //pue, 0/10
+            score += piecesContreAdversaire(joueur, passe, present, futur, 5); //pue, 0/10
 
             //heuristique 6: plus de pièces que l'adversaire sur chaque plateau (table de 3)
-            score += scoreInitiative(joueur, jeu, 3); //bien, 6/10
+            score += scoreInitiative(joueur, jeu, 13); //bien, 6/10
 
             //heuristique 7: triangulation temporelle, nb de pieces sur chaque plateau, version améliorée de l'heuristique 4
-            //score +=scoreTriangulation(joueur,jeu,6);
+            //score +=scoreTriangulation(joueur,jeu,1);
 
             //heuristique 8: menace
-            score += scorePiecesMenacees(joueur, plateauCourant, 15); //j'aime bien, 6.5/10
+            score += scorePiecesMenacees(joueur, plateauCourant, 6); //j'aime bien, 6.5/10
 
             //heuristique 9: malus choix d'un plateau sans pion (POUBELLE)
 
             //heuristique 10: eliminer dans une temporalite
-            //score += scoreExtinction(jeu,opponent,4);
+            score += scoreExtinction(jeu,opponent,9);
+
+            //heuristique spe: empeche le suicide, l'autre interdit de choisir un plateau sans pion
+            score += scoreSurvie(jeu,joueur,10);
+            score += scorePlateauAvecPion(jeu,joueur,10);
         }
         return score;
     }
@@ -527,6 +536,33 @@ public class IAminimax {
         }
         if (!opponent.existePion(jeu.getFuture())){
             score += poids;
+        }
+        return score;
+    }
+
+    //heuristique spe: survie
+    private int scoreSurvie(Jeu jeu, Joueur joueur, int poids){
+        int score = 0;
+        int nbPlateau = 0;
+        if (joueur.existePion(jeu.getPast())){
+            nbPlateau++;
+        }
+        if (joueur.existePion(jeu.getPresent())){
+            nbPlateau++;
+        }
+        if (joueur.existePion(jeu.getFuture())){
+            nbPlateau++;
+        }
+        if (nbPlateau <= 1){
+            score-= 100*poids;
+        }
+        return score;
+    }
+
+    private int scorePlateauAvecPion(Jeu jeu, Joueur joueur, int poids){
+        int score = 0;
+        if (!joueur.existePion(jeu.getPlateauCourant())){
+            score -= 10*poids;
         }
         return score;
     }

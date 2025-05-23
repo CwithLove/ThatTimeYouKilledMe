@@ -31,6 +31,10 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
     
     private GameClient gameClient;
     private boolean isConnecting = false;
+    
+    // Timer pour vérifier périodiquement l'état de la connexion
+    private javax.swing.Timer connectionCheckTimer;
+    private static final int CONNECTION_CHECK_INTERVAL = 5000; // Vérification toutes les 5 secondes
 
     /**
      * Constructeur de la scène ConnectHostScene.
@@ -39,6 +43,9 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
     public ConnectHostScene(SceneManager sceneManager) {
         this.sceneManager = sceneManager;
         this.ipAddressField = new JTextField("127.0.0.1");
+        
+        // Initialisation du timer de vérification de connexion
+        connectionCheckTimer = new javax.swing.Timer(CONNECTION_CHECK_INTERVAL, e -> checkConnectionStatus());
 
         // Initialisation du bouton "Se connecter"
         connectButton = new Button(300, 300, 200, 50, "Se connecter", () -> {
@@ -93,6 +100,8 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
                         
                         // Si la connexion a réussi, passer à ClientLobbyScene
                         if (gameClient != null && gameClient.isConnected()) {
+                            // Démarrer le timer pour vérifier périodiquement l'état de la connexion
+                            connectionCheckTimer.start();
                             transitionToClientLobbyScene();
                         }
                     } catch (Exception e) {
@@ -117,12 +126,50 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
 
         // Initialisation du bouton "Retour"
         backButton = new Button(50, 400, 150, 40, "Retour", () -> {
+            // Arrêter le timer de vérification
+            if (connectionCheckTimer.isRunning()) {
+                connectionCheckTimer.stop();
+            }
+            
             if (gameClient != null) {
                 gameClient.disconnect();
                 gameClient = null;
             }
             sceneManager.setScene(new MultiplayerScene(sceneManager));
         });
+    }
+    
+    /**
+     * Vérifie périodiquement l'état de la connexion
+     * Si le client est déconnecté, affiche un message et revient à l'écran précédent
+     */
+    private void checkConnectionStatus() {
+        if (gameClient != null && !gameClient.isConnected()) {
+            // Arrêter le timer
+            connectionCheckTimer.stop();
+            
+            System.out.println("ConnectHostScene: Détection de déconnexion lors de la vérification périodique");
+            
+            // Afficher un message et revenir à l'écran de connexion
+            SwingUtilities.invokeLater(() -> {
+                statusMessage = "Connexion au serveur perdue.";
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                    "La connexion au serveur a été perdue. Veuillez réessayer.",
+                    "Déconnexion", JOptionPane.WARNING_MESSAGE);
+                
+                // Réinitialiser l'état
+                isConnecting = false;
+                connectButton.setEnabled(true);
+                
+                // Si nous sommes toujours dans ConnectHostScene (pas encore passé à ClientLobbyScene)
+                if (sceneManager.getCurrentScene() instanceof ConnectHostScene) {
+                    repaintPanel();
+                } else {
+                    // Si nous sommes déjà passés à une autre scène, il faut y revenir
+                    sceneManager.setScene(new ConnectHostScene(sceneManager));
+                }
+            });
+        }
     }
 
     @Override
@@ -132,6 +179,11 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
         fadeComplete = false;
         statusMessage = "Entrez l'adresse IP de l'hôte.";
         isConnecting = false;
+        
+        // Arrêter le timer s'il est en cours
+        if (connectionCheckTimer.isRunning()) {
+            connectionCheckTimer.stop();
+        }
         
         if (gameClient != null) {
             gameClient.disconnect();
@@ -314,6 +366,12 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
     @Override
     public void dispose() {
         clearMouseListeners();
+        
+        // Arrêter le timer de vérification
+        if (connectionCheckTimer != null && connectionCheckTimer.isRunning()) {
+            connectionCheckTimer.stop();
+        }
+        
         if (sceneManager.getPanel() != null && ipAddressField != null) {
             ipAddressField.setVisible(false);
             sceneManager.getPanel().remove(ipAddressField);
@@ -347,15 +405,33 @@ public class ConnectHostScene implements Scene, GameStateUpdateListener {
         SwingUtilities.invokeLater(() -> {
             System.out.println("ConnectHostScene: Message reçu - Type: " + messageType + ", Contenu: " + messageContent);
             
+            // Traitement des messages d'erreur ou de déconnexion
             if ("ERROR".equals(messageType) || "DISCONNECTED".equals(messageType)) {
+                // Arrêter le timer de vérification
+                if (connectionCheckTimer.isRunning()) {
+                    connectionCheckTimer.stop();
+                }
+                
                 statusMessage = "Erreur: " + messageContent;
                 isConnecting = false;
+                
+                // Afficher un dialogue d'erreur
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                    "Erreur de connexion: " + messageContent,
+                    "Erreur Réseau", JOptionPane.ERROR_MESSAGE);
+                
                 if (gameClient != null) {
                     gameClient.disconnect();
                     gameClient = null;
                 }
                 connectButton.setEnabled(true);
-                repaintPanel();
+                
+                // Si nous sommes déjà passés à une autre scène, revenir à ConnectHostScene
+                if (!(sceneManager.getCurrentScene() instanceof ConnectHostScene)) {
+                    sceneManager.setScene(new ConnectHostScene(sceneManager));
+                } else {
+                    repaintPanel();
+                }
             }
         });
     }

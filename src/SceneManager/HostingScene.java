@@ -124,7 +124,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                                     SwingUtilities.invokeLater(() -> {
                                         try {
                                             // GameScene prendra en charge le GameServerManager et le hostClient.
-                                            GameScene gameScene = new GameScene(sceneManager, hostClient, gameServerManager);
+                                            GameScene gameScene = new GameScene(sceneManager, hostClient, gameServerManager, false);
                                             System.out.println("HostingScene: GameScene créée, gameServerManager transféré.");
                                             // HostingScene ne gère plus gameServerManager.
                                             HostingScene.this.gameServerManager = null;
@@ -354,6 +354,19 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 System.out.println("HostingScene: Joueur 2 confirmé connecté.");
                 repaintPanel();
             }
+        });
+    }
+
+    /**
+     * Callback appelé par GameServerManager quand le Joueur 2 se déconnecte.
+     */
+    public void onPlayerTwoDisconnected() {
+        SwingUtilities.invokeLater(() -> { // Assure l'exécution sur l'EDT.
+            playerTwoConfirmedConnected = false;
+            statusMessage = "Joueur 2 déconnecté. En attente d'une nouvelle connexion.";
+            System.out.println("HostingScene: Joueur 2 déconnecté.");
+            startGameButton.setEnabled(false);
+            repaintPanel();
         });
     }
 

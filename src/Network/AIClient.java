@@ -516,4 +516,25 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             System.err.println(aiName + ": AI non prête pour démarrer (non connectée ou flux non initialisés).");
         }
     }
+
+    /**
+     * Permet de définir un port personnalisé pour la connexion au serveur
+     * @param port Le numéro de port à utiliser
+     */
+    public void setServerPort(int port) {
+        if (!isRunning) {
+            this.serverPort = port;
+            System.out.println(aiName + ": Port du serveur défini à " + port);
+        } else {
+            System.out.println(aiName + ": Impossible de changer le port une fois connecté");
+        }
+    }
+    
+    /**
+     * Retourne le port utilisé pour la connexion au serveur
+     * @return Le numéro de port
+     */
+    public int getServerPort() {
+        return this.serverPort;
+    }
 }

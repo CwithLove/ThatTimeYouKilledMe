@@ -1,12 +1,20 @@
 package Network;
 
+import Modele.IAFields;
 import Modele.Jeu;
+import Modele.Piece;
+import Modele.Plateau;
+
 import java.io.*;
 import java.net.*;
 // import Modele.Plateau; // Ne pas utiliser Plateau directement
 // import Modele.Piece; // Ne pas utiliser Piece directement
 
 public class GameClient {
+    private boolean calculatedIn0 = false;
+    private AIClient aiClient;
+    IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
+    private boolean playByAI = false; // Indique si le joueur joue contre l'IA
     private String serverIpAddress;
     private int serverPort = 12345; // Port par défaut
     private Jeu gameInstance;
@@ -17,12 +25,14 @@ public class GameClient {
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
     private ObjectInputStream inputStream;
+    private IAminimax ia = new IAminimax(4, gameInstance);
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
         this.listener = listener;
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
                                       // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        this.aiClient = new AIClient(ipAddress); // Initialiser l'IA avec l'instance de jeu
     }
 
     public void connect() throws IOException {
@@ -216,6 +226,12 @@ public class GameClient {
                                     System.out.println("GameClient: Current etapeCoup after parsing: " + gameInstance.getEtapeCoup());
                                     
                                     listener.onGameStateUpdate(gameInstance);
+                                    
+                                    if (gameInstance.getJoueurCourant().getId() == myPlayerId && playByAI) {
+                                        // Si le joueur joue contre l'IA, on lui demande de jouer
+                                        AIplayGame(gameInstance);
+                                    }
+                                    
                                     break;
 
                                 case GAGNE:
@@ -287,6 +303,81 @@ public class GameClient {
         receptionThread.setName("GameClient-ReceptionThread-ID-" + myPlayerId);
         receptionThread.start();
         System.out.println("GameClient (ID: " + myPlayerId + "): Thread de réception démarré.");
+    }
+
+    private void AIplayGame(Jeu gameInstance) {
+        String command = null;
+        try {
+            Thread.sleep(500);
+            switch (gameInstance.getEtape()) {
+                case 0:
+                    calculatedIn0 = true;
+                    try {
+                        AImove = ia.coupIA(gameInstance);
+                    } catch (Exception e) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de l'exécution de l'IA: " + e.getMessage());
+                        return;
+                    }
+                    if (AImove == null) {
+                        System.out.println("GameClient (ID: " + myPlayerId + "): IA n'a pas trouvé de coup valide.");
+                        return;
+                    }
+                    aiClient.setAIMove(AImove);
+                    command = aiClient.joueCoup(gameInstance, 0);
+                    break;
+                case 1:
+                    command = aiClient.joueCoup(gameInstance, 1);
+                    break;
+                case 2:
+                    command = aiClient.joueCoup(gameInstance, 2);
+                    break;
+                case 3:
+                    if (!calculatedIn0) {
+                        try {
+                            // IA choisit un coup
+                            AImove = ia.coupIA(gameInstance);
+                        } catch (Exception e) {
+                            System.err.println("GameClient (ID: " + myPlayerId + "): Exception lors du calcul du coup IA: " + e.getMessage());
+                        }
+                        if (AImove == null) {
+                            System.out.println("GameClient (ID: " + myPlayerId + ") : Erreur, le coup de l'IA est null a etape 3");
+                            System.out.println("Erreur, le coup de l'IA est null");
+                            return;
+                        }
+                    }
+                    command = aiClient.joueCoup(gameInstance, 3);
+                    calculatedIn0 = false; // Réinitialiser le calcul
+                    AImove = null; // Réinitialiser le coup IA après l'avoir joué
+
+                    break;
+            }
+            sendPlayerAction(command);
+    
+        } catch (InterruptedException e) {
+            System.err.println("GameClient (ID: " + myPlayerId + "): Erreur de sommeil dans le thread IA: " + e.getMessage());
+        }
+    }
+
+    public void switchToAIMode() {
+        if (this.playByAI) {
+            if (gameInstance.getJoueurCourant().getId() == myPlayerId) {
+                System.out.println("GameClient (ID: " + myPlayerId + "): Vous devez attendre un tour total de IA.");
+            } else {
+                this.playByAI = false;
+                System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA désactivé.");
+            }
+        } else {
+            this.playByAI = true;
+            System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA activé.");
+            if (gameInstance.getJoueurCourant().getId() == myPlayerId) {
+                // Si c'est le tour du joueur, on annule tout ce qu'il a fait
+                if (gameInstance.getEtapeCoup() != 0) {
+                    sendPlayerAction("1:null:null:x:y"); // Envoie une action fictive pour activer le mode IA
+                } else {
+                    AIplayGame(gameInstance); // Si c'est le tour de l'IA, on joue directement
+                }
+            }
+        }
     }
 
     public void sendPlayerAction(String actionString) {
@@ -382,4 +473,6 @@ public class GameClient {
             return "0"; //valeur de default
         }
     }
+
+
 }

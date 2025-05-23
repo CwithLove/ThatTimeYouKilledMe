@@ -605,7 +605,7 @@ public class Jeu {
     // condition d'arret
     public int gameOver(Joueur joueur) {
         if (joueur.equals(joueur1)) {
-            System.out.println("Joueur 1: " + past.getNbNoirs() + " " + present.getNbNoirs() + " " + future.getNbNoirs());
+            // System.out.println("Joueur 1: " + past.getNbNoirs() + " " + present.getNbNoirs() + " " + future.getNbNoirs());
             if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0) {
                 gameState = 1;
                 return 1; //joueur 1 a gagne

@@ -41,7 +41,7 @@ public class MenuScene implements Scene {
         // Initialisation des boutons. Leurs positions et tailles réelles
         // seront définies dynamiquement dans la méthode render().
         singleButton = new Button(0, 0, 0, 0, "Single Player (vs AI)", () -> {
-            // 直接跳转到单人游戏大厅场景
+            // Passe directement à la scène du lobby solo
             sceneManager.setScene(new SinglePlayerLobbyScene(sceneManager));
         });
 

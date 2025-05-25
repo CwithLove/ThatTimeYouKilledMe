@@ -26,8 +26,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class GameServerManager {
 
     private static final int PORT = 12345;
-    private static final int MAX_PORT_ATTEMPTS = 5;  // 最大端口尝试次数
-    private int currentPort = PORT;  // 当前使用的端口
+    private static final int MAX_PORT_ATTEMPTS = 5;  // Nombre maximal de tentatives de port
+    private int currentPort = PORT;  // Port actuellement utilisé
     private ServerSocket serverSocket;
     private Thread acceptConnectionsThread;
     private Thread gameEngineThread;
@@ -47,10 +47,7 @@ public class GameServerManager {
     // Stocker les récepteurs client
     private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
     
-    // Variables pour le mode AI
-    private boolean aiMode = false;
-    private String aiDifficulty = "Facile"; // Par défaut: facile
-    private Thread aiPlayerThread;
+
     
     // Interface pour le callback de déconnexion
     public interface PlayerDisconnectionListener {
@@ -67,18 +64,8 @@ public class GameServerManager {
      */
     public GameServerManager(HostingScene callback) {
         this.hostingSceneCallback = callback;
-        this.aiMode = false;
     }
-    
-    /**
-     * Constructeur pour le mode AI
-     * @param callback Le callback vers SinglePlayerLobbyScene
-     * @param aiMode True si c'est un jeu avec AI
-     */
-    public GameServerManager(SinglePlayerLobbyScene callback, boolean aiMode) {
-        this.singlePlayerCallbackScene = callback;
-        this.aiMode = aiMode;
-    }
+
 
     /**
      * Démarrer le serveur de jeu
@@ -114,278 +101,11 @@ public class GameServerManager {
         }
         
         isServerRunning = true;
-        notifiedDisconnection = false; // 重置断开连接通知标记
+        notifiedDisconnection = false; // Réinitialiser l'indicateur de notification de déconnexion
         System.out.println("GameServerManager: Serveur démarré sur le port " + currentPort);
 
         // Créer et démarrer un nouveau thread d'acceptation
         createAndStartAcceptThread("GameServerThread");
-    }
-
-    /**
-     * Définir la difficulté de l'AI
-     * @param difficulty Niveau de difficulté: "Facile", "Moyen", "Difficile"
-     */
-    public void setAIDifficulty(String difficulty) {
-        this.aiDifficulty = difficulty;
-        System.out.println("GameServerManager: Difficulté AI définie à " + difficulty);
-    }
-    
-    /**
-     * Connecter un joueur AI au serveur
-     * @param difficulty Niveau de difficulté
-     */
-    public void connectAIPlayer(String difficulty) {
-        if (!aiMode) {
-            System.out.println("GameServerManager: Impossible de connecter l'AI, mode AI non activé.");
-            return;
-        }
-        
-        setAIDifficulty(difficulty);
-        
-        // Si l'AI est déjà connecté, ne rien faire
-        if (connectedClientIds.contains(2)) {
-            System.out.println("GameServerManager: L'AI est déjà connecté.");
-            return;
-        }
-        
-        // Créer un thread pour simuler la connexion de l'AI
-        aiPlayerThread = new Thread(() -> {
-            try {
-                System.out.println("GameServerManager: Connexion de l'AI en cours...");
-                Thread.sleep(500); // Simuler un délai de connexion
-                
-                // Ajouter l'AI comme joueur 2
-                synchronized (this) {
-                    clientIdCounter = 1; // S'assurer que l'AI aura l'ID 2
-                }
-                
-                // Créer une file d'attente pour les messages sortants vers l'AI
-                BlockingQueue<String> aiOutgoingQueue = new LinkedBlockingQueue<>();
-                outgoingQueues.put(2, aiOutgoingQueue);
-                connectedClientIds.add(2);
-                
-                System.out.println("GameServerManager: AI connecté avec ID 2");
-                
-                // Notifier le SinglePlayerLobbyScene que l'AI est connecté
-                if (singlePlayerCallbackScene != null) {
-                    singlePlayerCallbackScene.onAIPlayerConnected();
-                }
-                
-                // Démarrer le thread d'AI qui va "lire" les messages et y répondre
-                Thread aiResponseThread = new Thread(this::processAIResponses, "AI-ResponseThread");
-                aiResponseThread.start();
-                
-            } catch (InterruptedException e) {
-                System.err.println("GameServerManager: Interruption pendant la connexion de l'AI: " + e.getMessage());
-                Thread.currentThread().interrupt();
-            }
-        }, "AI-ConnectionThread");
-        
-        aiPlayerThread.start();
-    }
-    
-    /**
-     * Traiter les réponses de l'AI
-     */
-    private void processAIResponses() {
-        try {
-            while (isServerRunning && connectedClientIds.contains(2)) {
-                // Attendre que ce soit le tour de l'AI
-                if (gameInstance != null && gameInstance.getJoueurCourant().getId() == 2) {
-                    // Simuler un temps de réflexion basé sur la difficulté
-                    int thinkingTime;
-                    switch (aiDifficulty) {
-                        case "Facile":
-                            thinkingTime = 1000 + new Random().nextInt(1000); // 1-2 secondes
-                            break;
-                        case "Moyen":
-                            thinkingTime = 700 + new Random().nextInt(800); // 0.7-1.5 secondes
-                            break;
-                        case "Difficile":
-                            thinkingTime = 300 + new Random().nextInt(700); // 0.3-1 seconde
-                            break;
-                        default:
-                            thinkingTime = 1000;
-                    }
-                    Thread.sleep(thinkingTime);
-                    
-                    // Générer un coup pour l'AI
-                    generateAIMove();
-                }
-                
-                // Pause pour éviter une utilisation CPU excessive
-                Thread.sleep(100);
-            }
-        } catch (InterruptedException e) {
-            System.err.println("GameServerManager: Interruption du thread de réponse AI: " + e.getMessage());
-            Thread.currentThread().interrupt();
-        }
-    }
-    
-    /**
-     * Générer un coup pour l'AI
-     */
-    private void generateAIMove() {
-        if (gameInstance == null || !connectedClientIds.contains(2)) {
-            return;
-        }
-        
-        try {
-            Joueur aiJoueur = gameInstance.getJoueur2();
-            Plateau plateauCourant = gameInstance.getPlateauCourant();
-            int etapeCoup = gameInstance.getEtapeCoup();
-            
-            // En fonction de l'étape du coup, générer l'action appropriée
-            if (etapeCoup == 0) {
-                // Sélectionner une pièce
-                ArrayList<Piece> piecesDispo = new ArrayList<>();
-                for (Piece piece : plateauCourant.getPieces(aiJoueur)) {
-                    ArrayList<Coup> coups = gameInstance.getCoupPossibles(plateauCourant, piece);
-                    if (!coups.isEmpty()) {
-                        piecesDispo.add(piece);
-                    }
-                }
-                
-                if (!piecesDispo.isEmpty()) {
-                    // Sélectionner une pièce en fonction de la difficulté
-                    Piece selectedPiece;
-                    if (aiDifficulty.equals("Difficile")) {
-                        // En difficulté difficile, essaie de choisir la pièce avec le plus de mouvements possibles
-                        selectedPiece = getBestPiece(piecesDispo, plateauCourant);
-                    } else {
-                        // Sinon, sélection aléatoire
-                        selectedPiece = piecesDispo.get(new Random().nextInt(piecesDispo.size()));
-                    }
-                    
-                    // Créer et ajouter le message à la file d'attente
-                    String message = "0:null:" + plateauCourant.getType() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y;
-                    incomingMessages.add(new Message(2, message));
-                    System.out.println("AI: Sélection de pièce - " + message);
-                }
-            } else if (etapeCoup == 1 || etapeCoup == 2) {
-                // Jouer un coup
-                Piece pieceCourante = gameInstance.getPieceCourante();
-                if (pieceCourante != null) {
-                    ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
-                    
-                    if (!coupsPossibles.isEmpty()) {
-                        // Sélectionner un coup en fonction de la difficulté
-                        Coup selectedCoup;
-                        if (aiDifficulty.equals("Difficile")) {
-                            // Tente de choisir un coup avantageux
-                            selectedCoup = getBestCoup(coupsPossibles);
-                        } else if (aiDifficulty.equals("Moyen")) {
-                            // Mélange entre aléatoire et intelligent
-                            if (new Random().nextDouble() < 0.7) {
-                                selectedCoup = getBestCoup(coupsPossibles);
-                            } else {
-                                selectedCoup = coupsPossibles.get(new Random().nextInt(coupsPossibles.size()));
-                            }
-                        } else {
-                            // Purement aléatoire pour niveau facile
-                            selectedCoup = coupsPossibles.get(new Random().nextInt(coupsPossibles.size()));
-                        }
-                        
-                        // Préparer le message en fonction du type de coup
-                        String targetPlateau = plateauCourant.getType().name();
-                        int targetX = pieceCourante.getPosition().x;
-                        int targetY = pieceCourante.getPosition().y;
-                        
-                        // Déterminer la cible en fonction du type de coup
-                        switch (selectedCoup.getTypeCoup()) {
-                            case UP:
-                                targetX -= 1;
-                                break;
-                            case DOWN:
-                                targetX += 1;
-                                break;
-                            case LEFT:
-                                targetY -= 1;
-                                break;
-                            case RIGHT:
-                                targetY += 1;
-                                break;
-                            case JUMP:
-                                targetPlateau = (plateauCourant.getType() == Plateau.TypePlateau.PAST) ? "PRESENT" : "FUTURE";
-                                break;
-                            case CLONE:
-                                targetPlateau = (plateauCourant.getType() == Plateau.TypePlateau.FUTURE) ? "PRESENT" : "PAST";
-                                break;
-                        }
-                        
-                        // Créer et ajouter le message
-                        String message = "0:null:" + targetPlateau + ":" + targetX + ":" + targetY;
-                        incomingMessages.add(new Message(2, message));
-                        System.out.println("AI: Coup - " + message);
-                    }
-                }
-            } else if (etapeCoup == 3) {
-                // Choisir le prochain plateau
-                Plateau.TypePlateau[] plateauOptions = {Plateau.TypePlateau.PAST, Plateau.TypePlateau.PRESENT, Plateau.TypePlateau.FUTURE};
-                Plateau.TypePlateau currentPlateauType = plateauCourant.getType();
-                
-                // Filtrer pour exclure le plateau actuel
-                ArrayList<Plateau.TypePlateau> validOptions = new ArrayList<>();
-                for (Plateau.TypePlateau option : plateauOptions) {
-                    if (option != currentPlateauType) {
-                        validOptions.add(option);
-                    }
-                }
-                
-                // Choisir un plateau
-                Plateau.TypePlateau nextPlateau;
-                if (aiDifficulty.equals("Difficile")) {
-                    // Logique plus avancée pourrait être implémentée ici
-                    // Pour l'instant, simplement aléatoire
-                    nextPlateau = validOptions.get(new Random().nextInt(validOptions.size()));
-                } else {
-                    nextPlateau = validOptions.get(new Random().nextInt(validOptions.size()));
-                }
-                
-                // Créer et ajouter le message
-                String message = "0:" + nextPlateau + ":" + plateauCourant.getType() + ":0:0";
-                incomingMessages.add(new Message(2, message));
-                System.out.println("AI: Choix de plateau - " + message);
-            }
-        } catch (Exception e) {
-            System.err.println("GameServerManager: Erreur lors de la génération du coup AI: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Obtenir la meilleure pièce à jouer (stratégie simple)
-     */
-    private Piece getBestPiece(ArrayList<Piece> pieces, Plateau plateau) {
-        Piece bestPiece = pieces.get(0);
-        int maxMoves = 0;
-        
-        for (Piece piece : pieces) {
-            int moves = gameInstance.getCoupPossibles(plateau, piece).size();
-            if (moves > maxMoves) {
-                maxMoves = moves;
-                bestPiece = piece;
-            }
-        }
-        
-        return bestPiece;
-    }
-    
-    /**
-     * Obtenir le meilleur coup à jouer (stratégie simple)
-     */
-    private Coup getBestCoup(ArrayList<Coup> coups) {
-        // Pour l'instant, une stratégie simple: priorité aux actions spéciales (JUMP/CLONE)
-        
-        // Préférer les actions spéciales (JUMP/CLONE) si disponibles
-        for (Coup coup : coups) {
-            if (coup.getTypeCoup() == Coup.TypeCoup.JUMP || coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
-                return coup;
-            }
-        }
-        
-        // Sinon, choisir un coup aléatoire
-        return coups.get(new Random().nextInt(coups.size()));
     }
 
     public synchronized void startGameEngine() { // synchronized pour éviter plusieurs appels
@@ -961,12 +681,6 @@ public class GameServerManager {
             System.out.println("GameServerManager: Thread du moteur de jeu interrompu.");
         }
         
-        // Arrêter le thread AI s'il est en cours
-        if (aiPlayerThread != null && aiPlayerThread.isAlive()) {
-            aiPlayerThread.interrupt();
-            System.out.println("GameServerManager: Thread AI interrompu.");
-        }
-
         // Supprimer les clients connectés et leurs files d'attente
         connectedClientIds.clear();
         outgoingQueues.clear(); // Les ClientSenders se termineront automatiquement lorsque la file d'attente sera vidée ou qu'une exception sera levée
@@ -1223,7 +937,7 @@ public class GameServerManager {
 
                         // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
                         ClientReceiver receiver = new ClientReceiver(in, incomingMessages, newClientId, this);
-                        // 设置客户端Socket，以便在关闭连接时能够正确关闭Socket
+                        // Définir le socket client afin de pouvoir le fermer correctement lors de la fermeture de la connexion
                         receiver.setClientSocket(clientSocket);
                         Thread receiverThread = new Thread(
                                 receiver,
@@ -1258,10 +972,6 @@ public class GameServerManager {
                             // HostingScene décidera quand appeler startGameEngine().
                             hostingSceneCallback.onPlayerTwoConnected();
                             System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
-                        } else if (singlePlayerCallbackScene != null && aiMode) {
-                            // Notifier SinglePlayerLobbyScene que l'AI est connecté
-                            singlePlayerCallbackScene.onAIPlayerConnected();
-                            System.out.println("GameServerManager: Notifié SinglePlayerLobbyScene que l'AI est connecté.");
                         } else {
                             // Si aucun callback (mode solo hébergé par GameScene),
                             // démarrer automatiquement GameEngineServer.

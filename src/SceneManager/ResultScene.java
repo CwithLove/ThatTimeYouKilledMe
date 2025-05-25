@@ -412,31 +412,10 @@ public class ResultScene implements Scene {
 
         // Vérifier si c'est un mode solo (contre IA)
         if (isSinglePlayerMode) {
-            // En mode solo, transmettre les références du serveur et du client pour éviter "Address already in use"
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    System.out.println("ResultScene: Création d'une nouvelle instance de SinglePlayerLobbyScene avec les connexions existantes");
-                    SinglePlayerLobbyScene singlePlayerLobbyScene = new SinglePlayerLobbyScene(sceneManager, clientToTransfer, serverToTransfer);
-                    sceneManager.setScene(singlePlayerLobbyScene);
-                } catch (Exception e) {
-                    System.err.println("ResultScene: Erreur lors du retour au lobby Solo: " + e.getMessage());
-                    e.printStackTrace();
-                    
-                    // Maintenant on peut nettoyer les ressources en cas d'erreur
-                    if (clientToTransfer != null) {
-                        clientToTransfer.disconnect();
-                        System.out.println("ResultScene: Déconnexion du client en mode solo (après erreur)");
-                    }
-                    
-                    if (serverToTransfer != null) {
-                        serverToTransfer.stopServer();
-                        System.out.println("ResultScene: Arrêt du serveur en mode solo (après erreur)");
-                    }
-                    
-                    // En cas d'erreur, retour au menu
-                    sceneManager.setScene(new MenuScene(sceneManager));
-                }
-            });
+            this.serverManager.stopServer(); // Arrêter le serveur si c'est un mode solo
+            this.serverManager = null; // Libérer la référence au serveur
+            System.out.println("ResultScene: Mode solo détecté, retour à SinglePlayerLobbyScene");
+            sceneManager.setScene(new SinglePlayerLobbyScene(sceneManager));
             return;
         }
         

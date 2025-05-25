@@ -41,10 +41,8 @@ public class MenuScene implements Scene {
         // Initialisation des boutons. Leurs positions et tailles réelles
         // seront définies dynamiquement dans la méthode render().
         singleButton = new Button(0, 0, 0, 0, "Single Player (vs AI)", () -> {
-            // Logique pour démarrer une partie solo.
-            // GameScene sera configuré pour démarrer un serveur local et un client AI.
-            GameScene gameScene = new GameScene(sceneManager, true /* isSelfHostAndRunAI = true */);
-            sceneManager.setScene(gameScene);
+            // 直接跳转到单人游戏大厅场景
+            sceneManager.setScene(new SinglePlayerLobbyScene(sceneManager));
         });
 
         multiButton = new Button(0, 0, 0, 0, "Multi Player", () -> {

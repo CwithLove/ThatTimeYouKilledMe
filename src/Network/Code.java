@@ -11,5 +11,6 @@ public enum Code {
     ADVERSAIRE,     // C'est le tour de l'adversaire
     COUP,           // Le coup a été joué
     GAGNE,          // Le joueur a gagné
-    PERDU           // Le joueur a perdu
+    PERDU,          // Le joueur a perdu
+    SERVER_SHUTDOWN  // Le serveur est en cours de fermeture
 }

@@ -8,6 +8,7 @@ import Network.AIClient;
 import Network.GameClient;
 import Network.GameServerManager;
 import Network.GameStateUpdateListener;
+import SceneManager.ResultScene;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -22,7 +23,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
-public class GameScene implements Scene, GameStateUpdateListener {
+public class GameScene implements Scene, GameStateUpdateListener, GameServerManager.PlayerDisconnectionListener {
 
     private SceneManager sceneManager;
     private Jeu jeu; // Même état de jeu que dans le serveur
@@ -62,6 +63,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // (onGameMessage)
     private volatile boolean isLoading = false; // Pour afficher l'état de chargement
     private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
+    private volatile boolean handlingDisconnection = false; // 防止onPlayerDisconnected被多次调用
 
     Point mousePoint;
     boolean transparent = false;
@@ -140,11 +142,17 @@ public class GameScene implements Scene, GameStateUpdateListener {
     // Constructeur pour l'hôte en mode multijoueur (avec un GameClient déjà
     // connecté depuis HostingScene)
     public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient,
-            GameServerManager serverManager) {
+            GameServerManager serverManager, boolean isSinglePlayerMode) {
         this.sceneManager = sceneManager;
-        this.isOperatingInSinglePlayerMode = false;
+        this.isOperatingInSinglePlayerMode = isSinglePlayerMode;
         this.gameClient = alreadyConnectedHostClient; // Utilise le client déjà connecté
         this.hostServerManager = serverManager; // Reprend la gestion du serveur
+        
+        // Définir cette classe comme listener de déconnexion pour le serveur
+        if (this.hostServerManager != null) {
+            this.hostServerManager.setDisconnectionListener(this);
+            System.out.println("GameScene: Enregistré comme listener de déconnexion pour le serveur");
+        }
 
             if (this.gameClient == null) {
                 this.statusMessage = "Erreur fatale: Client hôte non fourni à GameScene.";
@@ -258,7 +266,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
     // Modifie le constructeur original pour maintenir la compatibilité
     public GameScene(SceneManager sceneManager, GameClient alreadyConnectedHostClient) {
-        this(sceneManager, alreadyConnectedHostClient, null);
+        this(sceneManager, alreadyConnectedHostClient, null, false);
     }
 
     private void commonUIInit() {
@@ -468,6 +476,15 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 localSinglePlayerServerManager = new GameServerManager(null); // callback = null
                 localSinglePlayerServerManager.startServer(); // Lancement serveur local 127.0.0.1
                 Thread.sleep(300); // Petit délai pour éviter les courses
+                gameClient = new GameClient("127.0.0.1", GameScene.this);
+                // Ensure le client utilise le port correct du serveur
+                if (localSinglePlayerServerManager != null) {
+                    int serverPort = localSinglePlayerServerManager.getCurrentPort();
+                    gameClient.setServerPort(serverPort);
+                    System.out.println("GameScene (Solo): Configuration du client UI pour utiliser le port " + serverPort);
+                }
+                gameClient.connect(); // Le joueur UI se connecte
+                publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + "). Démarrage de l'IA...");
 
                 if (modeSolo == 1) {
                     publish("Mode : UI vs IA");
@@ -485,25 +502,23 @@ public class GameScene implements Scene, GameStateUpdateListener {
                         throw new IOException("L'IA n'a pas pu se connecter.");
                     }
 
-                } else if (modeSolo == 2) {
-                    // Démarre les deux IA
-                    publish("Mode : IA vs IA");
-                    gameClient = new GameClient("127.0.0.1", GameScene.this);
-                    // IA1
-                    aiClient1 = new AIClient("127.0.0.1");
-                    aiClient1.connect();
-                    aiClient1.startListeningAndPlaying();
-
-                    // IA2
-                    aiClient2 = new AIClient("127.0.0.1");
-                    aiClient2.connect();
-                    aiClient2.startListeningAndPlaying();
-
-
-
-                }
-
+                } 
                 Thread.sleep(500); // Attente pour que le serveur détecte les connexions
+                aiClientInstance = new AIClient("127.0.0.1");
+    
+                if (localSinglePlayerServerManager != null) {
+                    int serverPort = localSinglePlayerServerManager.getCurrentPort();
+                    aiClientInstance.setServerPort(serverPort);
+                    System.out.println("GameScene (Solo): Configuration de l'AI pour utiliser le port " + serverPort);
+                }
+                aiClientInstance.connect(); // L'IA se connecte
+                if (aiClientInstance.isConnected()) {
+                    aiClientInstance.startListeningAndPlaying(); // Démarrer le thread de l'IA
+                    publish("IA (ID: " + aiClientInstance.getMyPlayerId() + ") connectée et à l'écoute.");
+                } else {
+                    publish("Erreur: L'IA n'a pas pu se connecter.");
+                    throw new IOException("Échec de la connexion du client IA.");
+                }
 
                 if (localSinglePlayerServerManager.areAllPlayersConnected()) {
                     publish("Moteur de jeu prêt.");
@@ -996,7 +1011,8 @@ public class GameScene implements Scene, GameStateUpdateListener {
                     g2d.setColor(new Color(0, 0, 0, 150));
                     g2d.fillRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
                     g2d.drawRoundRect(((width - (selectMsgWidth + 100*width/1920)) / 2), offsetY - 110*width/1920, selectMsgWidth + 100*width/1920, 70*width/1920, 10, 10);
-                    g2d.setColor(Color.WHITE);
+                    //g2d.setColor(Color.WHITE);
+                    g2d.setColor(Color.YELLOW);
                     g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 65*width/1920);
                 }
             }
@@ -1032,11 +1048,11 @@ public class GameScene implements Scene, GameStateUpdateListener {
 
             if (etapeCoup == 3 && isMyTurn()) {
                 // Feedforward des plateaux
-                //g2d.setColor(new Color(0x8DE2DE));
-                g2d.setColor(Color.WHITE);
+                g2d.setColor(new Color(0x8DE2DE));
+                //g2d.setColor(Color.WHITE);
 
                 Stroke originalStroke = g2d.getStroke();
-                g2d.setStroke(new BasicStroke(8f*width/1920f)); // Épaisseur de la bordure
+                g2d.setStroke(new BasicStroke(6f*width/1920f)); // Épaisseur de la bordure
 
                 if (gameClient.getMyPlayerId() == 1) {
                     activePlateau = joueur1SelectedPlateau;
@@ -1337,37 +1353,36 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 Piece p = plateau.getPiece(row, col);
                 // Set up les couleurs de fond des cases
                 Color white = null, black = null;
-                Color vfonce = new Color(83, 202, 54);
-                Color vclaire = new Color(83, 202, 54);
+                int vfonce = 0x66D7D1, vclaire = 0x8DE2DE;
                 switch (plateau.getType()) {
                     case PAST -> {
                         if (casesPasse.contains(new Point(row, col))) {
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(140, 90, 80);
+                        white = new Color(230, 220, 200);
+                        black = new Color(120, 100, 90);
                     }
                     case PRESENT -> {
                         if (casesPresent.contains(new Point(row, col))) {
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(120, 110, 90);
+                        white = new Color(232, 222, 196);
+                        black = new Color(115, 95, 100);
                     }
                     case FUTURE -> {
                         if (casesFutur.contains(new Point(row, col))) {
                             // white = new Color(100, 255, 90);
                             // black = new Color(60, 240, 50);
-                            white = vclaire;
-                            black = vfonce;
+                            white = new Color(vclaire);
+                            black = new Color(vclaire);
                             break;
                         }
-                        white = new Color(210, 230, 210);
-                        black = new Color(110, 90, 110);
+                        white = new Color(232, 216, 202);
+                        black = new Color(130, 95, 85);
                     }
                 }
 
@@ -1549,7 +1564,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                                 System.out.println(transparent);*/
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent && clone == false) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
                                     g.drawImage(lemielAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(lemielAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
@@ -1571,7 +1586,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                             else {
                                 if (selectedPlateauType != null && selectedPiecePosition != null && selectedPlateauType == plateau.getType() && 
                                 selectedPiecePosition.getX() == row && selectedPiecePosition.getY() == col && transparent && clone == false) {
-                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                                    g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
                                     g.drawImage(zarekAnimation[0][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.drawImage(zarekAnimation[1][frame], pieceX, pieceY, imageWidth, imageHeight, null);
                                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
@@ -1962,6 +1977,29 @@ public class GameScene implements Scene, GameStateUpdateListener {
         System.out.println("GameScene: Message reçu: " + messageType + " -> " + messageContent);
 
         switch (messageType) {
+            case "SERVER_SHUTDOWN":
+                // Le serveur est en train de se fermer
+                statusMessage = "Le serveur a été fermé: " + messageContent;
+                
+                // En mode solo, ignorer les messages SERVER_SHUTDOWN lors de la transition vers ResultScene
+                // car ils sont envoyés pendant le nettoyage normal des ressources
+                if (isOperatingInSinglePlayerMode && gameHasEnded) {
+                    System.out.println("GameScene: Ignorant le message SERVER_SHUTDOWN en mode solo pendant la transition");
+                    break;
+                }
+                
+                // Afficher un message et retourner au menu principal
+                JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                            "Le serveur a été fermé: " + messageContent,
+                                            "Serveur Fermé", JOptionPane.INFORMATION_MESSAGE);
+                
+                // Marquer que le jeu est terminé pour éviter d'autres actions
+                gameHasEnded = true;
+                
+                // Retourner au menu principal
+                cleanUpAndGoToMenu();
+                break;
+                
             case "PIECE":
                 // Gérer le message de succès de la sélection de pièce
                 casesPasse.clear();
@@ -2172,32 +2210,34 @@ public class GameScene implements Scene, GameStateUpdateListener {
             case "LOSE":
                 gameHasEnded = true;
                 String victoryTitle = ("WIN".equals(messageType) || "GAGNE".equals(messageType)) ? "FÉLICITATIONS !" : "DOMMAGE !";
-                
+
+                int winnerid = 0;
                 // Modifier le contenu affiché
                 String victoryContent = messageContent;
-                if (messageContent.contains("Joueur 1")) {
-                    victoryContent = messageContent.replace("Joueur 1", "Lemiel");
-                } else if (messageContent.contains("Joueur 2")) {
-                    victoryContent = messageContent.replace("Joueur 2", "Zarek");
+                if (messageContent.contains("1")) {
+                    winnerid = 1;
+                    victoryContent = messageContent.replace("1", "Lemiel");
+                } else if (messageContent.contains("2")) {
+                    winnerid = 2;
+                    victoryContent = messageContent.replace("2", "Zarek");
                 }
                 statusMessage = victoryContent;
-                
-                // Demander à l'utilisateur si il veut retourner au lobby ou quitter
-                int choice = JOptionPane.showConfirmDialog(
-                    sceneManager.getPanel(),
-                    victoryContent + "\n\nVoulez-vous retourner au lobby pour jouer une autre partie?",
-                    victoryTitle,
-                    JOptionPane.YES_NO_OPTION
-                );
-                
-                if (choice == JOptionPane.YES_OPTION) {
-                    // Retourner au lobby
-                    returnToLobby();
+
+
+                if (gameClient != null) {
+                    System.out.println("GameScene: Création d'une nouvelle instance de ResultScene pour le mode " + (isOperatingInSinglePlayerMode ? "solo" : "multijoueur"));
+                    ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent,
+                                                          gameClient, hostServerManager, isOperatingInSinglePlayerMode);
+                    gameClient = null;
+                    hostServerManager = null;
+                    sceneManager.setScene(resultScene);
                 } else {
-                    // Quitter le jeu
-                    cleanUpAndGoToMenu();
+                    ResultScene resultScene = new ResultScene(sceneManager, winnerid, victoryContent);
+                    sceneManager.setScene(resultScene);
                 }
-                break;
+             break;
+
+
 
             case "ADVERSAIRE":
                 // Gérer les erreurs du serveur ou les informations de tour
@@ -2219,7 +2259,7 @@ public class GameScene implements Scene, GameStateUpdateListener {
                 statusMessage = modifiedContent;
                 break;
 
-            // 保留原来的处理，用于兼容性
+
             case "GAGNE":
             case "PERDU":
 
@@ -2458,6 +2498,25 @@ public class GameScene implements Scene, GameStateUpdateListener {
             statusMessage = "Plateau FUTUR sélectionné pour le prochain tour.";
             System.out.println("GameScene: Sélection du plateau FUTUR pour le prochain tour");
         }
+    }
+
+    @Override
+    public void onPlayerDisconnected() {
+        // Si le joueur s'est déconnecté, on affiche un message et on retourne au menu principal
+        if (handlingDisconnection) {
+            return;
+        }
+        handlingDisconnection = true;
+        SwingUtilities.invokeLater(() -> {
+            // Afficher un message de déconnexion
+            JOptionPane.showMessageDialog(sceneManager.getPanel(), 
+                "Le joueur s'est déconnecté, le jeu est terminé", 
+                "DÉCONNECTÉ",
+                JOptionPane.WARNING_MESSAGE);
+            
+            // retourner au menu principal
+            cleanUpAndGoToMenu();
+        });
     }
 
     private Point getCaseFromMousePoint(Plateau plateau, Point point) {

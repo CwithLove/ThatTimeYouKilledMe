@@ -7,6 +7,7 @@ import Modele.Piece;
 import Modele.Plateau;
 import Modele.Plateau.TypePlateau;
 import SceneManager.HostingScene;
+import SceneManager.SinglePlayerLobbyScene;
 import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -17,13 +18,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue; // Importer la classe Jeu
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class GameServerManager {
 
     private static final int PORT = 12345;
+    private static final int MAX_PORT_ATTEMPTS = 5;  // 最大端口尝试次数
+    private int currentPort = PORT;  // 当前使用的端口
     private ServerSocket serverSocket;
     private Thread acceptConnectionsThread;
     private Thread gameEngineThread;
@@ -38,111 +42,350 @@ public class GameServerManager {
     private int currentTurnPlayerId; // ID du joueur dont c'est le tour
 
     private HostingScene hostingSceneCallback; // Callback pour HostingScene (si l'hôte est en mode multijoueur)
+    private SinglePlayerLobbyScene singlePlayerCallbackScene; // Callback pour SinglePlayerLobbyScene (si l'hôte est en mode solo)
     private volatile boolean isServerRunning = false;
+    // Stocker les récepteurs client
+    private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
+    
+    // Variables pour le mode AI
+    private boolean aiMode = false;
+    private String aiDifficulty = "Facile"; // Par défaut: facile
+    private Thread aiPlayerThread;
+    
+    // Interface pour le callback de déconnexion
+    public interface PlayerDisconnectionListener {
+        void onPlayerDisconnected();
+    }
+    
+    // Référence au listener de déconnexion (GameScene)
+    private PlayerDisconnectionListener disconnectionListener;
+    private volatile boolean notifiedDisconnection = false;
 
+    /**
+     * Constructeur standard pour le mode multijoueur
+     * @param callback Le callback vers HostingScene
+     */
     public GameServerManager(HostingScene callback) {
-        this.hostingSceneCallback = callback; // Peut être null (par exemple : lorsque GameScene héberge en solo)
+        this.hostingSceneCallback = callback;
+        this.aiMode = false;
+    }
+    
+    /**
+     * Constructeur pour le mode AI
+     * @param callback Le callback vers SinglePlayerLobbyScene
+     * @param aiMode True si c'est un jeu avec AI
+     */
+    public GameServerManager(SinglePlayerLobbyScene callback, boolean aiMode) {
+        this.singlePlayerCallbackScene = callback;
+        this.aiMode = aiMode;
     }
 
+    /**
+     * Démarrer le serveur de jeu
+     */
     public void startServer() throws IOException {
         if (isServerRunning) {
             System.out.println("GameServerManager: Le serveur est déjà en cours d'exécution.");
             return;
         }
-        serverSocket = new ServerSocket(PORT);
-        isServerRunning = true;
-        System.out.println("GameServerManager: Serveur démarré sur le port " + PORT);
-
-        acceptConnectionsThread = new Thread(() -> {
+        
+        boolean serverStarted = false;
+        IOException lastException = null;
+        
+        // Tenter de démarrer le serveur sur différents ports si nécessaire
+        for (int attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
+            currentPort = PORT + attempt;  // Essayer le port de base + tentative
             try {
-                while (connectedClientIds.size() < maxClients && isServerRunning) {
-                    System.out.println("GameServerManager: En attente de connexions client ("
-                            + connectedClientIds.size() + "/" + maxClients + ")...");
-                    Socket clientSocket = serverSocket.accept(); // Accepter une connexion
-
-                    synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
-                        clientIdCounter++;
-                    }
-                    int newClientId = clientIdCounter;
-
-                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
-
-                    try {
-                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
-                       // 1. Le serveur crée un flux de sortie et le flush
-                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                        out.flush();
-
-                        // 2. Le client crée un flux d'entrée
-                        // 3. Le client crée un flux de sortie et le flush
-                        // 4. Le serveur crée un flux d'entrée
-                        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-
-                        // 5. Le serveur envoie ID
-                        out.writeObject("ID:" + newClientId);
-                        out.flush();
-                        System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
-
-                        BlockingQueue<String> clientOutgoingQueue = new LinkedBlockingQueue<>();
-                        outgoingQueues.put(newClientId, clientOutgoingQueue);
-                        connectedClientIds.add(newClientId);
-
-
-                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
-                        Thread receiverThread = new Thread(
-                                new ClientReceiver(in, incomingMessages, newClientId),
-                                "ClientReceiver-" + newClientId
-                        );
-                        receiverThread.start();
-
-                        Thread senderThread = new Thread(
-                                new ClientSender(out, clientOutgoingQueue, newClientId),
-                                "ClientSender-" + newClientId
-                        );
-                        senderThread.start();
-
-                        System.out.println("GameServerManager: Client " + newClientId + " configuré. Clients connectés: " + connectedClientIds.size());
-                    } catch (IOException e) {
-                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId + ": " + e.getMessage());
-                        try {
-                            clientSocket.close();
-                        } catch (IOException closeEx) {
-                            // ignore les erreurs dans la fermeture
-                        }
-                        continue; // sortie d'iteration acutelle
-                    }
-
-                    if (connectedClientIds.size() == maxClients) {
-                        System.out.println("GameServerManager: Nombre maximum de " + maxClients + " joueurs atteint.");
-                        if (hostingSceneCallback != null) {
-                            // Si HostingScene a un callback, le notifier.
-                            // HostingScene décidera quand appeler startGameEngine().
-                            hostingSceneCallback.onPlayerTwoConnected();
-                            System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
-                        } else {
-                            // Si aucun callback (mode solo hébergé par GameScene),
-                            // démarrer automatiquement GameEngineServer.
-                            System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
-                            startGameEngine();
-                        }
-                    }
-                }
-                if (isServerRunning) {
-                    System.out.println("GameServerManager: Nombre maximum de clients atteint ou arrêt du serveur. Arrêt de l'acceptation de nouvelles connexions.");
-                }
+                serverSocket = new ServerSocket(currentPort);
+                serverStarted = true;
+                break;  // Sortir de la boucle si le serveur démarre avec succès
             } catch (IOException e) {
-                if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
-                    System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
-                    // e.printStackTrace(); // Peut encombrer la console
-                } else {
-                    System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
-                }
-            } finally {
-                System.out.println("GameServerManager: Le thread d'acceptation des connexions s'est terminé.");
+                lastException = e;
+                System.out.println("GameServerManager: Échec de démarrage sur le port " + currentPort + 
+                                   ": " + e.getMessage() + " - Tentative sur un autre port...");
+                // Continue to try the next port
             }
-        });
-        acceptConnectionsThread.setName("GSM-AcceptConnectionsThread");
-        acceptConnectionsThread.start();
+        }
+        
+        if (!serverStarted) {
+            System.err.println("GameServerManager: Impossible de démarrer le serveur après " + 
+                              MAX_PORT_ATTEMPTS + " tentatives.");
+            throw lastException;  // Lancer la dernière exception si toutes les tentatives échouent
+        }
+        
+        isServerRunning = true;
+        notifiedDisconnection = false; // 重置断开连接通知标记
+        System.out.println("GameServerManager: Serveur démarré sur le port " + currentPort);
+
+        // Créer et démarrer un nouveau thread d'acceptation
+        createAndStartAcceptThread("GameServerThread");
+    }
+
+    /**
+     * Définir la difficulté de l'AI
+     * @param difficulty Niveau de difficulté: "Facile", "Moyen", "Difficile"
+     */
+    public void setAIDifficulty(String difficulty) {
+        this.aiDifficulty = difficulty;
+        System.out.println("GameServerManager: Difficulté AI définie à " + difficulty);
+    }
+    
+    /**
+     * Connecter un joueur AI au serveur
+     * @param difficulty Niveau de difficulté
+     */
+    public void connectAIPlayer(String difficulty) {
+        if (!aiMode) {
+            System.out.println("GameServerManager: Impossible de connecter l'AI, mode AI non activé.");
+            return;
+        }
+        
+        setAIDifficulty(difficulty);
+        
+        // Si l'AI est déjà connecté, ne rien faire
+        if (connectedClientIds.contains(2)) {
+            System.out.println("GameServerManager: L'AI est déjà connecté.");
+            return;
+        }
+        
+        // Créer un thread pour simuler la connexion de l'AI
+        aiPlayerThread = new Thread(() -> {
+            try {
+                System.out.println("GameServerManager: Connexion de l'AI en cours...");
+                Thread.sleep(500); // Simuler un délai de connexion
+                
+                // Ajouter l'AI comme joueur 2
+                synchronized (this) {
+                    clientIdCounter = 1; // S'assurer que l'AI aura l'ID 2
+                }
+                
+                // Créer une file d'attente pour les messages sortants vers l'AI
+                BlockingQueue<String> aiOutgoingQueue = new LinkedBlockingQueue<>();
+                outgoingQueues.put(2, aiOutgoingQueue);
+                connectedClientIds.add(2);
+                
+                System.out.println("GameServerManager: AI connecté avec ID 2");
+                
+                // Notifier le SinglePlayerLobbyScene que l'AI est connecté
+                if (singlePlayerCallbackScene != null) {
+                    singlePlayerCallbackScene.onAIPlayerConnected();
+                }
+                
+                // Démarrer le thread d'AI qui va "lire" les messages et y répondre
+                Thread aiResponseThread = new Thread(this::processAIResponses, "AI-ResponseThread");
+                aiResponseThread.start();
+                
+            } catch (InterruptedException e) {
+                System.err.println("GameServerManager: Interruption pendant la connexion de l'AI: " + e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+        }, "AI-ConnectionThread");
+        
+        aiPlayerThread.start();
+    }
+    
+    /**
+     * Traiter les réponses de l'AI
+     */
+    private void processAIResponses() {
+        try {
+            while (isServerRunning && connectedClientIds.contains(2)) {
+                // Attendre que ce soit le tour de l'AI
+                if (gameInstance != null && gameInstance.getJoueurCourant().getId() == 2) {
+                    // Simuler un temps de réflexion basé sur la difficulté
+                    int thinkingTime;
+                    switch (aiDifficulty) {
+                        case "Facile":
+                            thinkingTime = 1000 + new Random().nextInt(1000); // 1-2 secondes
+                            break;
+                        case "Moyen":
+                            thinkingTime = 700 + new Random().nextInt(800); // 0.7-1.5 secondes
+                            break;
+                        case "Difficile":
+                            thinkingTime = 300 + new Random().nextInt(700); // 0.3-1 seconde
+                            break;
+                        default:
+                            thinkingTime = 1000;
+                    }
+                    Thread.sleep(thinkingTime);
+                    
+                    // Générer un coup pour l'AI
+                    generateAIMove();
+                }
+                
+                // Pause pour éviter une utilisation CPU excessive
+                Thread.sleep(100);
+            }
+        } catch (InterruptedException e) {
+            System.err.println("GameServerManager: Interruption du thread de réponse AI: " + e.getMessage());
+            Thread.currentThread().interrupt();
+        }
+    }
+    
+    /**
+     * Générer un coup pour l'AI
+     */
+    private void generateAIMove() {
+        if (gameInstance == null || !connectedClientIds.contains(2)) {
+            return;
+        }
+        
+        try {
+            Joueur aiJoueur = gameInstance.getJoueur2();
+            Plateau plateauCourant = gameInstance.getPlateauCourant();
+            int etapeCoup = gameInstance.getEtapeCoup();
+            
+            // En fonction de l'étape du coup, générer l'action appropriée
+            if (etapeCoup == 0) {
+                // Sélectionner une pièce
+                ArrayList<Piece> piecesDispo = new ArrayList<>();
+                for (Piece piece : plateauCourant.getPieces(aiJoueur)) {
+                    ArrayList<Coup> coups = gameInstance.getCoupPossibles(plateauCourant, piece);
+                    if (!coups.isEmpty()) {
+                        piecesDispo.add(piece);
+                    }
+                }
+                
+                if (!piecesDispo.isEmpty()) {
+                    // Sélectionner une pièce en fonction de la difficulté
+                    Piece selectedPiece;
+                    if (aiDifficulty.equals("Difficile")) {
+                        // En difficulté difficile, essaie de choisir la pièce avec le plus de mouvements possibles
+                        selectedPiece = getBestPiece(piecesDispo, plateauCourant);
+                    } else {
+                        // Sinon, sélection aléatoire
+                        selectedPiece = piecesDispo.get(new Random().nextInt(piecesDispo.size()));
+                    }
+                    
+                    // Créer et ajouter le message à la file d'attente
+                    String message = "0:null:" + plateauCourant.getType() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y;
+                    incomingMessages.add(new Message(2, message));
+                    System.out.println("AI: Sélection de pièce - " + message);
+                }
+            } else if (etapeCoup == 1 || etapeCoup == 2) {
+                // Jouer un coup
+                Piece pieceCourante = gameInstance.getPieceCourante();
+                if (pieceCourante != null) {
+                    ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
+                    
+                    if (!coupsPossibles.isEmpty()) {
+                        // Sélectionner un coup en fonction de la difficulté
+                        Coup selectedCoup;
+                        if (aiDifficulty.equals("Difficile")) {
+                            // Tente de choisir un coup avantageux
+                            selectedCoup = getBestCoup(coupsPossibles);
+                        } else if (aiDifficulty.equals("Moyen")) {
+                            // Mélange entre aléatoire et intelligent
+                            if (new Random().nextDouble() < 0.7) {
+                                selectedCoup = getBestCoup(coupsPossibles);
+                            } else {
+                                selectedCoup = coupsPossibles.get(new Random().nextInt(coupsPossibles.size()));
+                            }
+                        } else {
+                            // Purement aléatoire pour niveau facile
+                            selectedCoup = coupsPossibles.get(new Random().nextInt(coupsPossibles.size()));
+                        }
+                        
+                        // Préparer le message en fonction du type de coup
+                        String targetPlateau = plateauCourant.getType().name();
+                        int targetX = pieceCourante.getPosition().x;
+                        int targetY = pieceCourante.getPosition().y;
+                        
+                        // Déterminer la cible en fonction du type de coup
+                        switch (selectedCoup.getTypeCoup()) {
+                            case UP:
+                                targetX -= 1;
+                                break;
+                            case DOWN:
+                                targetX += 1;
+                                break;
+                            case LEFT:
+                                targetY -= 1;
+                                break;
+                            case RIGHT:
+                                targetY += 1;
+                                break;
+                            case JUMP:
+                                targetPlateau = (plateauCourant.getType() == Plateau.TypePlateau.PAST) ? "PRESENT" : "FUTURE";
+                                break;
+                            case CLONE:
+                                targetPlateau = (plateauCourant.getType() == Plateau.TypePlateau.FUTURE) ? "PRESENT" : "PAST";
+                                break;
+                        }
+                        
+                        // Créer et ajouter le message
+                        String message = "0:null:" + targetPlateau + ":" + targetX + ":" + targetY;
+                        incomingMessages.add(new Message(2, message));
+                        System.out.println("AI: Coup - " + message);
+                    }
+                }
+            } else if (etapeCoup == 3) {
+                // Choisir le prochain plateau
+                Plateau.TypePlateau[] plateauOptions = {Plateau.TypePlateau.PAST, Plateau.TypePlateau.PRESENT, Plateau.TypePlateau.FUTURE};
+                Plateau.TypePlateau currentPlateauType = plateauCourant.getType();
+                
+                // Filtrer pour exclure le plateau actuel
+                ArrayList<Plateau.TypePlateau> validOptions = new ArrayList<>();
+                for (Plateau.TypePlateau option : plateauOptions) {
+                    if (option != currentPlateauType) {
+                        validOptions.add(option);
+                    }
+                }
+                
+                // Choisir un plateau
+                Plateau.TypePlateau nextPlateau;
+                if (aiDifficulty.equals("Difficile")) {
+                    // Logique plus avancée pourrait être implémentée ici
+                    // Pour l'instant, simplement aléatoire
+                    nextPlateau = validOptions.get(new Random().nextInt(validOptions.size()));
+                } else {
+                    nextPlateau = validOptions.get(new Random().nextInt(validOptions.size()));
+                }
+                
+                // Créer et ajouter le message
+                String message = "0:" + nextPlateau + ":" + plateauCourant.getType() + ":0:0";
+                incomingMessages.add(new Message(2, message));
+                System.out.println("AI: Choix de plateau - " + message);
+            }
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Erreur lors de la génération du coup AI: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Obtenir la meilleure pièce à jouer (stratégie simple)
+     */
+    private Piece getBestPiece(ArrayList<Piece> pieces, Plateau plateau) {
+        Piece bestPiece = pieces.get(0);
+        int maxMoves = 0;
+        
+        for (Piece piece : pieces) {
+            int moves = gameInstance.getCoupPossibles(plateau, piece).size();
+            if (moves > maxMoves) {
+                maxMoves = moves;
+                bestPiece = piece;
+            }
+        }
+        
+        return bestPiece;
+    }
+    
+    /**
+     * Obtenir le meilleur coup à jouer (stratégie simple)
+     */
+    private Coup getBestCoup(ArrayList<Coup> coups) {
+        // Pour l'instant, une stratégie simple: priorité aux actions spéciales (JUMP/CLONE)
+        
+        // Préférer les actions spéciales (JUMP/CLONE) si disponibles
+        for (Coup coup : coups) {
+            if (coup.getTypeCoup() == Coup.TypeCoup.JUMP || coup.getTypeCoup() == Coup.TypeCoup.CLONE) {
+                return coup;
+            }
+        }
+        
+        // Sinon, choisir un coup aléatoire
+        return coups.get(new Random().nextInt(coups.size()));
     }
 
     public synchronized void startGameEngine() { // synchronized pour éviter plusieurs appels
@@ -669,33 +912,100 @@ public class GameServerManager {
             return;
         }
         System.out.println("GameServerManager: Arrêt du serveur...");
+        
+        // Envoyer un message SERVER_SHUTDOWN à tous les clients connectés avant de fermer
+        if (!connectedClientIds.isEmpty()) {
+            System.out.println("GameServerManager: Envoi de message SERVER_SHUTDOWN à " + connectedClientIds.size() + " clients");
+            String shutdownMessage = Code.SERVER_SHUTDOWN.name() + ":Le serveur est en cours de fermeture.";
+            sendStateToAllClients(shutdownMessage);
+            
+            // Attendre un court instant pour permettre l'envoi des messages
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
         isServerRunning = false; // Définir ce drapeau en premier
+        notifiedDisconnection = false; // Réinitialiser l'indicateur de notification
+
+        // Fermer les threads client
+        closeAllClientConnections();
 
         try {
+            // Interrompre les threads
             if (acceptConnectionsThread != null && acceptConnectionsThread.isAlive()) {
                 acceptConnectionsThread.interrupt(); // Essayer d'interrompre le thread d'acceptation
+                System.out.println("GameServerManager: Thread d'acceptation interrompu.");
             }
+            
+            // Attendre un peu avant de fermer le socket
+            Thread.sleep(100);
+            
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close(); // Fermer le server socket fera que accept() lève une exception et sort de la boucle
+                System.out.println("GameServerManager: ServerSocket fermé.");
+                // Tentative de libération forcée du port
+                serverSocket = null;
+                System.gc(); // Suggestion de collecte des déchets
             }
         } catch (IOException e) {
             System.err.println("GameServerManager: Erreur lors de la fermeture du ServerSocket: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
 
         if (gameEngineThread != null && gameEngineThread.isAlive()) {
             gameEngineThread.interrupt(); // Essayer d'interrompre le thread du moteur de jeu
+            System.out.println("GameServerManager: Thread du moteur de jeu interrompu.");
+        }
+        
+        // Arrêter le thread AI s'il est en cours
+        if (aiPlayerThread != null && aiPlayerThread.isAlive()) {
+            aiPlayerThread.interrupt();
+            System.out.println("GameServerManager: Thread AI interrompu.");
         }
 
-        // TODO : Un mécanisme est nécessaire pour déconnecter tous les ClientReceiver/ClientSender en cours d'exécution
-        // et fermer leurs sockets clients. Actuellement, ils se termineront automatiquement lorsque le socket sera fermé.
         // Supprimer les clients connectés et leurs files d'attente
         connectedClientIds.clear();
         outgoingQueues.clear(); // Les ClientSenders se termineront automatiquement lorsque la file d'attente sera vidée ou qu'une exception sera levée
         incomingMessages.clear(); // Les ClientReceivers se termineront lorsque le socket sera fermé
+        clientReceivers.clear(); // Nettoyer explicitement les récepteurs client
 
         System.out.println("GameServerManager: Serveur arrêté.");
+        
+        // Attendre un peu plus pour s'assurer que toutes les ressources réseau sont libérées
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         // Réinitialiser le compteur pour le prochain démarrage du serveur (le cas échéant)
         clientIdCounter = 0;
+    }
+    
+    /**
+     * Ferme proprement toutes les connexions client
+     */
+    private void closeAllClientConnections() {
+        System.out.println("GameServerManager: Fermeture de toutes les connexions client...");
+        // Fermer tous les récepteurs client pour libérer leurs sockets
+        for (Map.Entry<Integer, ClientReceiver> entry : clientReceivers.entrySet()) {
+            ClientReceiver receiver = entry.getValue();
+            if (receiver != null) {
+                System.out.println("GameServerManager: Fermeture de la connexion du client " + entry.getKey());
+                receiver.closeConnection();
+            }
+        }
+        
+        // Attendre un instant pour que les connexions se ferment proprement
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // Envoie l'état du jeu à tous les clients connectés
@@ -731,8 +1041,16 @@ public class GameServerManager {
         return connectedClientIds.size() == maxClients;
     }
 
+    /**
+     * Retourne le port actuellement utilisé par le serveur
+     * @return Le numéro de port actuel
+     */
+    public int getCurrentPort() {
+        return currentPort;
+    }
+
     public boolean isServerRunning() {
-        return isServerRunning && serverSocket != null && !serverSocket.isClosed();
+        return isServerRunning;
     }
 
     private String getPossibleMovesString(Jeu gameInstance, Plateau plateauCourant, Piece selectedPiece) {
@@ -775,4 +1093,194 @@ public class GameServerManager {
         
         return possibleMovesStr.toString();
     }
+
+    /**
+     * Définit le listener de déconnexion pour la phase de jeu
+     * @param listener L'objet qui implémente PlayerDisconnectionListener (GameScene)
+     */
+    public void setDisconnectionListener(PlayerDisconnectionListener listener) {
+        this.disconnectionListener = listener;
+        System.out.println("GameServerManager: Listener de déconnexion défini");
+    }
+
+    /**
+     * Gestion de la déconnexion d'un client
+     * @param clientId ID du client qui s'est déconnecté
+     */
+    public synchronized void handleClientDisconnection(int clientId) {
+        System.out.println("GameServerManager: Client " + clientId + " s'est déconnecté.");
+        
+        connectedClientIds.remove(Integer.valueOf(clientId));
+        outgoingQueues.remove(clientId);
+        clientReceivers.remove(clientId);
+
+        // Si nous sommes en phase de jeu (gameInstance existe)
+        if (gameInstance != null) {
+            // Notifier l'autre joueur que son adversaire s'est déconnecté
+            int otherPlayerId = (clientId == 1) ? 2 : 1;
+            
+            if (connectedClientIds.contains(otherPlayerId)) {
+                String disconnectionMessage = Code.ADVERSAIRE.name() + ":Votre adversaire (Joueur " + clientId + ") s'est déconnecté.";
+                sendMessageToClient(otherPlayerId, disconnectionMessage);
+                System.out.println("GameServerManager: Notification envoyée au joueur " + otherPlayerId + " que le joueur " + clientId + " s'est déconnecté.");
+            }
+            
+            // Notifier GameScene qu'un joueur s'est déconnecté, seulement si nous n'avons pas déjà notifié
+            if (disconnectionListener != null && !notifiedDisconnection) {
+                notifiedDisconnection = true; // Marquer comme déjà notifié
+                System.out.println("GameServerManager: Notification à GameScene qu'un joueur s'est déconnecté");
+                disconnectionListener.onPlayerDisconnected();
+            }
+        } else {
+            // Si nous sommes encore en phase de Lobby (gameInstance n'existe pas encore)
+            System.out.println("GameServerManager: Déconnexion en phase de Lobby, nettoyage des ressources du joueur " + clientId);
+            
+            // Si c'est le joueur 2 qui s'est déconnecté, on redémarre le thread d'acceptation pour permettre 
+            // à un nouveau joueur 2 de se connecter
+            if (clientId == 2 && isServerRunning) {
+                // Réinitialisation du compteur d'ID pour que le prochain client ait l'ID 2
+                synchronized (this) {
+                    clientIdCounter = 1; // Réinitialiser à 1, le prochain ID sera 2
+                }
+                System.out.println("GameServerManager: Réinitialisation du compteur d'ID client à 1 (prochain ID sera 2)");
+                System.out.println("GameServerManager: Redémarrage du thread d'acceptation pour permettre une nouvelle connexion.");
+                restartAcceptConnectionsThread();
+            }
+        }
+        
+        // Si le joueur 2 s'est déconnecté et nous avons un callback pour HostingScene
+        if (clientId == 2 && hostingSceneCallback != null) {
+            notifyPlayerTwoDisconnected();
+        }
+        
+        System.out.println("GameServerManager: Clients restants connectés: " + connectedClientIds.size());
+    }
+    
+    /**
+     * Notifier HostingScene que le joueur 2 s'est déconnecté
+     */
+    private void notifyPlayerTwoDisconnected() {
+        if (hostingSceneCallback != null) {
+            System.out.println("GameServerManager: Notification à HostingScene que le joueur 2 s'est déconnecté.");
+            hostingSceneCallback.onPlayerTwoDisconnected();
+        }
+    }
+
+    /**
+     * Redémarre le thread d'acceptation des connexions après la déconnexion d'un client
+     */
+    private void restartAcceptConnectionsThread() {
+        // Vérifier si un thread existe déjà et s'il est toujours en cours d'exécution
+        if (acceptConnectionsThread != null && acceptConnectionsThread.isAlive()) {
+            System.out.println("GameServerManager: Le thread d'acceptation est déjà en cours d'exécution.");
+            return;
+        }
+        
+        // 使用封装方法创建并启动线程
+        createAndStartAcceptThread("GSM-AcceptConnectionsThread-Restarted");
+    }
+    
+    /**
+     * Crée et démarre un thread d'acceptation des connexions
+     * @param threadName Nom du thread à créer
+     */
+    private void createAndStartAcceptThread(String threadName) {
+        acceptConnectionsThread = new Thread(() -> {
+            try {
+                System.out.println("GameServerManager: Thread d'acceptation " + threadName + " démarré.");
+                while (connectedClientIds.size() < maxClients && isServerRunning) {
+                    System.out.println("GameServerManager: En attente de connexions client ("
+                            + connectedClientIds.size() + "/" + maxClients + ")...");
+                    Socket clientSocket = serverSocket.accept(); // Accepter une connexion
+
+                    synchronized (this) { // Synchronisation pour incrémenter le compteur et ajouter l'ID client
+                        clientIdCounter++;
+                    }
+                    int newClientId = clientIdCounter;
+
+                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
+
+                    try {
+                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
+                       // 1. Le serveur crée un flux de sortie et le flush
+                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+                        out.flush();
+
+                        // 2. Le client crée un flux d'entrée
+                        // 3. Le client crée un flux de sortie et le flush
+                        // 4. Le serveur crée un flux d'entrée
+                        ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+
+                        // 5. Le serveur envoie ID
+                        out.writeObject("ID:" + newClientId);
+                        out.flush();
+                        System.out.println("GameServerManager: ID " + newClientId + " envoyé au client.");
+
+                        BlockingQueue<String> clientOutgoingQueue = new LinkedBlockingQueue<>();
+                        outgoingQueues.put(newClientId, clientOutgoingQueue);
+                        connectedClientIds.add(newClientId);
+
+
+                        // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
+                        ClientReceiver receiver = new ClientReceiver(in, incomingMessages, newClientId, this);
+                        // 设置客户端Socket，以便在关闭连接时能够正确关闭Socket
+                        receiver.setClientSocket(clientSocket);
+                        Thread receiverThread = new Thread(
+                                receiver,
+                                "ClientReceiver-" + newClientId
+                        );
+                        receiverThread.start();
+                        
+                        // Stocker le récepteur client
+                        clientReceivers.put(newClientId, receiver);
+
+                        Thread senderThread = new Thread(
+                                new ClientSender(out, clientOutgoingQueue, newClientId),
+                                "ClientSender-" + newClientId
+                        );
+                        senderThread.start();
+
+                        System.out.println("GameServerManager: Client " + newClientId + " configuré. Clients connectés: " + connectedClientIds.size());
+                    } catch (IOException e) {
+                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId + ": " + e.getMessage());
+                        try {
+                            clientSocket.close();
+                        } catch (IOException closeEx) {
+                            // ignore les erreurs dans la fermeture
+                        }
+                        continue; // sortie d'iteration acutelle
+                    }
+
+                    if (connectedClientIds.size() == maxClients) {
+                        System.out.println("GameServerManager: Nombre maximum de " + maxClients + " joueurs atteint.");
+                        if (hostingSceneCallback != null) {
+                            // Si HostingScene a un callback, le notifier.
+                            // HostingScene décidera quand appeler startGameEngine().
+                            hostingSceneCallback.onPlayerTwoConnected();
+                            System.out.println("GameServerManager: Notifié HostingScene que le joueur 2 est connecté.");
+                        } else if (singlePlayerCallbackScene != null && aiMode) {
+                            // Notifier SinglePlayerLobbyScene que l'AI est connecté
+                            singlePlayerCallbackScene.onAIPlayerConnected();
+                            System.out.println("GameServerManager: Notifié SinglePlayerLobbyScene que l'AI est connecté.");
+                        } else {
+                            // Si aucun callback (mode solo hébergé par GameScene),
+                            // démarrer automatiquement GameEngineServer.
+                            System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
+                            startGameEngine();
+                        }
+                    }
+                }
+                System.out.println("GameServerManager: Thread d'acceptation terminé.");
+            } catch (IOException e) {
+                if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
+                    System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
+                } else {
+                    System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
+                }
+            }
+        });
+        acceptConnectionsThread.setName(threadName);
+        acceptConnectionsThread.start();
+    }
+
 }

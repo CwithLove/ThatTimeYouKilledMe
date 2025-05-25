@@ -4,11 +4,9 @@ import Modele.IAFields;
 import Modele.Jeu;
 import Modele.Piece;
 import Modele.Plateau;
-
 import java.io.*;
 import java.net.*;
-// import Modele.Plateau; // Ne pas utiliser Plateau directement
-// import Modele.Piece; // Ne pas utiliser Piece directement
+import javax.swing.SwingWorker;
 
 public class GameClient {
     private boolean calculatedIn0 = false;
@@ -25,7 +23,7 @@ public class GameClient {
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
     private ObjectInputStream inputStream;
-    private IAminimax ia = new IAminimax(4, gameInstance);
+    private IAminimax ia;
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
@@ -33,6 +31,7 @@ public class GameClient {
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
                                       // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
         this.aiClient = new AIClient(ipAddress); // Initialiser l'IA avec l'instance de jeu
+        this.ia = new IAminimax(4, gameInstance); // Initialiser l'IA avec l'instance de jeu
     }
 
     public void connect() throws IOException {
@@ -306,56 +305,87 @@ public class GameClient {
     }
 
     private void AIplayGame(Jeu gameInstance) {
-        String command = null;
-        try {
-            Thread.sleep(500);
-            switch (gameInstance.getEtape()) {
-                case 0:
-                    calculatedIn0 = true;
-                    try {
-                        AImove = ia.coupIA(gameInstance);
-                    } catch (Exception e) {
-                        System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de l'exécution de l'IA: " + e.getMessage());
-                        return;
-                    }
-                    if (AImove == null) {
-                        System.out.println("GameClient (ID: " + myPlayerId + "): IA n'a pas trouvé de coup valide.");
-                        return;
-                    }
-                    aiClient.setAIMove(AImove);
-                    command = aiClient.joueCoup(gameInstance, 0);
-                    break;
-                case 1:
-                    command = aiClient.joueCoup(gameInstance, 1);
-                    break;
-                case 2:
-                    command = aiClient.joueCoup(gameInstance, 2);
-                    break;
-                case 3:
-                    if (!calculatedIn0) {
-                        try {
-                            // IA choisit un coup
-                            AImove = ia.coupIA(gameInstance);
-                        } catch (Exception e) {
-                            System.err.println("GameClient (ID: " + myPlayerId + "): Exception lors du calcul du coup IA: " + e.getMessage());
-                        }
-                        if (AImove == null) {
-                            System.out.println("GameClient (ID: " + myPlayerId + ") : Erreur, le coup de l'IA est null a etape 3");
-                            System.out.println("Erreur, le coup de l'IA est null");
-                            return;
-                        }
-                    }
-                    command = aiClient.joueCoup(gameInstance, 3);
-                    calculatedIn0 = false; // Réinitialiser le calcul
-                    AImove = null; // Réinitialiser le coup IA après l'avoir joué
+        final int currentEtape = gameInstance.getEtapeCoup();
 
-                    break;
+        SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+            private boolean resetAfterEtape3 = false;
+
+            @Override
+            protected String doInBackground() throws Exception {
+                System.out.println("GameClient (ID: " + myPlayerId + "): L'IA commence à jouer pour l'étape " + currentEtape);
+                String cmdToSend = null;
+                IAFields<Piece, String, String, Plateau.TypePlateau> moveForThisTurn = GameClient.this.AImove;
+
+
+                if (currentEtape == 0) {
+                    System.out.println("GameClient (ID: " + myPlayerId + "): IA calculating move (Etape 0)...");
+                    moveForThisTurn = ia.coupIA(gameInstance);
+                    System.out.println("GameClient (ID: " + myPlayerId + "): moveForThisTurn = " + moveForThisTurn);
+                    
+                    if (moveForThisTurn == null) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): IA n'a pas pu calculer un coup pour l'étape 0.");
+                        return null; // Retourner null si l'IA ne peut pas jouer
+                    }
+                    aiClient.setAIMove(moveForThisTurn);
+                    GameClient.this.AImove = moveForThisTurn; // Mettre à jour l'IA avec le coup calculé
+                    GameClient.this.calculatedIn0 = true; // Indiquer que l'IA a calculé un coup pour l'étape 0
+                } else if (currentEtape == 3 && !GameClient.this.calculatedIn0) {
+                    // Si l'étape est 3 et que l'IA a déjà calculé un coup pour l'étape 0
+                    System.out.println("GameClient (ID: " + myPlayerId + "): IA joue son coup pour l'étape 3...");
+                    moveForThisTurn = ia.coupIA(gameInstance);
+                    if (moveForThisTurn == null) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): IA n'a pas pu calculer un coup pour l'étape 3.");
+                        return null; // Retourner null si l'IA ne peut pas jouer
+                    }
+                    GameClient.this.AImove = moveForThisTurn; // Mettre à jour l'IA avec le coup calculé
+                    aiClient.setAIMove(moveForThisTurn);
+                }
+
+                if (GameClient.this.AImove == null) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): AImove est null, impossible de jouer.");
+                    return null; // Retourner null si l'IA n'a pas de coup à jouer
+                }
+
+                try {
+                    Thread.sleep(500 + (int)(Math.random() * 500));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
+                }
+                cmdToSend = aiClient.joueCoup(gameInstance, currentEtape);
+
+                if (currentEtape == 3) {
+                    resetAfterEtape3 = true; // Indiquer qu'on doit réinitialiser après l'étape 3
+                }
+
+                return cmdToSend; // Retourner la commande à envoyer
             }
-            sendPlayerAction(command);
-    
-        } catch (InterruptedException e) {
-            System.err.println("GameClient (ID: " + myPlayerId + "): Erreur de sommeil dans le thread IA: " + e.getMessage());
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    String cmdToSend = get(); // Récupérer le résultat de doInBackground
+                    if (cmdToSend != null && !cmdToSend.isEmpty()) {
+                        System.out.println("GameClient (ID: " + myPlayerId + "): IA envoie la commande: " + cmdToSend);
+                        sendPlayerAction(cmdToSend); // Envoyer la commande au serveur
+                    } else {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): Aucune commande à envoyer, l'IA n'a pas pu jouer.");
+                    }
+                } catch (InterruptedException e) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): IA execution interrupted: " + e.getMessage());
+                    Thread.currentThread().interrupt();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de l'exécution de l'IA: " + e.getCause());
+                } finally {
+                    if (resetAfterEtape3) {
+                        GameClient.this.calculatedIn0 = false; // Réinitialiser pour le prochain tour
+                        GameClient.this.AImove = null; // Réinitialiser AImove pour le prochain tour
+                        System.out.println("GameClient (ID: " + myPlayerId + "): Réinitialisation après l'étape 3.");
+                    }
+                }
+            }
+        };
+        worker.execute(); // Démarrer le worker
     }
 
     public void switchToAIMode() {

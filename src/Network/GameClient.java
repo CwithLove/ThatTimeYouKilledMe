@@ -22,6 +22,7 @@ public class GameClient {
     private int myPlayerId = -1; // ID de ce client, attribué par le serveur
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
+    private volatile boolean gameEnded = false; // Pour indiquer si le jeu est terminé
     private ObjectInputStream inputStream;
     private IAminimax ia;
 
@@ -234,9 +235,11 @@ public class GameClient {
                                     break;
 
                                 case GAGNE:
+                                    gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("WIN", finalContent);
                                     break;
                                 case PERDU:
+                                    gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("LOSE", finalContent);
                                     break;
                                     
@@ -281,12 +284,14 @@ public class GameClient {
                     }
                 }
             } catch (SocketException | EOFException se) {
-                if (isConnected) { // Enregistrer uniquement lorsque la connexion est attendue
+                if (isConnected && !gameEnded) { // Enregistrer uniquement lorsque la connexion est attendue et le jeu n'est pas terminé
                     System.out.println("GameClient (ID: " + myPlayerId + "): Connexion serveur perdue ou fermée. " + se.getMessage());
                     final GameStateUpdateListener currentListener = listener;
                     if (currentListener != null) {
                          javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("DISCONNECTED", "Connexion au serveur perdue."));
                     }
+                } else if (gameEnded) {
+                    System.out.println("GameClient (ID: " + myPlayerId + "): Connexion fermée après fin de partie (normal).");
                 }
             } catch (IOException | ClassNotFoundException e) {
                 if (isConnected) {
@@ -449,6 +454,7 @@ public class GameClient {
         if (!isConnected && socket == null) return; // Déjà déconnecté ou jamais connecté
 
         isConnected = false; // Définir avant pour arrêter les boucles
+        gameEnded = false; // Réinitialiser pour la prochaine connexion
         System.out.println("GameClient (ID: " + myPlayerId + "): Déconnexion...");
 
         if (receptionThread != null && receptionThread.isAlive()) {

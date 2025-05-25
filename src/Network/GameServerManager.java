@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -840,7 +839,7 @@ public class GameServerManager {
             }
             
             // Notifier GameScene qu'un joueur s'est déconnecté, seulement si nous n'avons pas déjà notifié
-            if (disconnectionListener != null && !notifiedDisconnection) {
+            if (disconnectionListener != null && !notifiedDisconnection && isServerRunning) {
                 notifiedDisconnection = true; // Marquer comme déjà notifié
                 System.out.println("GameServerManager: Notification à GameScene qu'un joueur s'est déconnecté");
                 disconnectionListener.onPlayerDisconnected();

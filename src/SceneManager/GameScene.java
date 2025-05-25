@@ -483,6 +483,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + ")");
 
                     aiClientInstance = new AIClient("127.0.0.1");
+                    if (localSinglePlayerServerManager != null) {
+                        int serverPort = localSinglePlayerServerManager.getCurrentPort();
+                        aiClientInstance.setServerPort(serverPort);
+                        System.out.println("GameScene (Solo): Configuration de l'AI pour utiliser le port " + serverPort);
+                    }
                     aiClientInstance.connect();
                     if (aiClientInstance.isConnected()) {
                         aiClientInstance.startListeningAndPlaying();
@@ -491,22 +496,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                         throw new IOException("L'IA n'a pas pu se connecter.");
                     }
 
-                }
-                Thread.sleep(500); // Attente pour que le serveur détecte les connexions
-                aiClientInstance = new AIClient("127.0.0.1");
-
-                if (localSinglePlayerServerManager != null) {
-                    int serverPort = localSinglePlayerServerManager.getCurrentPort();
-                    aiClientInstance.setServerPort(serverPort);
-                    System.out.println("GameScene (Solo): Configuration de l'AI pour utiliser le port " + serverPort);
-                }
-                aiClientInstance.connect(); // L'IA se connecte
-                if (aiClientInstance.isConnected()) {
-                    aiClientInstance.startListeningAndPlaying(); // Démarrer le thread de l'IA
-                    publish("IA (ID: " + aiClientInstance.getMyPlayerId() + ") connectée et à l'écoute.");
-                } else {
-                    publish("Erreur: L'IA n'a pas pu se connecter.");
-                    throw new IOException("Échec de la connexion du client IA.");
+                    Thread.sleep(500); // Attente pour que le serveur détecte les connexions
                 }
 
                 if (localSinglePlayerServerManager.areAllPlayersConnected()) {
@@ -2167,6 +2157,28 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     victoryContent = messageContent.replace("2", "Zarek");
                 }
                 statusMessage = victoryContent;
+
+                // En mode solo, nettoyer les ressources avant de créer ResultScene
+                if (isOperatingInSinglePlayerMode) {
+                    // Déconnecter l'IA d'abord
+                    if (aiClientInstance != null) {
+                        System.out.println("GameScene: Déconnexion de l'IA avant transition vers ResultScene");
+                        aiClientInstance.disconnect();
+                        aiClientInstance = null;
+                    }
+                    
+                    // Déconnecter le gameClient pour éviter les messages de déconnexion ultérieurs
+                    if (gameClient != null) {
+                        System.out.println("GameScene: Déconnexion du client UI avant arrêt du serveur");
+                        gameClient.disconnect();
+                    }
+                    
+                    // Arrêter le serveur local
+                    if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
+                        System.out.println("GameScene: Arrêt du serveur local avant transition vers ResultScene");
+                        localSinglePlayerServerManager.stopServer();
+                    }
+                }
 
                 if (gameClient != null) {
                     System.out.println("GameScene: Création d'une nouvelle instance de ResultScene pour le mode " + (isOperatingInSinglePlayerMode ? "solo" : "multijoueur"));

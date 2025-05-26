@@ -55,7 +55,7 @@ public class IAminimax {
         System.out.println("REMPLISSAGE...");
         for (int i = 0; i < 9; i++) {
             if (i == 0) poids.add(1);
-            else poids.add(0);
+            // else poids.add(0);
             // poids.add(r.nextInt(15));
             // System.out.println(i + " : " + poids.get(i));
         }

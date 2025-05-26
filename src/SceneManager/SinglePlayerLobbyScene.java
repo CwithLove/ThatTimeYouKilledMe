@@ -154,25 +154,112 @@ public class SinglePlayerLobbyScene implements Scene {
                      formatSaveTime(save.saveTime), save.fileSize / 1024.0))
                 .toArray(String[]::new);
 
-        // Demander à l'utilisateur de choisir une sauvegarde
-        String selected = (String) JOptionPane.showInputDialog(
-                sceneManager.getPanel(),
-                "Select a save to load:",
-                "Load Game",
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                saveDescriptions,
-                saveDescriptions[0]);
+        // Demander à l'utilisateur de choisir une action
+    String[] options = {"Load", "Delete", "Cancel"};
+    int choice = JOptionPane.showOptionDialog(
+            sceneManager.getPanel(),
+            "What would you like to do with the saved games?",
+            "Save Game Manager",
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]);
 
-        if (selected != null) {
-            // Trouver la sauvegarde sélectionnée
-            int selectedIndex = java.util.Arrays.asList(saveDescriptions).indexOf(selected);
-            if (selectedIndex >= 0 && selectedIndex < saves.size()) {
-                SaveInfo selectedSave = saves.get(selectedIndex);
-                loadGameFromSave(selectedSave);
+    switch (choice) {
+        case 0: // Load
+            handleLoadAction(saves, saveDescriptions);
+            break;
+        case 1: // Delete
+            handleDeleteAction(saves, saveDescriptions);
+            break;
+        case 2: // Cancel
+        default:
+            // Do nothing, user cancelled
+            break;
+    }
+    }
+
+    /**
+ * Gère l'action de chargement d'une sauvegarde
+ */
+private void handleLoadAction(List<SaveInfo> saves, String[] saveDescriptions) {
+    // Demander à l'utilisateur de choisir une sauvegarde à charger
+    String selected = (String) JOptionPane.showInputDialog(
+            sceneManager.getPanel(),
+            "Select a save to load:",
+            "Load Game",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            saveDescriptions,
+            saveDescriptions[0]);
+
+    if (selected != null) {
+        // Trouver la sauvegarde sélectionnée
+        int selectedIndex = java.util.Arrays.asList(saveDescriptions).indexOf(selected);
+        if (selectedIndex >= 0 && selectedIndex < saves.size()) {
+            SaveInfo selectedSave = saves.get(selectedIndex);
+            loadGameFromSave(selectedSave);
+        }
+    }
+}
+
+/**
+ * Gère l'action de suppression d'une sauvegarde
+ */
+private void handleDeleteAction(List<SaveInfo> saves, String[] saveDescriptions) {
+    // Demander à l'utilisateur de choisir une sauvegarde à supprimer
+    String selected = (String) JOptionPane.showInputDialog(
+            sceneManager.getPanel(),
+            "Select a save to delete:",
+            "Delete Save",
+            JOptionPane.WARNING_MESSAGE,
+            null,
+            saveDescriptions,
+            saveDescriptions[0]);
+
+    if (selected != null) {
+        // Trouver la sauvegarde sélectionnée
+        int selectedIndex = java.util.Arrays.asList(saveDescriptions).indexOf(selected);
+        if (selectedIndex >= 0 && selectedIndex < saves.size()) {
+            SaveInfo selectedSave = saves.get(selectedIndex);
+
+            // Demander confirmation avant suppression
+            int confirm = JOptionPane.showConfirmDialog(
+                    sceneManager.getPanel(),
+                    String.format("Are you sure you want to delete the save:\n'%s'?\n\nThis action cannot be undone.",
+                            selectedSave.saveName),
+                    "Confirm Delete",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+            if (confirm == JOptionPane.YES_OPTION) {
+                deleteSaveFile(selectedSave);
             }
         }
     }
+}
+
+/**
+ * Supprime le fichier de sauvegarde sélectionné
+ */
+private void deleteSaveFile(SaveInfo saveInfo) {
+    try {
+        Files.delete(saveInfo.filePath);
+        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Save file '" + saveInfo.saveName + "' has been deleted successfully.",
+                "Delete Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+        System.out.println("Successfully deleted save file: " + saveInfo.filePath);
+
+    } catch (IOException e) {
+        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Error deleting save file: " + e.getMessage(),
+                "Delete Error",
+                JOptionPane.ERROR_MESSAGE);
+        System.err.println("Error deleting save file: " + saveInfo.filePath + " - " + e.getMessage());
+    }
+}
 
     /**
      * Méthode pour analyser un fichier de sauvegarde

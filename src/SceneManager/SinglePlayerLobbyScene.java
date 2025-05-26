@@ -102,6 +102,7 @@ public class SinglePlayerLobbyScene implements Scene {
      * Gère le chargement d'une partie sauvegardée
      */
     private void handleLoadGame() {
+        System.out.println("SinglePlayerLobbyScene handleLoadGame");
         if (transitioningToGameScene) {
             return;
         }

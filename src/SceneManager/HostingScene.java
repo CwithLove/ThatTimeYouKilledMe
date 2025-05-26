@@ -480,7 +480,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                        "2", infoFontSize);
 
         if (serverSuccessfullyStarted && hostClientConnected) {
-            int turnOrderY = height * 2 / 3 - 20;
+            int turnOrderY = height * 2 / 3 + 50;
             
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize + 2));

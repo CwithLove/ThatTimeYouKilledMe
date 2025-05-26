@@ -52,7 +52,49 @@ public class Jeu {
         historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
     }
 
-    public Jeu(Jeu jeu){
+    /**
+     * Crée une nouvelle instance du jeu avec ordre de joueur personnalisé
+     *
+     * @param hostGoesFirst true si le joueur hôte (J1) commence en premier,
+     * false si J2 commence
+     */
+    public Jeu(boolean hostGoesFirst) {
+        if (hostGoesFirst) {
+            // J1 commence en premier comme blanc
+            joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
+            joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+            joueurCourant = joueur1;
+        } else {
+            // J2 commence en premier comme blanc, J1 devient noir
+            joueur1 = new Joueur("Noir", 1, 4, Plateau.TypePlateau.FUTURE);
+            joueur2 = new Joueur("Blanc", 2, 4, Plateau.TypePlateau.PAST);
+            joueurCourant = joueur2;
+        }
+
+        // Initialiser les plateaux
+        past = new Plateau(Plateau.TypePlateau.PAST,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+        present = new Plateau(Plateau.TypePlateau.PRESENT,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+        future = new Plateau(Plateau.TypePlateau.FUTURE,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+
+        etapeCoup = 0;
+        pieceCourante = null;
+        gameState = 0;
+        plateauCourant = joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PAST ? past
+                : (joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PRESENT ? present : future);
+
+        historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
+
+        System.out.println("Jeu: Nouveau jeu créé. Joueur qui commence: " + joueurCourant.getNom()
+                + " (ID: " + joueurCourant.getId() + ")");
+    }
+
+    public Jeu(Jeu jeu) {
         // Initialiser les joueurs
         joueur1 = new Joueur("Blanc", 1, jeu.getJoueur1().getNbClones(), jeu.getJoueur1().getProchainPlateau());
         joueur2 = new Joueur("Noir", 2, jeu.getJoueur2().getNbClones(), jeu.getJoueur2().getProchainPlateau());
@@ -65,8 +107,10 @@ public class Jeu {
         this.etapeCoup = jeu.etapeCoup;
 
         switch (jeu.joueurCourant.getId()) {
-            case 1 -> this.joueurCourant = joueur1;
-            case 2 -> this.joueurCourant = joueur2;
+            case 1 ->
+                this.joueurCourant = joueur1;
+            case 2 ->
+                this.joueurCourant = joueur2;
         }
 
         switch (jeu.plateauCourant.getType()) {
@@ -80,7 +124,7 @@ public class Jeu {
                 this.plateauCourant = future;
                 break;
         }
-        
+
         this.gameState = jeu.gameState;
         historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
     }
@@ -217,16 +261,14 @@ public class Jeu {
             plateauCourant.setPiece(pieceCourante, ligDes, colDes);
             piece.setPosition(new Point(ligDes, colDes));
             plateauCourant.removePiece(src.x, src.y);
-        }
-        // Case occupée par un pion de l'autre joueur
+        } // Case occupée par un pion de l'autre joueur
         else if (!pieceDestination.getOwner().equals(piece.getOwner())) {
             deplacerPiece(coup, dir, pieceDestination);
             plateauCourant.removePiece(ligDes, colDes);
             plateauCourant.setPiece(piece, ligDes, colDes);
             piece.setPosition(new Point(ligDes, colDes));
             plateauCourant.removePiece(src.x, src.y);
-        }
-        // Case occupée par un pion de la même couleur => Ce qui cause paradox
+        } // Case occupée par un pion de la même couleur => Ce qui cause paradox
         else {
             plateauCourant.removePiece(src.x, src.y);
             plateauCourant.removePiece(ligDes, colDes);
@@ -240,6 +282,7 @@ public class Jeu {
             }
         }
     }
+
     // Jump - Travel forward => Fini
     /**
      * Fait une action jump
@@ -540,7 +583,7 @@ public class Jeu {
 
                 // Affichage
                 printGamePlay();
-                setEtapeCoup(etapeCoup+1);
+                setEtapeCoup(etapeCoup + 1);
             } while (etapeCoup < 3 && etapeCoup >= 1);
 
             if (breakFlag) {
@@ -574,8 +617,8 @@ public class Jeu {
         };
 
         if (gameState == 2) {
-            System.out.println("Joueur 2 a gagné !"); 
-        }else if (gameState == 1) {
+            System.out.println("Joueur 2 a gagné !");
+        } else if (gameState == 1) {
             System.out.println("Joueur 1 a gagné !");
         }
 
@@ -591,7 +634,7 @@ public class Jeu {
         System.out.println("Coup: " + coup.getTypeCoup());
         ArrayList<Coup> coupsPossibles = getCoupPossibles(coup.getPltCourant(), coup.getPiece());
         // for (Coup possibleCoup : coupsPossibles) {
-            // System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
+        // System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
         // }
         for (Coup possibleCoup : coupsPossibles) {
             if (possibleCoup.equals(coup)) {
@@ -925,7 +968,6 @@ public class Jeu {
                 etapeCoup = 1;
             }
 
-
             Coup playerCoup = new Coup(selectedPiece, selectedPlateau, typeCoup);
             boolean isValid = jouerCoup(playerCoup);
 
@@ -934,9 +976,7 @@ public class Jeu {
                 return false;
             }
 
-
             // if (etapeCoup >= 3) {
-
             //     Plateau.TypePlateau nextPlateau = null;
             //     if (plateauType != Plateau.TypePlateau.PAST) {
             //         nextPlateau = Plateau.TypePlateau.PAST;
@@ -947,7 +987,6 @@ public class Jeu {
             //     etapeCoup = 0;
             //     joueurSuivant();
             //     majPlateauCourant();
-
             //     System.out.println("Jeu: Joueur suivant - ID: " + joueurCourant.getId() +
             //                        " (" + (joueurCourant.equals(joueur1) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
             // }
@@ -1046,7 +1085,6 @@ public class Jeu {
         } else {
             sb.append("null"); // Aucune pièce sélectionnée
         }
-        
 
         return sb.toString();
     }

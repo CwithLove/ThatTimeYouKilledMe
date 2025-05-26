@@ -57,6 +57,13 @@ public class GameServerManager {
     private PlayerDisconnectionListener disconnectionListener;
     private volatile boolean notifiedDisconnection = false;
 
+    private boolean hostPlayerGoesFirst = true; 
+    
+    public void setTurnOrder(boolean hostGoesFirst) {
+        this.hostPlayerGoesFirst = hostGoesFirst;
+        System.out.println("GameServerManager: 先后顺序设置 - 主机先开始: " + hostGoesFirst);
+    }
+
     /**
      * Constructeur standard pour le mode multijoueur
      * @param callback Le callback vers HostingScene
@@ -114,16 +121,13 @@ public class GameServerManager {
         }
         if (connectedClientIds.size() == maxClients) {
             System.out.println("GameServerManager: Démarrage du moteur de jeu...");
-            // Initialiser l'instance de jeu
-            gameInstance = new Jeu(); // => Liaison entre le reseau et le modèle Jeu  
+            // Initialiser l'instance de jeu avec l'ordre des joueurs
+            gameInstance = new Jeu(hostPlayerGoesFirst); // => Liaison entre le reseau et le modèle Jeu avec ordre personnalisé
 
-            // Définir le premier joueur (au début du jeu, cela devrait être le joueur 1)
-            if (gameInstance.getJoueurCourant().getId() != 1) {
-                System.out.println("GameServerManager: Le joueur courant n'est pas le joueur 1, changement...");
-                gameInstance.joueurSuivant(); // S'assurer que le premier joueur est le joueur 1
-            }
+            // Le joueur courant est déjà défini par le constructeur Jeu(boolean)
             currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
-            System.out.println("GameServerManager: Joueur courant initialisé à " + currentTurnPlayerId);
+            System.out.println("GameServerManager: Joueur courant initialisé à " + currentTurnPlayerId + 
+                              " (" + gameInstance.getJoueurCourant().getNom() + ")");
 
             // Démarrer le thread du moteur de jeu
             gameEngineThread = new Thread(this::runGameEngine, "GameEngineThread");

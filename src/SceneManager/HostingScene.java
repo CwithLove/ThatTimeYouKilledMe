@@ -31,6 +31,12 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private volatile boolean playerTwoConfirmedConnected = false; // Indique si le Joueur 2 s'est connecté (via callback).
     private volatile boolean hostClientConnected = false;     // Indique si le client de l'hôte lui-même est connecté.
 
+    // 新增：先后顺序选择功能
+    private Button firstPlayerButton;           // 按钮：选择J1先开始
+    private Button secondPlayerButton;          // 按钮：选择J2先开始
+    private boolean hostGoesFirst = true;       // 默认J1先开始
+    private String turnOrderMessage = "J1 commence (Blancs)"; // 显示当前选择
+
     private MouseAdapter mouseAdapterInternal;  // Adaptateur pour les événements de la souris.
     private long startTime;                     // Pour l'animation de fondu (fade-in).
     private float alpha = 0f;                   // Niveau d'opacité pour le fondu.
@@ -69,6 +75,8 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                         protected Void doInBackground() throws Exception {
                             try {
                                 publish("Initialisation du moteur de jeu...");
+
+                                gameServerManager.setTurnOrder(hostGoesFirst);
                                 gameServerManager.startGameEngine(); // Démarre la logique du jeu sur le serveur.
 
                                 // Pause pour laisser le temps au moteur de jeu de s'initialiser complètement
@@ -170,6 +178,20 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
         // Configuration du bouton "Retour"
         backButton = new Button(50, 500, 150, 40, "Retour", this::cleanUpAndGoToMenu);
+
+        firstPlayerButton = new Button(0, 0, 120, 35, "J1 Premier", () -> {
+            hostGoesFirst = true;
+            turnOrderMessage = "J1 commence (Blancs)";
+            System.out.println("HostingScene: J1 sélectionné pour commencer en premier (Blancs)");
+            repaintPanel();
+        });
+
+        secondPlayerButton = new Button(0, 0, 120, 35, "J2 Premier", () -> {
+            hostGoesFirst = false;
+            turnOrderMessage = "J2 commence (Blancs)";
+            System.out.println("HostingScene: J2 sélectionné pour commencer en premier (Blancs)");
+            repaintPanel();
+        });
 
         // Tente d'obtenir l'adresse IP locale pour l'afficher.
         try {
@@ -400,6 +422,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     if (startGameButton.contains(mousePos)) startGameButton.update(new Point(-1, -1)); // Point hors bouton.
                 }
                 backButton.update(mousePos);
+                // 更新先后顺序选择按钮的悬停状态
+                if (serverSuccessfullyStarted && hostClientConnected) {
+                    firstPlayerButton.update(mousePos);
+                    secondPlayerButton.update(mousePos);
+                }
                 // repaintPanel(); // Peut causer des rafraîchissements excessifs, render s'en charge.
             }
         }
@@ -451,6 +478,46 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         // Zone J2 (droite)
         drawPlayerZone(g2d, width/2 + 10, zoneY, zoneWidth, zoneHeight, false, playerTwoConfirmedConnected, 
                        "2", infoFontSize);
+
+        if (serverSuccessfullyStarted && hostClientConnected) {
+            int turnOrderY = height * 2 / 3 - 20;
+            
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize + 2));
+            String turnOrderTitle = "Choisir l'ordre de jeu:";
+            FontMetrics turnTitleMetrics = g2d.getFontMetrics();
+            int turnTitleWidth = turnTitleMetrics.stringWidth(turnOrderTitle);
+            g2d.drawString(turnOrderTitle, (width - turnTitleWidth) / 2, turnOrderY);
+            
+            int buttonSpacing = 20;
+            int totalButtonWidth = 120 * 2 + buttonSpacing;
+            int buttonStartX = (width - totalButtonWidth) / 2;
+            
+            firstPlayerButton.setLocation(buttonStartX, turnOrderY + 15);
+            firstPlayerButton.setSize(120, 35);
+            firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+            
+            secondPlayerButton.setLocation(buttonStartX + 120 + buttonSpacing, turnOrderY + 15);
+            secondPlayerButton.setSize(120, 35);
+            secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+            
+            if (hostGoesFirst) {
+                firstPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+                secondPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+            } else {
+                firstPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+                secondPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+            }
+            
+            firstPlayerButton.render(g2d);
+            secondPlayerButton.render(g2d);
+            
+            g2d.setColor(Color.CYAN);
+            g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize));
+            FontMetrics turnMsgMetrics = g2d.getFontMetrics();
+            int turnMsgWidth = turnMsgMetrics.stringWidth(turnOrderMessage);
+            g2d.drawString(turnOrderMessage, (width - turnMsgWidth) / 2, turnOrderY + 70);
+        }
 
         // Message de statut général.
         if (statusMessage != null && !statusMessage.isEmpty()) {
@@ -560,6 +627,10 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     startGameButton.onClick();
                 } else if (backButton.contains(mousePoint)) {
                     backButton.onClick();
+                } else if (firstPlayerButton.contains(mousePoint) && serverSuccessfullyStarted && hostClientConnected) {
+                    firstPlayerButton.onClick();
+                } else if (secondPlayerButton.contains(mousePoint) && serverSuccessfullyStarted && hostClientConnected) {
+                    secondPlayerButton.onClick();
                 }
             }
             @Override
@@ -568,6 +639,8 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 Point mousePoint = e.getPoint();
                 if (startGameButton.isEnabled() && startGameButton.contains(mousePoint)) startGameButton.setClicked(true);
                 else if (backButton.isEnabled() && backButton.contains(mousePoint)) backButton.setClicked(true);
+                else if (firstPlayerButton.contains(mousePoint) && serverSuccessfullyStarted && hostClientConnected) firstPlayerButton.setClicked(true);
+                else if (secondPlayerButton.contains(mousePoint) && serverSuccessfullyStarted && hostClientConnected) secondPlayerButton.setClicked(true);
                 repaintPanel();
             }
             @Override
@@ -575,6 +648,8 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 if(transitioningToGameScene) return;
                 startGameButton.setClicked(false);
                 backButton.setClicked(false);
+                firstPlayerButton.setClicked(false);
+                secondPlayerButton.setClicked(false);
                 repaintPanel();
             }
             // mouseMoved est géré dans update() pour le survol.

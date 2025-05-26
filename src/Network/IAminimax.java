@@ -44,13 +44,14 @@ public class IAminimax {
         }
         this.difficulte = diff;
         this.jeu = jeu;
-        if (diff >= PROFONDEUR_MAX) {
-            this.mode = "HARD";
-        } else if (diff >= (int) (PROFONDEUR_MAX * 0.5)) {
-            this.mode = "MEDIUM";
-        } else {
-            this.mode = "EASY";
-        }
+        // if (diff >= PROFONDEUR_MAX) {
+        //     this.mode = "HARD";
+        // } else if (diff >= (int) (PROFONDEUR_MAX * 0.5)) {
+        //     this.mode = "MEDIUM";
+        // } else {
+        //     this.mode = "EASY";
+        // }
+        this.mode = "HARD";
         System.out.println("REMPLISSAGE...");
         // for (int i = 0; i < 9; i++) {
         //     poids.add(r.nextInt(15));

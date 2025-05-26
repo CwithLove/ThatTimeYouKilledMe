@@ -31,7 +31,7 @@ public class GameClient {
         this.listener = listener;
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
                                       // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
-        this.aiClient = new AIClient(ipAddress); // Initialiser l'IA avec l'instance de jeu
+        this.aiClient = new AIClient(ipAddress, 4); // Initialiser l'IA avec l'instance de jeu
         this.ia = new IAminimax(4, gameInstance); // Initialiser l'IA avec l'instance de jeu
     }
 
@@ -399,8 +399,8 @@ public class GameClient {
     public void switchToAIMode() {
         if (this.playByAI) {
             if (gameInstance.getJoueurCourant().getId() == myPlayerId) {
-                System.out.println("GameClient (ID: " + myPlayerId + "): Vous devez attendre un tour total de IA.");
-            } else {
+            //     System.out.println("GameClient (ID: " + myPlayerId + "): Vous devez attendre un tour total de IA.");
+            // } else {
                 this.playByAI = false;
                 System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA désactivé.");
             }

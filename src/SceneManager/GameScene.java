@@ -62,8 +62,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private volatile boolean gameHasEnded = false; // volatile car peut être mis à jour depuis un autre thread
     // (onGameMessage)
     private volatile boolean isLoading = false; // Pour afficher l'état de chargement
-    private int etapeCoup = 0; // 直接在GameScene中存储etapeCoup值
-    private volatile boolean handlingDisconnection = false; // 防止onPlayerDisconnected被多次调用
+    private int etapeCoup = 0; // Stocke directement la valeur de etapeCoup dans GameScene
+    private volatile boolean handlingDisconnection = false; // Empêche onPlayerDisconnected d'être appelé plusieurs fois
 
     Point mousePoint;
     boolean transparent = false;
@@ -81,6 +81,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private static GameServerManager localSinglePlayerServerManager;
     private static Thread localAIClientThread;
     private static AIClient aiClientInstance; // Conserve l'instance de l'IA pour pouvoir la déconnecter
+    private int levelAI = 0;
+    private boolean controlledByAI = false; // Indique si l'IA contrôle le jeu
 
     private MouseAdapter mouseAdapterInternal;
     // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal
@@ -109,13 +111,12 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private int caseMouseX;
     private int caseMouseY;
     private int modeSolo = 1;
-    private AIClient aiClient1;
-    private AIClient aiClient2;
 
     // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
-    public GameScene(SceneManager sceneManager, boolean isSinglePlayer) {
+    public GameScene(SceneManager sceneManager, boolean isSinglePlayer, int difficultyLevel) {
         this.sceneManager = sceneManager;
         this.isOperatingInSinglePlayerMode = isSinglePlayer;
+        this.levelAI = difficultyLevel; // Niveau de difficulté de l'IA
         if (isSinglePlayer) {
             this.serverIpToConnectOnDemand = "127.0.0.1"; // Le client UI se connecte au serveur local
             this.statusMessage = "Mode Solo : Préparation...";
@@ -272,7 +273,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         backButton = new Button(0, 0, 150, 40, "Retour Menu", this::handleBackButton);
         // Ajouter un bouton pour annuler une action
         int undoX = sceneManager.getPanel().getWidth() / 2 - 50;
-        int undoY = sceneManager.getPanel().getHeight() / 12 + 20;
+        int undoY = sceneManager.getPanel().getHeight() / 12 - 20;
         undoButton = new Button(undoX, undoY, 100, 40, "UNDO", this::handleUndoAction);
 
         int switchToAiX = undoX;
@@ -284,6 +285,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     }
 
     private void handleSwitchToAiAction() {
+        this.controlledByAI = !this.controlledByAI; // Inverse l'état de contrôle par l'IA
         gameClient.switchToAIMode();
     }
 
@@ -304,7 +306,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private void cleanUpAndGoToMenu() {
         isLoading = false; // Arrête tous les états de chargement
 
-        // 先询问玩家是否想要重新连接，如果是玩家2
+        // Demander d'abord au joueur s'il souhaite se reconnecter, si c'est le joueur 2
         if (gameClient != null && !gameClient.isConnected() && gameClient.getMyPlayerId() == 2) {
             int choice = JOptionPane.showConfirmDialog(
                     sceneManager.getPanel(),
@@ -482,7 +484,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     gameClient.connect();
                     publish("Joueur UI connecté (ID: " + gameClient.getMyPlayerId() + ")");
 
-                    aiClientInstance = new AIClient("127.0.0.1");
+                    aiClientInstance = new AIClient("127.0.0.1", levelAI);
                     if (localSinglePlayerServerManager != null) {
                         int serverPort = localSinglePlayerServerManager.getCurrentPort();
                         aiClientInstance.setServerPort(serverPort);
@@ -835,16 +837,20 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         }
 
         // Mettre à jour la position du bouton "Retour" et "Annuler"
-        undoButton.setSize(150 * width / 1920, 60 * width / 1920);
+        int undoSizeX = 150 * width / 1920; // Largeur du bouton "Annuler"
+        int undoSizeY = 60 * width / 1920;
+        int undoPosY = height / 11; // Position Y du bouton "Annuler"
+        undoButton.setSize(undoSizeX, undoSizeY);
         undoButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
-        undoButton.setLocation((width - (150 * width / 1920)) / 2, height / 11 + 20);
+        undoButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY);
 
         backButton.setSize(150 * width / 1920, 60 * width / 1920);
         backButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
 
+        int spacingY = undoSizeY * 10 / 100;
         switchToAiButton.setSize(150 * width / 1920, 60 * width / 1920);
         switchToAiButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
-        switchToAiButton.setLocation((width - (150 * width / 1920)) / 2, height / 11 + 20 + 50);
+        switchToAiButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY + undoSizeY + spacingY);
 
         // Créer un Graphics2D pour le rendu
         Graphics2D g2d = (Graphics2D) g.create();
@@ -904,7 +910,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
             if (isMyTurn()) {
 
-                g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
+                g2d.setFont(new Font(police, Font.BOLD, 25 * width / 1920));
                 String selectBoardMessage = "Votre tour !";
                 FontMetrics metrics = g2d.getFontMetrics();
                 int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
@@ -923,6 +929,30 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
                 undoButton.setEnabled(false);
             }
+
+            // Afficher le message de sélection de plateau
+            String AIControl = null;
+            if (controlledByAI) {
+                AIControl = "Contrôlé par l'IA";
+            } else {
+                AIControl = "Contrôlé par vous";
+            }
+
+            g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
+            FontMetrics font = g2d.getFontMetrics();
+            int AIMsgWidth = font.stringWidth(AIControl);
+
+            // Position
+            int AIMsgX = pastStartX + tileWidth * 2 - AIMsgWidth / 2;
+            int AIMsgY = height - 62 * width / 1920;
+
+            //rectangle autour du text
+            // g2d.setColor(new Color(0, 0, 0, 150));
+            // g2d.fillRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
+            // g2d.drawRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
+            // Centrer le message en bas
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString(AIControl, AIMsgX, AIMsgY);
 
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
@@ -1425,7 +1455,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                                     // System.out.println("TRANSPARENT PASSE !!!");
                                     if (selectedPlateauType == Plateau.TypePlateau.FUTURE) {
                                         clone = true;
-                                        System.out.println("CLONE !!!");
+                                        // System.out.println("CLONE !!!");
                                     }
                                     //System.out.println("TRANSPARENT PRESENT !!!");
                                     activeur = Plateau.TypePlateau.PRESENT;
@@ -2049,7 +2079,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 casesFutur.clear();
                 transparent = false;
                 clone = false;
-                System.out.println("PLUS CLONE !!!");
+                // System.out.println("PLUS CLONE !!!");
                 // Gérer le message de succès du mouvement
                 // Format : TYPE_COUP:succes:newX:newY:newPlateauType
                 String[] coupParts = messageContent.split(":");
@@ -2166,13 +2196,13 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                         aiClientInstance.disconnect();
                         aiClientInstance = null;
                     }
-                    
+
                     // Déconnecter le gameClient pour éviter les messages de déconnexion ultérieurs
                     if (gameClient != null) {
                         System.out.println("GameScene: Déconnexion du client UI avant arrêt du serveur");
                         gameClient.disconnect();
                     }
-                    
+
                     // Arrêter le serveur local
                     if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
                         System.out.println("GameScene: Arrêt du serveur local avant transition vers ResultScene");
@@ -2245,18 +2275,18 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         System.out.println("GameScene: Retour au lobby...");
         isLoading = false;
 
-        // 重置游戏状态
+        // Réinitialiser l'état du jeu
         resetSelection();
 
-        // 保存现有的GameClient引用和GameServerManager，用于传递给新的场景
+        // Sauvegarder les références existantes de GameClient et GameServerManager pour les transmettre à la nouvelle scène
         final GameClient clientToTransfer = this.gameClient;
         final GameServerManager serverToTransfer = this.hostServerManager;
 
-        // 防止dispose()在场景转换过程中断开连接或关闭服务器
+        // Empêcher dispose() de déconnecter le client ou d'arrêter le serveur pendant la transition de scène
         this.gameClient = null;
         this.hostServerManager = null;
 
-        // 判断是J1还是J2，以确定要返回哪种LobbyScene
+        // Déterminer si c'est J1 ou J2 pour savoir vers quel LobbyScene retourner
         if (clientToTransfer != null) {
             System.out.println("GameScene: Conservation de la connexion pour retourner au lobby, Player ID: "
                     + (clientToTransfer.isConnected() ? clientToTransfer.getMyPlayerId() : "non connecté"));
@@ -2268,7 +2298,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                         System.out.println("GameScene: Création d'une nouvelle HostingScene pour J1");
                         HostingScene hostingScene = new HostingScene(sceneManager);
 
-                        // 确保服务器未终止
+                        // S'assurer que le serveur n'est pas arrêté
                         if (serverToTransfer != null && serverToTransfer.isServerRunning()) {
                             System.out.println("GameScene: Transfert du serveur à HostingScene");
                             hostingScene.setExistingClient(clientToTransfer, serverToTransfer);
@@ -2476,10 +2506,10 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         int x, y, startX;
         Point p;
         if (plateau.getType() == Plateau.TypePlateau.PAST) {
-            startX = pastStartX; 
-        }else if (plateau.getType() == Plateau.TypePlateau.PRESENT) {
-            startX = presentStartX; 
-        }else {
+            startX = pastStartX;
+        } else if (plateau.getType() == Plateau.TypePlateau.PRESENT) {
+            startX = presentStartX;
+        } else {
             startX = futureStartX;
         }
 

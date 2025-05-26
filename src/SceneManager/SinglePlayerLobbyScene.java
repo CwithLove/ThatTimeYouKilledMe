@@ -1,14 +1,9 @@
 package SceneManager;
 
-import Modele.Jeu;
-import Network.GameClient;
-import Network.GameStateUpdateListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JComboBox;
-import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 
 /**
  * SinglePlayerLobbyScene est la scène du lobby pour le mode solo Permet au
@@ -39,6 +34,9 @@ public class SinglePlayerLobbyScene implements Scene {
     private long lastDotTime = 0;
     private String statusMessage = "Initialisation...";
 
+    // vs AI
+    private int levelAI = 2;
+
     private boolean transitioningToGameScene = false;
 
     /**
@@ -62,7 +60,7 @@ public class SinglePlayerLobbyScene implements Scene {
         // A COMPLETER: AJOUETER LA DIFFICULTE SÉLECTIONNÉE À L'IA
         // Bouton de démarrage du jeu
         startGameButton = new Button(300, 450, 200, 50, "Commencer", () -> {
-            sceneManager.setScene(new GameScene(sceneManager, true));
+            sceneManager.setScene(new GameScene(sceneManager, true, levelAI));
         });
 
         // Bouton de retour
@@ -127,6 +125,21 @@ public class SinglePlayerLobbyScene implements Scene {
                 backButton.update(mousePos);
             }
         }
+
+        selectedDifficulty = (String) difficultyComboBox.getSelectedItem();
+        switch (selectedDifficulty) {
+            case "Facile":
+                levelAI = 1; // Niveau facile
+                break;
+            case "Moyen":
+                levelAI = 3; // Niveau moyen
+                break;
+            case "Difficile":
+                levelAI = 5; // Niveau difficile
+                break;
+            default:
+                levelAI = 1; // Par défaut, niveau facile
+        }
     }
 
     /**
@@ -143,7 +156,7 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Titre
         g2d.setColor(Color.WHITE);
-        int titleFontSize = Math.min(width, height) / 18;
+        int titleFontSize = height / 18;
         g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
         String titleText = "Mode Solo - Combat contre IA";
         FontMetrics titleMetricsFont = g2d.getFontMetrics();
@@ -151,13 +164,13 @@ public class SinglePlayerLobbyScene implements Scene {
         g2d.drawString(titleText, (width - titleTextWidth) / 2, height / 7);
 
         // Titre de sélection de la difficulté
-        int infoFontSize = Math.min(width, height) / 28;
+        int infoFontSize = height / 28;
         g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
         g2d.setColor(Color.LIGHT_GRAY);
         String difficultyText = "Sélectionner la difficulté:";
         FontMetrics diffMetrics = g2d.getFontMetrics();
         int diffTextWidth = diffMetrics.stringWidth(difficultyText);
-        g2d.drawString(difficultyText, (width - diffTextWidth) / 2, height / 4 + 30);
+        g2d.drawString(difficultyText, width * 3 / 4 - diffTextWidth / 2, height * 4 / 9 - infoFontSize / 2);
 
         // Zone des joueurs
         int zoneWidth = width / 2 - 20;
@@ -179,19 +192,21 @@ public class SinglePlayerLobbyScene implements Scene {
         }
 
         // Paramètres du bouton
-        int btnWidth = Math.max(180, width / 4);
-        int btnHeight = Math.max(45, height / 13);
-        int btnFontSize = Math.min(width, height) / 35;
+        int btnWidth =  width / 4;
+        int btnHeight = height / 13;
+        int btnFontSize = height / 35;
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
 
         // Placement du menu déroulant de sélection de difficulté
         if (sceneManager.getPanel() != null && !sceneManager.getPanel().isAncestorOf(difficultyComboBox)) {
             sceneManager.getPanel().add(difficultyComboBox);
         }
-        int comboBoxWidth = 150;
-        int comboBoxHeight = 30;
-        difficultyComboBox.setBounds((width - comboBoxWidth) / 2, height / 4 + 40, comboBoxWidth, comboBoxHeight);
-        difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(12, btnFontSize * 2 / 3)));
+        int comboBoxWidth = width / 10;
+        int comboBoxHeight = height / 25;
+        int comboBoxX = width * 75 / 100 - comboBoxWidth / 2; // 75% de la largeur;
+        int comboBoxY = height * 6 / 13 - comboBoxHeight / 2; // Centré verticalement
+        difficultyComboBox.setBounds(comboBoxX, comboBoxY, comboBoxWidth, comboBoxHeight);
+        difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, btnFontSize * 2 / 3));
         difficultyComboBox.setVisible(fadeComplete); // Seulement visible après la fin de la transition
 
         // Bouton de démarrage du jeu
@@ -200,8 +215,8 @@ public class SinglePlayerLobbyScene implements Scene {
         startGameButton.setFont(commonBtnFont);
 
         // Bouton de retour
-        backButton.setSize(Math.max(120, btnWidth * 3 / 4), Math.max(35, btnHeight * 3 / 4));
-        backButton.setLocation(40, height - Math.max(35, btnHeight * 3 / 4) - 25);
+        backButton.setSize(btnWidth * 3 / 4, btnHeight * 3 / 4);
+        backButton.setLocation(40, height - btnHeight * 3 / 4 - 25);
         backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, btnFontSize * 3 / 4)));
 
         // Rendu du bouton

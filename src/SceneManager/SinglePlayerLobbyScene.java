@@ -32,7 +32,7 @@ public class SinglePlayerLobbyScene implements Scene {
     private String hostIP = "127.0.0.1"; // IP locale pour le jeu solo
     private int animationDots = 0;
     private long lastDotTime = 0;
-    private String statusMessage = "Initialisation...";
+    private String statusMessage = "Appuyer sur Commencer pour commencer le jeu";
 
     // vs AI
     private int levelAI = 2;

@@ -118,7 +118,9 @@ public class IAminimax {
 
             jeuClone.choisirPlateau(tour.getQuatrieme());
             jeuClone.joueurSuivant();
-            int score = alphabeta(this.difficulte - 1, alpha, beta, false, jeuClone);
+
+            Jeu jeuClone2 = new Jeu(jeuClone);
+            int score = alphabeta(this.difficulte - 1, alpha, beta, false, jeuClone2);
             ////System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
             lst_coup.add(new Couple<>(tour, score));
 
@@ -229,11 +231,13 @@ public class IAminimax {
 
                 jeuClone.choisirPlateau(tour.getQuatrieme());
                 jeuClone.joueurSuivant();
+
+                Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
-                    best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, jeuClone));
+                    best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, jeuClone2));
                     alpha = Math.max(alpha, best);
                 } else {
-                    best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, jeuClone));
+                    best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, jeuClone2));
                     beta = Math.min(beta, best);
                 }
             }

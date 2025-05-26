@@ -155,8 +155,6 @@ public class IAminimax {
             }
 
             if (!lst_coup.isEmpty()) {
-                //System.out.println("DEBUG -> "+best_coup);
-                //System.out.println("DEBUG -> "+best_coup.getPremier().getPosition().getX()+","+best_coup.getPremier().getPosition().getY()+","+best_coup.getSecond()+","+best_coup.getTroisieme()+","+best_coup.getQuatrieme());
                 Couple<IAFields<Piece, String, String, Plateau.TypePlateau>, Integer> unMeilleurCoup = lst_coup.get(r.nextInt(lst_coup.size()));
                 best_coup = unMeilleurCoup.getPremier();
             }

@@ -1,10 +1,6 @@
 package Network;
 
-import Modele.Coup;
-import Modele.Jeu;
-import Modele.Joueur;
-import Modele.Piece;
-import Modele.Plateau;
+import Modele.*;
 import Modele.Plateau.TypePlateau;
 import SceneManager.HostingScene;
 import SceneManager.SinglePlayerLobbyScene;
@@ -185,6 +181,12 @@ public class GameServerManager {
                     System.err.println("GameServerManager: Message du client " + clientId + " est null.");
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
                     continue;
+                }
+
+                if (msg.contenu.startsWith("LOAD_GAME:")) {
+                     if (processLoadGameMessage(msg, clientId)) {
+                         continue;
+                     }
                 }
 
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
@@ -991,5 +993,289 @@ public class GameServerManager {
         acceptConnectionsThread.setName(threadName);
         acceptConnectionsThread.start();
     }
+
+    /**
+ * Handle LOAD_GAME command in the GameServerManager
+ * Add this method to your GameServerManager class
+ */
+private boolean handleLoadGameCommand(String gameDataString, int clientId) {
+    System.out.println("GameServerManager: Processing LOAD_GAME command from client " + clientId);
+
+    // Only allow player 1 (host) to load games
+    if (clientId != 1) {
+        sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":Only host can load games.");
+        return false;
+    }
+
+    try {
+        // Parse the game data string
+        if (gameDataString == null || gameDataString.trim().isEmpty()) {
+            System.err.println("GameServerManager: Empty game data string");
+            sendMessageToClient(clientId, ":Empty game data");
+            return false;
+        }
+
+        // Parse the save data format: etapeCoup:0;JC:1;C1:4;C2:3;P1:PRESENT;P2:PRESENT;P:0000000000000002;PR:1100000000020002;F:1000000000020000;PC:null
+        Map<String, String> gameData = parseSaveData(gameDataString);
+
+        if (gameData == null) {
+            sendMessageToClient(clientId,  ":Invalid save data format");
+            return false;
+        }
+
+        // Create new game instance from save data
+        if (reconstructGameFromSaveData(gameData)) {
+            System.out.println("GameServerManager: Game successfully loaded from save data");
+
+            // Update current turn player
+            currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
+
+            // Send success message to client
+            sendMessageToClient(clientId, Code.ETAT.name() + ":Game loaded successfully");
+
+            // Send updated game state to all clients
+            sendGameStateToAllClients();
+
+            return true;
+        } else {
+            sendMessageToClient(clientId, ":Failed to reconstruct game from save data");
+            return false;
+        }
+
+    } catch (Exception e) {
+        System.err.println("GameServerManager: Error loading game: " + e.getMessage());
+        e.printStackTrace();
+        sendMessageToClient(clientId, ":Error loading game: " + e.getMessage());
+        return false;
+    }
+}
+
+/**
+ * Parse save data string into a map
+ */
+private Map<String, String> parseSaveData(String gameDataString) {
+    try {
+        Map<String, String> gameData = new java.util.HashMap<>();
+        String[] dataParts = gameDataString.split(";");
+
+        if (dataParts.length < 8) {
+            System.err.println("GameServerManager: Save data format incomplete, requires at least 8 fields");
+            return null;
+        }
+
+        for (String part : dataParts) {
+            String[] keyValue = part.split(":", 2);
+            if (keyValue.length == 2) {
+                gameData.put(keyValue[0], keyValue[1]);
+            }
+        }
+
+        // Validate required fields
+        String[] requiredFields = {"etapeCoup", "JC", "C1", "C2", "P1", "P2", "P", "PR", "F"};
+        for (String field : requiredFields) {
+            if (!gameData.containsKey(field)) {
+                System.err.println("GameServerManager: Missing required field: " + field);
+                return null;
+            }
+        }
+
+        return gameData;
+
+    } catch (Exception e) {
+        System.err.println("GameServerManager: Error parsing save data: " + e.getMessage());
+        return null;
+    }
+}
+
+/**
+ * Reconstruct game instance from save data
+ */
+private boolean reconstructGameFromSaveData(Map<String, String> gameData) {
+    try {
+        System.out.println("GameServerManager: Reconstructing game from save data...");
+
+        // Create new game instance
+        gameInstance = new Jeu();
+
+        // Parse and set etapeCoup
+        int etapeCoup = Integer.parseInt(gameData.get("etapeCoup"));
+        gameInstance.setEtapeCoup(etapeCoup);
+        System.out.println("GameServerManager: Set etapeCoup to: " + etapeCoup);
+
+        // Parse current player
+        int currentPlayerId = Integer.parseInt(gameData.get("JC"));
+
+        // Set current player
+        while (gameInstance.getJoueurCourant().getId() != currentPlayerId) {
+            gameInstance.joueurSuivant();
+        }
+        System.out.println("GameServerManager: Set current player to: " + currentPlayerId);
+
+        // Parse and set clone counts
+        int player1Clones = Integer.parseInt(gameData.get("C1"));
+        int player2Clones = Integer.parseInt(gameData.get("C2"));
+
+        gameInstance.getJoueur1().setNbClones(player1Clones);
+        gameInstance.getJoueur2().setNbClones(player2Clones);
+        System.out.println("GameServerManager: Set clones - Player 1: " + player1Clones + ", Player 2: " + player2Clones);
+
+        // Parse and set selected plateaus
+        Plateau.TypePlateau p1Plateau = Plateau.TypePlateau.valueOf(gameData.get("P1"));
+        Plateau.TypePlateau p2Plateau = Plateau.TypePlateau.valueOf(gameData.get("P2"));
+
+        gameInstance.getJoueur1().setProchainPlateau(p1Plateau);
+        gameInstance.getJoueur2().setProchainPlateau(p2Plateau);
+        System.out.println("GameServerManager: Set plateaus - Player 1: " + p1Plateau + ", Player 2: " + p2Plateau);
+
+        // Parse and reconstruct board states
+        if (!reconstructBoardStates(gameData)) {
+            System.err.println("GameServerManager: Failed to reconstruct board states");
+            return false;
+        }
+
+        // Update current plateau based on current player
+        gameInstance.majPlateauCourant();
+
+        // Handle selected piece if any
+        String selectedPiece = gameData.get("PC");
+        if (selectedPiece != null && !selectedPiece.equals("null")) {
+            // Parse selected piece coordinates if needed
+            // For now, we'll set it to null as the game will handle piece selection
+            gameInstance.setPieceCourante(null);
+        }
+
+        System.out.println("GameServerManager: Game reconstruction completed successfully");
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("GameServerManager: Error reconstructing game: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
+
+/**
+ * Reconstruct board states from save data
+ */
+private boolean reconstructBoardStates(Map<String, String> gameData) {
+    try {
+        // Get board data strings
+        String pastData = gameData.get("P");
+        String presentData = gameData.get("PR");
+        String futureData = gameData.get("F");
+
+        if (pastData.length() != 16 || presentData.length() != 16 || futureData.length() != 16) {
+            System.err.println("GameServerManager: Invalid board data length");
+            return false;
+        }
+
+        // Reconstruct Past board
+        if (!reconstructSingleBoard(gameInstance.getPast(), pastData, "Past")) {
+            return false;
+        }
+
+        // Reconstruct Present board
+        if (!reconstructSingleBoard(gameInstance.getPresent(), presentData, "Present")) {
+            return false;
+        }
+
+        // Reconstruct Future board
+        if (!reconstructSingleBoard(gameInstance.getFuture(), futureData, "Future")) {
+            return false;
+        }
+
+        HistoriqueJeu historiqueJeu = new HistoriqueJeu(gameInstance.getPast(),gameInstance.getPresent(),gameInstance.getFuture(),gameInstance.getJoueur1(),gameInstance.getJoueur2());
+
+        gameInstance.setHistoriqueJeu(historiqueJeu);
+
+        System.out.println("GameServerManager: All boards reconstructed successfully");
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("GameServerManager: Error reconstructing boards: " + e.getMessage());
+        return false;
+    }
+}
+
+/**
+ * Reconstruct a single board from save data
+ */
+private boolean reconstructSingleBoard(Plateau plateau, String boardData, String boardName) {
+    try {
+        System.out.println("GameServerManager: Reconstructing " + boardName + " board...");
+
+
+        // Place pieces according to save data
+        for (int row = 0; row < 4; row++) {
+            for (int col = 0; col < 4; col++) {
+                int index = row * 4 + col;
+                char pieceChar = boardData.charAt(index);
+
+                if (pieceChar != '0') {
+                    Joueur owner = null;
+                    if (pieceChar == '1') {
+                        owner = gameInstance.getJoueur1();
+                    } else if (pieceChar == '2') {
+                        owner = gameInstance.getJoueur2();
+                    }
+
+                    if (owner != null) {
+                        Piece piece = new Piece(owner, new Point(row, col));
+                        plateau.setPiece(piece, row, col);
+                    }
+                }
+            }
+        }
+
+        // Update piece counts
+        //plateau.updatePieceCounts();
+
+        System.out.println("GameServerManager: " + boardName + " board reconstructed - Player 1 pieces: " +
+                          plateau.getNbBlancs() + ", Player 2 pieces: " + plateau.getNbNoirs());
+
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("GameServerManager: Error reconstructing " + boardName + " board: " + e.getMessage());
+        return false;
+    }
+}
+
+/**
+ * Add this to the message processing section in runGameEngine()
+ * Insert this code in the message processing switch/if statements where you handle different message types
+ */
+private boolean processLoadGameMessage(Message msg, int clientId) {
+    String[] parts = msg.contenu.split(":", 2);
+
+    if (parts.length != 2 || !parts[0].equals("LOAD_GAME")) {
+        return false; // Not a LOAD_GAME message
+    }
+
+    String gameDataString = parts[1];
+    System.out.println("GameServerManager: Received LOAD_GAME command from client " + clientId);
+
+    if (handleLoadGameCommand(gameDataString, clientId)) {
+        System.out.println("GameServerManager: Game loaded successfully");
+        return true;
+    } else {
+        System.err.println("GameServerManager: Failed to load game");
+        return true; // Message was processed even if it failed
+    }
+}
+
+/**
+ * Modify your message processing in runGameEngine() to include this check
+ * Add this check before your existing switch statement for etapeCoup
+ */
+// In runGameEngine(), before processing etapeCoup, add:
+/*
+// Check if this is a LOAD_GAME command
+if (msg.contenu.startsWith("LOAD_GAME:")) {
+    if (processLoadGameMessage(msg, clientId)) {
+        continue; // Skip normal game processing for this message
+    }
+}
+*/
 
 }

@@ -237,10 +237,12 @@ public class GameClient {
                                 case GAGNE:
                                     gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("WIN", finalContent);
+                                    this.playByAI = false; // Désactiver le mode IA si le joueur a gagné
                                     break;
                                 case PERDU:
                                     gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("LOSE", finalContent);
+                                    this.playByAI = false; // Désactiver le mode IA si le joueur a perdu
                                     break;
                                     
                                 case PIECE:
@@ -354,12 +356,12 @@ public class GameClient {
                     return null; // Retourner null si l'IA n'a pas de coup à jouer
                 }
 
-                try {
-                    Thread.sleep(500 + (int)(Math.random() * 500));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
-                }
+                // try {
+                //     Thread.sleep(500 + (int)(Math.random() * 500));
+                // } catch (InterruptedException e) {
+                //     Thread.currentThread().interrupt();
+                //     System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
+                // }
                 cmdToSend = aiClient.joueCoup(gameInstance, currentEtape);
 
                 if (currentEtape == 3) {
@@ -398,12 +400,8 @@ public class GameClient {
 
     public void switchToAIMode() {
         if (this.playByAI) {
-            if (gameInstance.getJoueurCourant().getId() == myPlayerId) {
-            //     System.out.println("GameClient (ID: " + myPlayerId + "): Vous devez attendre un tour total de IA.");
-            // } else {
-                this.playByAI = false;
-                System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA désactivé.");
-            }
+            this.playByAI = false;
+            System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA désactivé.");
         } else {
             this.playByAI = true;
             System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA activé.");

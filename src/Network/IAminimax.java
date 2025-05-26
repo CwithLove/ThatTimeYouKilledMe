@@ -53,20 +53,22 @@ public class IAminimax {
         // }
         this.mode = "HARD";
         System.out.println("REMPLISSAGE...");
-        // for (int i = 0; i < 9; i++) {
-        //     poids.add(r.nextInt(15));
-        //     System.out.println(i + " : " + poids.get(i));
-        // }
+        for (int i = 0; i < 9; i++) {
+            if (i == 0) poids.add(1);
+            else poids.add(0);
+            // poids.add(r.nextInt(15));
+            // System.out.println(i + " : " + poids.get(i));
+        }
 
-        poids.add(8);
-        poids.add(2);                
-        poids.add(7);
-        poids.add(4);
-        poids.add(9);
-        poids.add(6);
-        poids.add(7);
-        poids.add(5);
-        poids.add(10);
+        // poids.add(8);
+        // poids.add(2);                
+        // poids.add(7);
+        // poids.add(4);
+        // poids.add(9);
+        // poids.add(6);
+        // poids.add(7);
+        // poids.add(5);
+        // poids.add(10);
     }
 
     public IAFields<Piece, String, String, Plateau.TypePlateau> coupIA(Jeu gameState) {

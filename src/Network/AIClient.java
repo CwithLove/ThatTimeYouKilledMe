@@ -179,9 +179,9 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         }
         
         System.out.println(aiName + " (ID: " + myPlayerId + "): C'est mon tour ! Prise de décision...");
-        // try {
+        try {
             
-            // Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
+            Thread.sleep(500); // L'IA "réfléchit" pendant 0,5-2 secondes
             //L'ia joue un coup
             switch (newGameState.getEtape()) {
                 case 0: // AI peut calculer le coup ici
@@ -244,11 +244,11 @@ public class AIClient implements GameStateUpdateListener, Runnable {
             }
             
 
-        // } catch (InterruptedException e) {
-        //     Thread.currentThread().interrupt();
-        //     System.out.println(aiName + ": Thread interrompu pendant la réflexion.");
-        //     return;
-        // }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println(aiName + ": Thread interrompu pendant la réflexion.");
+            return;
+        }
         
         //makeDecisionAndPlay();
         

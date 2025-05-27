@@ -877,6 +877,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 undoButton.update(mousePos);
                 redoButton.update(mousePos);
                 switchToAiButton.update(mousePos);
+                saveButton.update(mousePos);
 
                 // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
                 repaintPanel();
@@ -1036,7 +1037,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
             saveButton.setSize(150 * width / 1920, 60 * width / 1920);
             saveButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
-            saveButton.setLocation(saveButtonX, saveButtonY);
+            saveButton.setLocation(width-150 * width / 1920, height-60 * width / 1920);
 
             // Activer le bouton seulement si c'est le tour du joueur ou si le jeu n'est pas terminé
             saveButton.setEnabled(!gameHasEnded && gameClient != null && gameClient.isConnected());
@@ -1075,29 +1076,29 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 redoButton.setEnabled(false);
             }
 
-            // Afficher le message de sélection de plateau
-            String AIControl = null;
-            if (controlledByAI) {
-                AIControl = "Contrôlé par l'IA";
-            } else {
-                AIControl = "Contrôlé par vous";
-            }
+            // // Afficher le message de sélection de plateau
+            // String AIControl = null;
+            // if (controlledByAI) {
+            //     AIControl = "Contrôlé par l'IA";
+            // } else {
+            //     AIControl = "Contrôlé par vous";
+            // }
 
-            g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
-            FontMetrics font = g2d.getFontMetrics();
-            int AIMsgWidth = font.stringWidth(AIControl);
+            // g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
+            // FontMetrics font = g2d.getFontMetrics();
+            // int AIMsgWidth = font.stringWidth(AIControl);
 
             // Position
-            int AIMsgX = pastStartX + tileWidth * 2 - AIMsgWidth / 2;
-            int AIMsgY = height - 62 * width / 1920;
+            // int AIMsgX = pastStartX + tileWidth * 2 - AIMsgWidth / 2;
+            // int AIMsgY = height - 62 * width / 1920;
 
             //rectangle autour du text
             // g2d.setColor(new Color(0, 0, 0, 150));
             // g2d.fillRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
             // g2d.drawRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
             // Centrer le message en bas
-            g2d.setColor(Color.YELLOW);
-            g2d.drawString(AIControl, AIMsgX, AIMsgY);
+            // g2d.setColor(Color.YELLOW);
+            // g2d.drawString(AIControl, AIMsgX, AIMsgY);
 
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
@@ -1232,7 +1233,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             if(myPlayerId == 1){
                 saveButton.render(g2d);
             }
-            switchToAiButton.render(g2d);
+            //switchToAiButton.render(g2d);
             redoButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)

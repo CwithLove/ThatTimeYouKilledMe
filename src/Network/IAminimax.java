@@ -252,7 +252,7 @@ public class IAminimax {
 
         if (profondeur >= this.difficulte || clone.gameOver(clone.getJoueurCourant()) != 0) {
             int score = heuristique(clone, tourIA, false);
-            System.out.println("Heuristique score: " + score);
+            // System.out.println("Heuristique score: " + score);
             //memoisation.put(hash, new Memoisation(score, profondeur));
             return score;
         }

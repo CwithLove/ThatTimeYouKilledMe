@@ -362,12 +362,12 @@ public class GameClient {
                     return null; // Retourner null si l'IA n'a pas de coup à jouer
                 }
 
-                // try {
-                //     Thread.sleep(500 + (int)(Math.random() * 500));
-                // } catch (InterruptedException e) {
-                //     Thread.currentThread().interrupt();
-                //     System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
-                // }
+                try {
+                    Thread.sleep(500 + (int)(Math.random() * 500));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
+                }
                 cmdToSend = aiClient.joueCoup(gameInstance, currentEtape);
 
                 if (currentEtape == 3) {
@@ -384,6 +384,11 @@ public class GameClient {
                     if (cmdToSend != null && !cmdToSend.isEmpty()) {
                         System.out.println("GameClient (ID: " + myPlayerId + "): IA envoie la commande: " + cmdToSend);
                         sendPlayerAction(cmdToSend); // Envoyer la commande au serveur
+                        if (currentEtape == 3) {
+                            System.out.println("GameClient (ID: " + myPlayerId + "): IA a joué pour l'étape 3, réinitialisation nécessaire.");
+                            sendPlayerAction("1:null:null:x:y"); // Envoie une action fictive pour réinitialiser l'état
+                            playByAI = false; // Désactiver le mode IA après l'étape 3
+                        }
                     } else {
                         System.err.println("GameClient (ID: " + myPlayerId + "): Aucune commande à envoyer, l'IA n'a pas pu jouer.");
                     }

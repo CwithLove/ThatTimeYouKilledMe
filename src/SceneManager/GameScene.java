@@ -290,7 +290,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
         int switchToAiX = undoX;
         int switchToAiY = undoY + 50;
-        switchToAiButton = new Button(0, 0, 100, 40, "IA", this::handleSwitchToAiAction);
+        switchToAiButton = new Button(0, 0, 100, 40, "Hint", this::handleSwitchToAiAction);
 
         int redoX = undoX;
         int redoY = undoY + 50; // Position du bouton REDO en dessous du bouton UNDO

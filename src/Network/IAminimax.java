@@ -169,6 +169,8 @@ public class IAminimax {
                 // Pour chaque tour possible, on prend le meilleur heuristique
                 best_coup = null;
                 int bestHeuristique = Integer.MIN_VALUE;
+                System.out.println("--------------------------------------");
+                System.out.println("Nombre de coups restants: " + lst_coup.size());
                 for (int i = 0; i < lst_coup.size(); i++) {
                     Jeu simCoup = new Jeu(gameState);
                     IAFields<Piece, String, String, Plateau.TypePlateau> tour = lst_coup.get(i).getPremier();
@@ -189,7 +191,10 @@ public class IAminimax {
 
                         Coup coup2 = Coup.stringToCoup(pieceCourant, simCoup.getPlateauCourant(), tour.getTroisieme());
                         if (coup2 != null) {
+                            System.out.print("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                             simCoup.appliquerCoup(coup2);
+                        } else {
+                            System.out.print("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", null," + tour.getQuatrieme());
                         }
 
                         simCoup.choisirPlateau(tour.getQuatrieme());
@@ -199,6 +204,9 @@ public class IAminimax {
                     simCoup.joueurSuivant();
 
                     int heuristique = heuristique(simCoup, false);
+                    System.out.println("Jeu:");
+                    simCoup.printGamePlay();
+                    System.out.println(" => Heuristique: " + heuristique);
                     if (heuristique > bestHeuristique) {
                         bestHeuristique = heuristique;
                         best_coup = tour;
@@ -314,6 +322,7 @@ public class IAminimax {
 
     // heuristique
     private int heuristique(Jeu jeu, boolean tourIA) {
+
         Joueur joueur = jeu.getJoueurCourant();
         Joueur opponent = null;
         if (joueur.getId() == 1) {
@@ -326,10 +335,21 @@ public class IAminimax {
             opponent = jeu.getJoueurCourant();
         }
 
+        // System.out.println(hMateriel(jeu, joueur) + " * 25 + "
+        //         + hControlePlateaux(jeu, joueur) + " * 40 - "
+        //         + hPiecesAdjacentes(jeu, joueur) + " * 3 - "
+        //         + hDiffPionEtClone(jeu, joueur) + " * 2 - "
+        //         + hBordPlateau(jeu, joueur) + " * 1 - "
+        //         + hCoinPlateau(jeu, joueur) + " * 2 - "
+        //         + hChoixPlateau(jeu, joueur) + " * 1");
+
         return 25 * hMateriel(jeu, joueur)
                 + 40 * hControlePlateaux(jeu, joueur)
-                + 3 * hPiecesAdjacentes(jeu, joueur)
-                - 2 * hDiffPionEtClone(jeu, joueur);
+                - 3 * hPiecesAdjacentes(jeu, joueur)
+                - 2 * hDiffPionEtClone(jeu, joueur)
+                - 1 * hBordPlateau(jeu, joueur)
+                - 2 * hCoinPlateau(jeu, joueur)
+                - 1 * hChoixPlateau(jeu, joueur);
     }
 
     // Pour chaque piece en plus de l'adversaire, on ajoute un point
@@ -358,16 +378,16 @@ public class IAminimax {
             score += jeu.getPast().getNbBlancs() > 0 ? 1 : 0;
             score += jeu.getPresent().getNbBlancs() > 0 ? 1 : 0;
             score += jeu.getFuture().getNbBlancs() > 0 ? 1 : 0;
-            // score -= jeu.getPast().getNbNoirs() > 0 ? 1 : 0;
-            // score -= jeu.getPresent().getNbNoirs() > 0 ? 1 : 0;
-            // score -= jeu.getFuture().getNbNoirs() > 0 ? 1 : 0;
+            score += jeu.getPast().getNbNoirs() > 0 ? 0 : 1;
+            score += jeu.getPresent().getNbNoirs() > 0 ? 0 : 1;
+            score += jeu.getFuture().getNbNoirs() > 0 ? 0 : 1;
         } else {
             score += jeu.getPast().getNbNoirs() > 0 ? 1 : 0;
             score += jeu.getPresent().getNbNoirs() > 0 ? 1 : 0;
             score += jeu.getFuture().getNbNoirs() > 0 ? 1 : 0;
-            // score -= jeu.getPast().getNbBlancs() > 0 ? 1 : 0;
-            // score -= jeu.getPresent().getNbBlancs() > 0 ? 1 : 0;
-            // score -= jeu.getFuture().getNbBlancs() > 0 ? 1 : 0;
+            score += jeu.getPast().getNbBlancs() > 0 ? 0 : 1;
+            score += jeu.getPresent().getNbBlancs() > 0 ? 0 : 1;
+            score += jeu.getFuture().getNbBlancs() > 0 ? 0 : 1;
         }
         // System.out.println("DEBUG hControlePlateaux score: " + score);
         return score;
@@ -382,16 +402,16 @@ public class IAminimax {
                 Piece piece = jeu.getPlateauCourant().getPiece(i, j);
                 if (piece != null && piece.getOwner().equals(ia)) {
                     if (i > 0 && jeu.getPlateauCourant().getPiece(i - 1, j) != null && jeu.getPlateauCourant().getPiece(i - 1, j).getOwner().equals(ia)) {
-                        score -= 1;
+                        score += 1;
                     }
                     if (i < jeu.getPlateauCourant().getSize() - 1 && jeu.getPlateauCourant().getPiece(i + 1, j) != null && jeu.getPlateauCourant().getPiece(i + 1, j).getOwner().equals(ia)) {
-                        score -= 1;
+                        score += 1;
                     }
                     if (j > 0 && jeu.getPlateauCourant().getPiece(i, j - 1) != null && jeu.getPlateauCourant().getPiece(i, j - 1).getOwner().equals(ia)) {
-                        score -= 1;
+                        score += 1;
                     }
                     if (j < jeu.getPlateauCourant().getSize() - 1 && jeu.getPlateauCourant().getPiece(i, j + 1) != null && jeu.getPlateauCourant().getPiece(i, j + 1).getOwner().equals(ia)) {
-                        score -= 1;
+                        score += 1;
                     }
                 }
             }
@@ -413,6 +433,144 @@ public class IAminimax {
         }
         // System.out.println("DEBUG hDiffPionEtClone score: " + score);
         return Math.abs(score);
+    }
+
+    // Pour chaque plateau, Pour chaque piece au bord d'un plateau (pas au coin), on enleve un point, si il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 2 points 
+    private int hBordPlateau(Jeu jeu, Joueur ia) {
+        int score = 0;
+        int size = 4;
+        for (Plateau plt : new Plateau[]{jeu.getPast(), jeu.getPresent(), jeu.getFuture()}) {
+            for (int i = 0; i <= 4; i++) {
+                for (int j = 0; j <= 4; j++) {
+                    boolean estBord = (i == 0 && j == 1)
+                            || (i == 0 && j == 2)
+                            || (i == 1 && j == 0)
+                            || (i == 1 && j == size - 1)
+                            || (i == 2 && j == 0)
+                            || (i == 2 && j == size - 1)
+                            || (i == size - 1 && j == 1)
+                            || (i == size - 1 && j == 2);
+
+                    if (estBord) {
+                        Piece pieceIACourante = plt.getPiece(i, j);
+                        // Verifier si la piece courante appartient a l'IA
+                        if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
+                            // Si la piece est au bord, on retire 1 point
+                            score += 2;
+                        } else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
+                            score -= 1;
+                        }
+                    }
+                }
+            }
+        }
+        return score;
+    }
+
+    // Pour chaque plateau, Pour chaque piece au coin, on enleve 2 points, si il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 5 points
+    private int hCoinPlateau(Jeu jeu, Joueur ia) {
+        int score = 0;
+        int size = 4;
+        for (Plateau plt : new Plateau[]{jeu.getPast(), jeu.getPresent(), jeu.getFuture()}) {
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    Piece pieceIACourante = plt.getPiece(i, j);
+
+                    // Verifier si la piece courante appartient a l'IA
+                    if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
+                        // Verifier si la piece est au coin du plateau
+                        boolean estAuCoin = (i == 0 && j == 0)
+                                || (i == 0 && j == size - 1)
+                                || (i == size - 1 && j == 0)
+                                || (i == size - 1 && j == size - 1);
+
+                        if (estAuCoin) {
+                            // Si la piece est au coin, on retire 1 points
+                            score += 1;
+                        } else {
+                            break; // Si la piece n'est pas au coin, on ne fait rien
+                        }
+                        // Si il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 5 points
+                        boolean pieceAdversaireProche = false;
+                        for (int x = 0; x < size; x++) {
+                            for (int y = 0; y < size; y++) {
+                                Piece pieceAdversaire = plt.getPiece(x, y);
+                                if (pieceAdversaire != null && !pieceAdversaire.getOwner().equals(ia)) {
+                                    int distanceManhattan = Math.abs(i - x) + Math.abs(j - y);
+                                    if (distanceManhattan <= 2) {
+                                        pieceAdversaireProche = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (pieceAdversaireProche) {
+                                break;
+                            }
+                        }
+                        if (pieceAdversaireProche) {
+                            score += 2;
+                        }
+                    }
+
+                }
+            }
+        }
+        return score;
+    }
+
+    private int hChoixPlateau(Jeu jeu, Joueur ia) {
+        int score = 0;
+        Plateau plt = jeu.getPlateauByType(ia.getProchainPlateau());
+        Joueur adversaire = ia.getId() == 1 ? jeu.getJoueur2() : jeu.getJoueur1();
+        score += ia.getId() == 1 ? (plt.getNbBlancs() > 0 ? 1 : 0) : (plt.getNbNoirs() > 0 ? 1 : 0);
+
+        // si le pion du ia est au bord et il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 1 point
+        if (adversaire.getProchainPlateau() == plt.getType()) {
+            for (int i = 0; i < plt.getSize(); i++) {
+                for (int j = 0; j < plt.getSize(); j++) {
+                    Piece pieceIACourante = plt.getPiece(i, j);
+                    if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
+                        boolean estBord = (i == 0 && j == 1)
+                                || (i == 0 && j == 2)
+                                || (i == 1 && j == 0)
+                                || (i == 1 && j == plt.getSize() - 1)
+                                || (i == 2 && j == 0)
+                                || (i == 2 && j == plt.getSize() - 1)
+                                || (i == plt.getSize() - 1 && j == 1)
+                                || (i == plt.getSize() - 1 && j == 2)
+                                || (i == 0 && j == 0)
+                                || (i == 0 && j == plt.getSize() - 1)
+                                || (i == plt.getSize() - 1 && j == 0)
+                                || (i == plt.getSize() - 1 && j == plt.getSize() - 1);
+
+                        if (estBord) {
+                            score += 1;
+                            boolean pieceAdversaireProche = false;
+                            for (int x = 0; x < plt.getSize(); x++) {
+                                for (int y = 0; y < plt.getSize(); y++) {
+                                    Piece pieceAdversaire = plt.getPiece(x, y);
+                                    if (pieceAdversaire != null && !pieceAdversaire.getOwner().equals(ia)) {
+                                        int distanceManhattan = Math.abs(i - x) + Math.abs(j - y);
+                                        if (distanceManhattan <= 2) {
+                                            pieceAdversaireProche = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (pieceAdversaireProche) {
+                                    break;
+                                }
+                            }
+                            if (pieceAdversaireProche) {
+                                score += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return score;
     }
 
     private ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> getTourPossible(Joueur joueur, Jeu clone) {

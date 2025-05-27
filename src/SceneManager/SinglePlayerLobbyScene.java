@@ -419,7 +419,7 @@ public class SinglePlayerLobbyScene implements Scene {
         int comboBoxY = height * 6 / 13 - comboBoxHeight / 2; // Centré verticalement
         difficultyComboBox.setBounds(comboBoxX, comboBoxY, comboBoxWidth, comboBoxHeight);
         difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, btnFontSize * 2 / 3));
-        difficultyComboBox.setVisible(fadeComplete); // Seulement visible après la fin de la transition
+        difficultyComboBox.setVisible(true);
 
         // Bouton de démarrage du jeu
         startGameButton.setSize(btnWidth, btnHeight);

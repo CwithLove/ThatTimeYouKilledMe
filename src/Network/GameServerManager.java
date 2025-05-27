@@ -1204,6 +1204,8 @@ private boolean reconstructSingleBoard(Plateau plateau, String boardData, String
     try {
         System.out.println("GameServerManager: Reconstructing " + boardName + " board...");
 
+        plateau.clearPieces();
+        System.out.println("GameServerManager: Cleared existing pieces on " + boardName + " board");
 
         // Place pieces according to save data
         for (int row = 0; row < 4; row++) {
@@ -1227,8 +1229,7 @@ private boolean reconstructSingleBoard(Plateau plateau, String boardData, String
             }
         }
 
-        // Update piece counts
-        //plateau.updatePieceCounts();
+        plateau.updatePieceCount();
 
         System.out.println("GameServerManager: " + boardName + " board reconstructed - Player 1 pieces: " +
                           plateau.getNbBlancs() + ", Player 2 pieces: " + plateau.getNbNoirs());

@@ -105,6 +105,10 @@ public class HistoriqueJeu {
             this.joueur1.push(this.redoJoueur1.pop().copie());
             this.joueur2.push(this.redoJoueur2.pop().copie());
             this.nbTours++;
+
+            if (redoPast.isEmpty()) {
+                this.redo = false;
+            }
         }
 
     }

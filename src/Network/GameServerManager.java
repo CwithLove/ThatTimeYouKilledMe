@@ -312,24 +312,14 @@ public class GameServerManager {
                         // Sinon c'est un redo
                     } else {
                         // Si c'est ton tour, on va redo ce que l'adversaire et ce que tu as fait
-                        if (clientId == joueurCourant.getId()) {
-                            if (gameInstance.getHistoriqueJeu().isRedoPossible()) {
-                                gameInstance.Redo();
-                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
-                                sendMessageToClient(clientId,
+                        gameInstance.Redo();
+                        gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                        sendMessageToClient(clientId,
                                         Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                                System.out.println("GameServerManager: Redo effectué par le joueur " + clientId);
-                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
-                            } else {
-                                System.out.println("GameServerManager: Redo impossible pour le joueur " + clientId);
-                                sendMessageToClient(clientId, Code.REDOABLE.name() + ":" + "Redo impossible.");
-                            }
+                        System.out.println("GameServerManager: Redo effectué par le joueur " + clientId);
+                        sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
 
-                        } else {
-                            // Si c'est pas ton tour, on va ne rien faire
-                            continue;
-                        }
                     }
 
                 }

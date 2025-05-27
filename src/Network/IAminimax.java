@@ -308,7 +308,7 @@ public class IAminimax {
                     best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2,score));
                     alpha = Math.max(alpha, best);
                 } else {
-                    score -= heuristique(clone, tourIA, false);
+                    //score -= heuristique(clone, tourIA, false); //A ESSAYER
                     best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2,score));
                     beta = Math.min(beta, best);
                 }
@@ -322,7 +322,7 @@ public class IAminimax {
                     best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2, score));
                     alpha = Math.max(alpha, best);
                 } else {
-                    score -= heuristique(clone, tourIA, false);
+                    //score -= heuristique(clone, tourIA, false); //A ESSAYER
                     best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2, score));
                     beta = Math.min(beta, best);
                 }

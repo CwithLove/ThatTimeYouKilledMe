@@ -442,12 +442,12 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     // Créer les métadonnées de sauvegarde
                     String saveMetadata = String.format("# Save Metadata\n" +
                             "SaveName: %s\n" +
-                            "PlayerID: %d\n" +
+                            "LevelAI: %d\n" +
                             "SaveTime: %s\n" +
                             "GameVersion: 1.0\n" +
                             "# Game Data\n%s",
                             saveName,
-                            gameClient.getMyPlayerId(),
+                            levelAI,
                             java.time.LocalDateTime.now().toString(),
                             gamedata);
 
@@ -1197,7 +1197,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
             // pas égal à 3
             undoButton.render(g2d);
-            if(myPlayerId == 1){
+            if(myPlayerId == 1 && isOperatingInSinglePlayerMode){
                 saveButton.render(g2d);
             }
             switchToAiButton.render(g2d);

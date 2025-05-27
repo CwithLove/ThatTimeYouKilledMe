@@ -82,15 +82,15 @@ public class SinglePlayerLobbyScene implements Scene {
      */
     private static class SaveInfo {
         String saveName;
-        int playerId;
+        int levelAI;
         String saveTime;
         long fileSize;
         String gameData;
         Path filePath;
 
-        SaveInfo(String saveName, int playerId, String saveTime, long fileSize, String gameData, Path filePath) {
+        SaveInfo(String saveName, int levelAI, String saveTime, long fileSize, String gameData, Path filePath) {
             this.saveName = saveName;
-            this.playerId = playerId;
+            this.levelAI = levelAI;
             this.saveTime = saveTime;
             this.fileSize = fileSize;
             this.gameData = gameData;
@@ -150,8 +150,8 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Créer la liste des descriptions de sauvegarde pour l'utilisateur
         String[] saveDescriptions = saves.stream()
-                .map(save -> String.format("%s (Player %d, %s, %.1fKB)",
-                     save.saveName, save.playerId,
+                .map(save -> String.format("%s (LevelAI %d, %s, %.1fKB)",
+                     save.saveName, save.levelAI,
                      formatSaveTime(save.saveTime), save.fileSize / 1024.0))
                 .toArray(String[]::new);
 
@@ -169,6 +169,7 @@ public class SinglePlayerLobbyScene implements Scene {
 
     switch (choice) {
         case 0: // Load
+
             handleLoadAction(saves, saveDescriptions);
             break;
         case 1: // Delete
@@ -270,7 +271,7 @@ private void deleteSaveFile(SaveInfo saveInfo) {
             List<String> lines = Files.readAllLines(filePath, java.nio.charset.StandardCharsets.UTF_8);
 
             String saveName = null;
-            int playerId = -1;
+            int niveauIA = -1;
             String saveTime = null;
             String gameData = null;
 
@@ -278,16 +279,16 @@ private void deleteSaveFile(SaveInfo saveInfo) {
             for (String line : lines) {
                 if (line.startsWith("SaveName: ")) {
                     saveName = line.substring("SaveName: ".length()).trim();
-                } else if (line.startsWith("PlayerID: ")) {
+                } else if (line.startsWith("LevelAI: ")) {
                     try {
-                        playerId = Integer.parseInt(line.substring("PlayerID: ".length()).trim());
+                        niveauIA = Integer.parseInt(line.substring("LevelAI: ".length()).trim());
                     } catch (NumberFormatException e) {
                         System.err.println("Invalid PlayerID format in " + filePath);
                     }
                 } else if (line.startsWith("SaveTime: ")) {
                     saveTime = line.substring("SaveTime: ".length()).trim();
                 } else if (!line.startsWith("#") && !line.contains("SaveName:") &&
-                          !line.contains("PlayerID:") && !line.contains("SaveTime:") &&
+                          !line.contains("LevelAI:") && !line.contains("SaveTime:") &&
                           !line.contains("GameVersion:") && !line.contains("FileSize:") &&
                           !line.contains("Checksum:") && !line.contains("CurrentPlayer:") &&
                           !line.contains("GamePhase:") && !line.trim().isEmpty()) {
@@ -298,9 +299,9 @@ private void deleteSaveFile(SaveInfo saveInfo) {
             }
 
             // Vérifier que toutes les données requises sont présentes
-            if (saveName != null && playerId != -1 && saveTime != null && gameData != null) {
+            if (saveName != null && niveauIA != -1 && saveTime != null && gameData != null) {
                 long fileSize = Files.size(filePath);
-                return new SaveInfo(saveName, playerId, saveTime, fileSize, gameData, filePath);
+                return new SaveInfo(saveName, niveauIA, saveTime, fileSize, gameData, filePath);
             } else {
                 System.err.println("Incomplete save file: " + filePath);
                 return null;
@@ -333,6 +334,7 @@ private void deleteSaveFile(SaveInfo saveInfo) {
     private void loadGameFromSave(SaveInfo saveInfo) {
         System.out.println("Loading save: " + saveInfo.saveName);
         System.out.println("Game data: " + saveInfo.gameData);
+        levelAI = saveInfo.levelAI;
 
         transitioningToGameScene = true;
         statusMessage = "Loading saved game...";

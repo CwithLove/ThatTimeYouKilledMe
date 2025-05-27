@@ -41,6 +41,8 @@ public class GameServerManager {
     private volatile boolean isServerRunning = false;
     // Stocker les récepteurs client
     private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
+
+    private boolean redoable = false; // Indique si le redo est possible
     
 
     
@@ -171,24 +173,7 @@ public class GameServerManager {
                 System.out.println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
 
                 // Vérifier si c'est le tour du joueur actuel
-                if (clientId != joueurCourant.getId()) {
-                    System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
-                    continue;
-                }
-
-                if (msg.contenu == null) {
-                    System.err.println("GameServerManager: Message du client " + clientId + " est null.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
-                    continue;
-                }
-
-                if (msg.contenu.startsWith("LOAD_GAME:")) {
-                     if (processLoadGameMessage(msg, clientId)) {
-                         continue;
-                     }
-                }
-
+                // Si c'est pas le tour du joueur actuel, le seul message qu'il est accepte est demande le undo
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
@@ -199,18 +184,134 @@ public class GameServerManager {
                     sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Format de message invalide.");
                     continue;
                 }
+                
+
+                if (msg.contenu == null) {
+                    System.err.println("GameServerManager: Message du client " + clientId + " est null.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
+                    continue;
+                }
 
                 // Vérifier si c'est une commande Undo
                 int undo = Integer.parseInt(parts[0]);
                 if (undo == 1) {
-                    gameInstance.Undo();
-                    System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
-                    gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                    gameInstance.setPieceCourante(null);
-                    sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                    sendGameStateToAllClients();
+                    String redoMsg = parts[1];
+
+                    if (redoMsg.equals("null")) {
+                        // Si le message est "null", on va faire un undo
+                
+                        // Si c'est pas ton tour, on va undo ce que l'adversaire a fait et ton tour precedent
+                        if (clientId != joueurCourant.getId()) {
+                            if (gameInstance.getHistoriqueJeu().getNbTours() > 0) {
+                                if (!redoable) {
+                                    sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");    
+                                    sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");
+                                    redoable = true; // Indiquer que le redo est possible
+                                }
+                            }
+
+                            // else {
+                            //     sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas refaire un coup.");
+                            //     sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas refaire un coup.");
+                            // }
+
+                            
+                            if (etapeCoup == 0) {
+                                gameInstance.Undo();
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                // Dans Undo il a deja le majJoueurCourant
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                                System.out.println("GameServerManager: Undo effectué par l'adversaire " + clientId);
+                                continue;
+                            } else {
+                                gameInstance.Undo(); // Undo le coup de l'adversaire
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                // L'adversaire doit aussi deselectionner la piece courante
+                                sendMessageToClient(clientId == 1 ? 2 : 1, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+
+                                sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");
+                                sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");// Undo ce que l'adversaire a fait
+                                System.out.println("GameServerManager: Undo effectué par l'adversaire " + clientId);
+                                try {
+                                    Thread.sleep(1500); // Attendre un peu pour que l'adversaire puisse voir le undo
+                                } catch (InterruptedException e) {
+                                    System.err.println("GameServerManager: Erreur lors de l'attente après undo: " + e.getMessage());
+                                } catch (Exception e) {
+                                    System.err.println("GameServerManager: Erreur inattendue lors de l'attente après undo: " + e.getMessage());
+                                }
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendGameStateToAllClients();
+                            }
+
+                        } 
+                        // Si c'est ton tour, il faut verifier si c'est etapeCoup 0, si c'est 0 cad, il faut demander a l'adversaire de undo ce qu'il a fait
+                        else { 
+                            // Si c'est la, on va undo le tour total ce que l'adversaire a fait
+                            if (etapeCoup == 0) {
+                                gameInstance.Undo();
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                try {
+                                    Thread.sleep(500); // Attendre un peu pour que l'adversaire puisse voir le undo
+                                } catch (InterruptedException e) {
+                                    System.err.println("GameServerManager: Erreur lors de l'attente après undo: " + e.getMessage());
+                                } catch (Exception e) {
+                                    System.err.println("GameServerManager: Erreur inattendue lors de l'attente après undo: " + e.getMessage());
+                                }
+                                // On va undo le coup du joueur courant
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+
+                            } else {
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                            }
+                            continue;
+                        }
+                    // Sinon c'est un redo
+                    } else {
+                        // Si c'est ton tour, on va redo ce que l'adversaire et ce que tu as fait
+                        if (clientId == joueurCourant.getId()) {
+                            if (gameInstance.getHistoriqueJeu().isRedoPossible()) {
+                                gameInstance.Redo();
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Redo effectué par le joueur " + clientId);
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                            } else {
+                                System.out.println("GameServerManager: Redo impossible pour le joueur " + clientId);
+                                sendMessageToClient(clientId, Code.REDOABLE.name() + ":" + "Redo impossible.");
+                            }
+
+                        } else {
+                            // Si c'est pas ton tour, on va ne rien faire
+                            continue;
+                        }
+                    } 
+                    
+                }
+ 
+                if (clientId != joueurCourant.getId()) {
+                    System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
                     continue;
                 }
+
 
                 // Extraire les coordonnées
                 int x, y;

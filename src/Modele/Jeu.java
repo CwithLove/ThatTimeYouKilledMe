@@ -1109,6 +1109,7 @@ public class Jeu {
             past = historiqueJeu.getPast(joueur1, joueur2);
             present = historiqueJeu.getPresent(joueur1, joueur2);
             future = historiqueJeu.getFuture(joueur1, joueur2);
+            joueurSuivant();
         }
     }
 }

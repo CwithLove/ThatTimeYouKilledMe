@@ -142,6 +142,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         case ADVERSAIRE:
                         case ACTION:
                         case COUP:
+                        case REDOABLE:
                             onGameMessage(code.name(), content);
                             break;
                         default:

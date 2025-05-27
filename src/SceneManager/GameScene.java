@@ -57,6 +57,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private Button backButton; // Bouton pour revenir au menu principal
     private Button undoButton; // Bouton pour annuler une action
     private Button switchToAiButton; // Bouton pour se mettre en IA
+    private Button redoButton;
     private Button choosePlateauButton; // Bouton pour choisir un plateau
 
     // Réseau et Mode de Jeu
@@ -99,6 +100,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
     // Ajout pour la gestion du serveur en mode multijoueur
     private GameServerManager hostServerManager; // Instance du serveur reprise de HostingScene
+
+    private boolean redoable = false; // Indique si on est en mode redo
 
     // Stocke les plateaux sélectionnés par les joueurs
     private Plateau.TypePlateau joueur1SelectedPlateau = Plateau.TypePlateau.PAST;
@@ -287,12 +290,21 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
         int switchToAiX = undoX;
         int switchToAiY = undoY + 50;
-        switchToAiButton = new Button(switchToAiX, switchToAiY, 100, 40, "IA", this::handleSwitchToAiAction);
+        switchToAiButton = new Button(0, 0, 100, 40, "IA", this::handleSwitchToAiAction);
+
+        int redoX = undoX;
+        int redoY = undoY + 50; // Position du bouton REDO en dessous du bouton UNDO
+        redoButton = new Button(redoX, redoY, 100, 40, "REDO", this::handleRedoAction);
+
 
         // Ajouter un bouton pour choisir un plateau
         choosePlateauButton = new Button(0, 0, 180, 40, "Choisir ce plateau", this::handleChoosePlateauAction);
 
         saveButton = new Button(0, 0, 150, 40, "Sauvegarder", this::handleSaveGame);
+    }
+
+    private void handleRedoAction() {
+        gameClient.sendPlayerAction("1:redo:null:null:null");
     }
 
     private void handleSwitchToAiAction() {
@@ -811,11 +823,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             return;
         }
 
-        if (!isMyTurn()) {
-            statusMessage = "Ce n'est pas votre tour.";
-            repaintPanel();
-            return;
-        }
+        // if (!isMyTurn()) {
+            // statusMessage = "Ce n'est pas votre tour.";
+            // repaintPanel();
+            // return;
+        // }
 
         // Utiliser le champ etapeCoup de GameScene=
         // L'annulation n'a de sens que lorsque etapeCoup est égal à 1 ou 2
@@ -863,6 +875,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
                 // Utiliser le champ etapeCoup de GameScene
                 undoButton.update(mousePos);
+                redoButton.update(mousePos);
                 switchToAiButton.update(mousePos);
 
                 // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
@@ -949,10 +962,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         backButton.setSize(150 * width / 1920, 60 * width / 1920);
         backButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
 
+
         int spacingY = undoSizeY * 10 / 100;
+        redoButton.setSize(150 * width / 1920, 60 * width / 1920);
+        redoButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
+        redoButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY + undoSizeY + spacingY);
+
+        int switchToAiButtonX = (width - ((150+320) * width / 1920)) / 2; // À gauche du bouton undo
+        int switchToAiButtonY = height / 11 + 20; // Même hauteur que le bouton undo
         switchToAiButton.setSize(150 * width / 1920, 60 * width / 1920);
         switchToAiButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
-        switchToAiButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY + undoSizeY + spacingY);
+        switchToAiButton.setLocation(switchToAiButtonX, switchToAiButtonY);
 
         // Créer un Graphics2D pour le rendu
         Graphics2D g2d = (Graphics2D) g.create();
@@ -1011,7 +1031,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             Plateau future = jeu.getFuture();
 
             //Save
-            int saveButtonX = (width + (150 * width / 1920)) / 2 + 10; // À droite du bouton undo
+            int saveButtonX = (width + (170 * width / 1920)) / 2 ; // À droite du bouton undo
             int saveButtonY = height / 11 + 20; // Même hauteur que le bouton undo
 
             saveButton.setSize(150 * width / 1920, 60 * width / 1920);
@@ -1037,13 +1057,22 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 62 * width / 1920);
 
 
-                undoButton.setEnabled(true);
+                // undoButton.setEnabled(true);
+                
                 saveButton.setEnabled(true);
 
             } else {
 
-                undoButton.setEnabled(false);
+                // undoButton.setEnabled(false);
+                undoButton.setEnabled(true);
+                
                 saveButton.setEnabled(true);
+            }
+
+            if (redoable) {
+                redoButton.setEnabled(true);
+            } else {
+                redoButton.setEnabled(false);
             }
 
             // Afficher le message de sélection de plateau
@@ -1204,6 +1233,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 saveButton.render(g2d);
             }
             switchToAiButton.render(g2d);
+            redoButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)
             g2d.setColor(Color.WHITE);
@@ -1715,6 +1745,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     return;
                 }
 
+                if (redoButton.contains(mousePoint)) {
+                    redoButton.onClick();
+                    return;
+                }
+
                 if (switchToAiButton.contains(mousePoint)) {
                     switchToAiButton.onClick();
                     return;
@@ -1751,13 +1786,18 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     needsRepaint = true;
                 }
 
-                // Ajouter la gestion des nouveaux boutons
-                if (isMyTurn()) {
-                    if (undoButton.contains(mousePoint)) {
+                if (undoButton.contains(mousePoint)) {
                         undoButton.setClicked(true);
                         needsRepaint = true;
                     }
 
+                if (redoButton.contains(mousePoint)) {
+                    redoButton.setClicked(true);
+                    needsRepaint = true;
+                }
+
+                // Ajouter la gestion des nouveaux boutons
+                if (isMyTurn()) {
                     // Les trois boutons de sélection de plateau
                     if (etapeCoup == 3) {
 
@@ -1789,6 +1829,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
                 undoButton.setClicked(false);
+                redoButton.setClicked(false);
                 switchToAiButton.setClicked(false);
                 saveButton.setClicked(false);
                 // choosePlateauButton.setClicked(false);
@@ -2301,6 +2342,14 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
                     statusMessage = "Plateau " + typePlateau + " sélectionné pour le prochain tour.";
                 }
+                break;
+
+            case "REDOABLE":
+                // Gérer le message de succès de l'annulation
+                // Format : REDOABLE:succes
+                this.etapeCoup = 0; // Réinitialiser l'étape de coup après une annulation réussie
+                statusMessage = "Annulation réussie. Vous pouvez maintenant jouer à nouveau.";
+                redoable = !redoable; // Inverser l'état de redoable
                 break;
 
             case "WIN":

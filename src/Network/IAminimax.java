@@ -93,40 +93,42 @@ public class IAminimax {
         }*/
 
         //Minimax de profondeur [difficulte] (max 3, 6 avec heuristique) avec elagage
-        // System.out.println("--------MiniMax--------");
-        // System.out.println("Profondeur: " + this.difficulte);
+        System.out.println("--------MiniMax--------");
+        System.out.println("Profondeur: " + this.difficulte);
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
             // System.out.println("Tour " + this.difficulte + ": " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
             Jeu jeuClone = new Jeu(gameState);
-            if (tour.getPremier() != null && tour.getSecond() != null && tour.getTroisieme() != null) {
-                Jeu sim = new Jeu(jeuClone);
+            if (tour.getPremier() != null) {
+                System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
-                Piece pieceCourante = sim.getPlateauCourant().getPiece(x, y);
+                Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
                 if (pieceCourante == null) {
                     continue;
                 }
 
-                Coup coup1 = Coup.stringToCoup(pieceCourante, sim.getPlateauCourant(), tour.getSecond());
+                Coup coup1 = Coup.stringToCoup(pieceCourante, jeuClone.getPlateauCourant(), tour.getSecond());
                 if (coup1 == null) {
                     continue;
                 }
-                sim.appliquerCoup(coup1);
+                jeuClone.appliquerCoup(coup1);
 
-                Coup coup2 = Coup.stringToCoup(pieceCourante, sim.getPlateauCourant(), tour.getTroisieme());
+                Coup coup2 = Coup.stringToCoup(pieceCourante, jeuClone.getPlateauCourant(), tour.getTroisieme());
                 if (coup2 == null) {
-                    jeuClone = sim;
                     continue;
+                } else {
+                    jeuClone.appliquerCoup(coup2);
                 }
-                sim.appliquerCoup(coup2);
-                jeuClone = sim;
+                
+            } else {
+                System.out.println("Tour 0: null, null, null, " + tour.getQuatrieme());
             }
 
             jeuClone.choisirPlateau(tour.getQuatrieme());
             jeuClone.joueurSuivant();
 
             Jeu jeuClone2 = new Jeu(jeuClone);
-            int score = alphabeta(this.difficulte - 1, alpha, beta, false, jeuClone2);
+            int score = alphabeta(1, alpha, beta, false, jeuClone2);
             ////System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
             lst_coup.add(new Couple<>(tour, score));
 
@@ -204,8 +206,8 @@ public class IAminimax {
                     simCoup.joueurSuivant();
 
                     int heuristique = heuristique(simCoup, false, true);
-                    System.out.println("Jeu:");
-                    simCoup.printGamePlay();
+                    // System.out.println("Jeu:");
+                    // simCoup.printGamePlay();
                     System.out.println(" => Heuristique: " + heuristique);
                     if (heuristique >= bestHeuristique) {
                         // bestHeuristique = heuristique;
@@ -248,9 +250,9 @@ public class IAminimax {
             return memoisation1.evaluation;
         }*/
 
-        if (profondeur <= 0) {
+        if (profondeur >= this.difficulte || clone.gameOver(clone.getJoueurCourant()) != 0) {
             int score = heuristique(clone, tourIA, false);
-            // System.out.println("Heuristique score: " + score);
+            System.out.println("Heuristique score: " + score);
             //memoisation.put(hash, new Memoisation(score, profondeur));
             return score;
         }
@@ -261,11 +263,12 @@ public class IAminimax {
         tours = getTourPossible(clone.getJoueurCourant(), clone);
 
         if (tours.isEmpty()) {
+            System.out.println("Pas de tours possibles");
             if (iaLost) {
-                // System.out.println("IA a perdu" + -1000000 + profondeur);
+                System.out.println("IA a perdu" + -1000000 + profondeur);
                 return -1000000 + profondeur;
             } else if (iaWon) {
-                // System.out.println("IA a gagné" + (1000000 - profondeur));
+                System.out.println("IA a gagné" + (1000000 - profondeur));
                 return 1000000 - profondeur;
             }
             this.iaLost = false;
@@ -301,24 +304,26 @@ public class IAminimax {
 
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
-                    best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, jeuClone2));
+                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2));
                     alpha = Math.max(alpha, best);
                 } else {
-                    best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, jeuClone2));
+                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2));
                     beta = Math.min(beta, best);
                 }
             } else {
+                System.out.print("Tour " + profondeur + ": null, null, null, " + tour.getQuatrieme() + "||");
                 jeuClone.choisirPlateau(tour.getQuatrieme());
                 jeuClone.joueurSuivant();
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
-                    best = Math.max(best, alphabeta(profondeur - 1, alpha, beta, false, jeuClone2));
+                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2));
                     alpha = Math.max(alpha, best);
                 } else {
-                    best = Math.min(best, alphabeta(profondeur - 1, alpha, beta, true, jeuClone2));
+                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2));
                     beta = Math.min(beta, best);
                 }
             }
+            // jeuClone.printGamePlay();
 
             if (beta <= alpha) {
                 break;
@@ -345,22 +350,22 @@ public class IAminimax {
             // opponent = jeu.getJoueurCourant();
         }
 
-        if (debug)
-            System.out.println(hMateriel(jeu, joueur) + " * 25 + "
-                + hControlePlateaux(jeu, joueur) + " * 40 - "
-                + hPiecesAdjacentes(jeu, joueur) + " * 3 - "
-                + hDiffPionEtClone(jeu, joueur) + " * 2 - "
-                + hBordPlateau(jeu, joueur) + " * 1 - "
-                + hCoinPlateau(jeu, joueur) + " * 2 - "
-                + hChoixPlateau(jeu, joueur) + " * 1");
+        // if (debug)
+        //     System.out.println(hMateriel(jeu, joueur) + " * 25 + "
+        //         + hControlePlateaux(jeu, joueur) + " * 40 - "
+        //         + hPiecesAdjacentes(jeu, joueur) + " * 3 - "
+        //         + hDiffPionEtClone(jeu, joueur) + " * 2 - "
+        //         + hBordPlateau(jeu, joueur) + " * 1 - "
+        //         + hCoinPlateau(jeu, joueur) + " * 2 - "
+        //         + hChoixPlateau(jeu, joueur) + " * 1");
 
         return 25 * hMateriel(jeu, joueur)
                 + 40 * hControlePlateaux(jeu, joueur)
                 - 3 * hPiecesAdjacentes(jeu, joueur)
-                - 2 * hDiffPionEtClone(jeu, joueur)
-                - 1 * hBordPlateau(jeu, joueur)
-                - 2 * hCoinPlateau(jeu, joueur)
-                + 2 * hChoixPlateau(jeu, joueur);
+                - 2 * hDiffPionEtClone(jeu, joueur);
+                // - 1 * hBordPlateau(jeu, joueur)
+                // - 2 * hCoinPlateau(jeu, joueur)
+                // + 2 * hChoixPlateau(jeu, joueur);
     }
 
     // Pour chaque piece en plus de l'adversaire, on ajoute un point

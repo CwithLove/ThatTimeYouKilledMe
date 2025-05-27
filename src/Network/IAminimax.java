@@ -99,7 +99,7 @@ public class IAminimax {
             // System.out.println("Tour " + this.difficulte + ": " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
             Jeu jeuClone = new Jeu(gameState);
             if (tour.getPremier() != null) {
-                System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
+                //System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
@@ -128,7 +128,7 @@ public class IAminimax {
             jeuClone.joueurSuivant();
 
             Jeu jeuClone2 = new Jeu(jeuClone);
-            int score = alphabeta(1, alpha, beta, false, jeuClone2);
+            int score = alphabeta(1, alpha, beta, false, jeuClone2, 0);
             ////System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
             lst_coup.add(new Couple<>(tour, score));
 
@@ -240,7 +240,7 @@ public class IAminimax {
         return best_coup;
     }
 
-    private int alphabeta(int profondeur, int alpha, int beta, boolean tourIA, Jeu clone) {
+    private int alphabeta(int profondeur, int alpha, int beta, boolean tourIA, Jeu clone, int score) {
         /*
         String hash = getHash(clone);
 
@@ -251,8 +251,8 @@ public class IAminimax {
         }*/
 
         if (profondeur >= this.difficulte || clone.gameOver(clone.getJoueurCourant()) != 0) {
-            int score = heuristique(clone, tourIA, false);
-            System.out.println("Heuristique score: " + score);
+            //int score = heuristique(clone, tourIA, false);
+            //System.out.println("Heuristique score: " + score);
             //memoisation.put(hash, new Memoisation(score, profondeur));
             return score;
         }
@@ -304,27 +304,30 @@ public class IAminimax {
 
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
-                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2));
+                    score += heuristique(clone, tourIA, false);
+                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2,score));
                     alpha = Math.max(alpha, best);
                 } else {
-                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2));
+                    score -= heuristique(clone, tourIA, false);
+                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2,score));
                     beta = Math.min(beta, best);
                 }
             } else {
-                System.out.print("Tour " + profondeur + ": null, null, null, " + tour.getQuatrieme() + "||");
+                //System.out.print("Tour " + profondeur + ": null, null, null, " + tour.getQuatrieme() + "||");
                 jeuClone.choisirPlateau(tour.getQuatrieme());
                 jeuClone.joueurSuivant();
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
-                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2));
+                    score += heuristique(clone, tourIA, false);
+                    best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2, score));
                     alpha = Math.max(alpha, best);
                 } else {
-                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2));
+                    score -= heuristique(clone, tourIA, false);
+                    best = Math.min(best, alphabeta(profondeur + 1, alpha, beta, true, jeuClone2, score));
                     beta = Math.min(beta, best);
                 }
             }
             // jeuClone.printGamePlay();
-
             if (beta <= alpha) {
                 break;
             }

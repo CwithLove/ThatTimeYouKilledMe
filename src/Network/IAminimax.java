@@ -165,7 +165,6 @@ public class IAminimax {
 
             // Parmi les coups restants, on prend le meilleur 
             if (!lst_coup.isEmpty()) {
-                System.out.println("Nombre de coups possibles: " + lst_coup.size());
                 // Pour chaque tour possible, on prend le meilleur heuristique
                 best_coup = null;
                 int bestHeuristique = Integer.MIN_VALUE;
@@ -223,7 +222,8 @@ public class IAminimax {
                 }
                 // Couple<IAFields<Piece, String, String, Plateau.TypePlateau>, Integer> unMeilleurCoup = lst_coup.get(r.nextInt(lst_coup.size()));
                 best_coup = coupsBestHeuristique.get(r.nextInt(coupsBestHeuristique.size()));
-                System.out.println("Meilleur coup: " + best_coup.getPremier().getPosition() + ", " + best_coup.getSecond() + ", " + best_coup.getTroisieme() + ", " + best_coup.getQuatrieme());
+                Piece p = best_coup.getPremier();
+                System.out.println("Meilleur coup: " + (p == null ? "null" : p.getPosition()) + ", " + best_coup.getSecond() + ", " + best_coup.getTroisieme() + ", " + best_coup.getQuatrieme());
             }
         }
 
@@ -360,7 +360,7 @@ public class IAminimax {
                 - 2 * hDiffPionEtClone(jeu, joueur)
                 - 1 * hBordPlateau(jeu, joueur)
                 - 2 * hCoinPlateau(jeu, joueur)
-                - 1 * hChoixPlateau(jeu, joueur);
+                + 2 * hChoixPlateau(jeu, joueur);
     }
 
     // Pour chaque piece en plus de l'adversaire, on ajoute un point
@@ -573,7 +573,7 @@ public class IAminimax {
                                 }
                             }
                             if (pieceAdversaireProche) {
-                                score += 1;
+                                score += 5;
                             }
                         }
                     }

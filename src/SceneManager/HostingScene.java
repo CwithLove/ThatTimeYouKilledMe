@@ -439,7 +439,6 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                     if (startGameButton.contains(mousePos)) startGameButton.update(new Point(-1, -1)); // Point hors bouton.
                 }
                 backButton.update(mousePos);
-                // 更新先后顺序选择按钮的悬停状态
                 if (serverSuccessfullyStarted && hostClientConnected) {
                     firstPlayerButton.update(mousePos);
                     secondPlayerButton.update(mousePos);

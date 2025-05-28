@@ -42,15 +42,13 @@ public class IAminimax {
         }
         this.difficulte = diff;
         this.jeu = jeu;
-        // if (diff >= PROFONDEUR_MAX) {
-        //     this.mode = "HARD";
-        // } else if (diff >= (int) (PROFONDEUR_MAX * 0.5)) {
-        //     this.mode = "MEDIUM";
-        // } else {
-        //     this.mode = "EASY";
-        // }
-        this.mode = "HARD";
-        System.out.println("REMPLISSAGE...");
+        if (diff >= PROFONDEUR_MAX) {
+            this.mode = "HARD";
+        } else if (diff >= 3) {
+            this.mode = "MEDIUM";
+        } else {
+            this.mode = "EASY";
+        }
 
     }
 
@@ -196,7 +194,7 @@ public class IAminimax {
                         // On vide la pile et on ajoute le nouveau meilleur coup
                         coupsBestHeuristique = new ArrayList<>();
                         coupsBestHeuristique.add(tour);
-                    } else if (heuristique == bestHeuristique) {
+                    } else if (heuristique == bestHeuristique ) {
                         coupsBestHeuristique.add(tour);
                     }
                     
@@ -250,13 +248,13 @@ public class IAminimax {
             // System.out.println("clone.getGameState() = " + clone.getGameState());
             if (clone.getGameState() == joueur.getId()) {
                 // clone.printGamePlay();
-                System.out.println("IA gagne => heuristique: " + (1000000 - profondeur));
+                // System.out.println("IA gagne => heuristique: " + (1000000 - profondeur));
                 // IA a gagné
                 return 1000000 - profondeur; 
             } else if (clone.getGameState() == opponent.getId()) {
                 // IA a perdu
                 // clone.printGamePlay();
-                System.out.println("IA perd => heuristique: " + (-1000000 + profondeur));
+                // System.out.println("IA perd => heuristique: " + (-1000000 + profondeur));
                 return -1000000 + profondeur;
             }
             
@@ -357,7 +355,18 @@ public class IAminimax {
         //         + hBordPlateau(jeu, joueur) + " * 1 - "
         //         + hCoinPlateau(jeu, joueur) + " * 2 - "
         //         + hChoixPlateau(jeu, joueur) + " * 1");
-
+        if (this.mode.equals("EASY")) {
+            return hMateriel(jeu, joueur);
+        } else if (this.mode.equals("HARD")) {
+            // System.out.println("DEBUG: Mode HARD");
+            return 25 * hMateriel(jeu, joueur)
+                    + 2 * hControlePlateaux(jeu, joueur)
+                    - 1 * hPiecesAdjacentes(jeu, joueur)
+                    - 5 * hDiffPionEtClone(jeu, joueur)
+                    - 3 * hBordPlateau(jeu, joueur)
+                    - 3 * hCoinPlateau(jeu, joueur)
+                    + 2 * hCentrePlateau(jeu, joueur);
+        } 
         return 25 * hMateriel(jeu, joueur)
                 + 1 * hControlePlateaux(jeu, joueur)
                 - 3 * hPiecesAdjacentes(jeu, joueur)

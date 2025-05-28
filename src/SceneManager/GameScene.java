@@ -1233,7 +1233,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             if(myPlayerId == 1){
                 saveButton.render(g2d);
             }
-            //switchToAiButton.render(g2d);
+            switchToAiButton.render(g2d);
             redoButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)

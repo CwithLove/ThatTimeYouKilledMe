@@ -35,7 +35,6 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private Button firstPlayerButton;           // Button pour J1 commence
     private Button secondPlayerButton;          // Button pour J2 commence
     private boolean hostGoesFirst = true;       // Par default J1 commence
-    private String turnOrderMessage = "J1 commence (Blancs)";
 
     private MouseAdapter mouseAdapterInternal;  // Adaptateur pour les événements de la souris.
     private long startTime;                     // Pour l'animation de fondu (fade-in).
@@ -197,14 +196,12 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
         firstPlayerButton = new Button(0, 0, 120, 35, "J1 Premier", () -> {
             hostGoesFirst = true;
-            turnOrderMessage = "J1 commence (Blancs)";
             System.out.println("HostingScene: J1 sélectionné pour commencer en premier (Blancs)");
             repaintPanel();
         });
 
         secondPlayerButton = new Button(0, 0, 120, 35, "J2 Premier", () -> {
             hostGoesFirst = false;
-            turnOrderMessage = "J2 commence (Blancs)";
             System.out.println("HostingScene: J2 sélectionné pour commencer en premier (Blancs)");
             repaintPanel();
         });
@@ -505,24 +502,33 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             int turnTitleWidth = turnTitleMetrics.stringWidth(turnOrderTitle);
             g2d.drawString(turnOrderTitle, (width - turnTitleWidth) / 2, turnOrderY);
             
-            int buttonSpacing = 20;
-            int totalButtonWidth = 120 * 2 + buttonSpacing;
+            // Amélioration de la taille dynamique des boutons d'ordre
+            int orderBtnWidth = Math.max(120, width / 8);
+            int orderBtnHeight = Math.max(35, height / 20);
+            int orderBtnFontSize = Math.max(12, Math.min(width, height) / 50);
+            int buttonSpacing = Math.max(20, width / 40);
+            int totalButtonWidth = orderBtnWidth * 2 + buttonSpacing;
             int buttonStartX = (width - totalButtonWidth) / 2;
             
             firstPlayerButton.setLocation(buttonStartX, turnOrderY + 15);
-            firstPlayerButton.setSize(120, 35);
-            firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+            firstPlayerButton.setSize(orderBtnWidth, orderBtnHeight);
+            firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, orderBtnFontSize));
             
-            secondPlayerButton.setLocation(buttonStartX + 120 + buttonSpacing, turnOrderY + 15);
-            secondPlayerButton.setSize(120, 35);
-            secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+            secondPlayerButton.setLocation(buttonStartX + orderBtnWidth + buttonSpacing, turnOrderY + 15);
+            secondPlayerButton.setSize(orderBtnWidth, orderBtnHeight);
+            secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, orderBtnFontSize));
             
+            // Configuration des couleurs avec effet spécial pour le survol
             if (hostGoesFirst) {
-                firstPlayerButton.setNormalColor(new Color(50, 150, 50)); 
-                secondPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+                firstPlayerButton.setNormalColor(new Color(50, 150, 50)); // Vert pour sélectionné
+                firstPlayerButton.setHoverColor(new Color(80, 255, 80)); // Vert brillant pour survol du sélectionné
+                secondPlayerButton.setNormalColor(new Color(100, 100, 200)); // Bleu pour non-sélectionné
+                secondPlayerButton.setHoverColor(new Color(130, 130, 230)); // Bleu clair pour survol du non-sélectionné
             } else {
-                firstPlayerButton.setNormalColor(new Color(100, 100, 200)); 
-                secondPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+                firstPlayerButton.setNormalColor(new Color(100, 100, 200)); // Bleu pour non-sélectionné
+                firstPlayerButton.setHoverColor(new Color(130, 130, 230)); // Bleu clair pour survol du non-sélectionné
+                secondPlayerButton.setNormalColor(new Color(50, 150, 50)); // Vert pour sélectionné
+                secondPlayerButton.setHoverColor(new Color(80, 255, 80)); // Vert brillant pour survol du sélectionné
             }
             
             firstPlayerButton.render(g2d);
@@ -531,8 +537,6 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             g2d.setColor(Color.CYAN);
             g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize));
             FontMetrics turnMsgMetrics = g2d.getFontMetrics();
-            int turnMsgWidth = turnMsgMetrics.stringWidth(turnOrderMessage);
-            g2d.drawString(turnOrderMessage, (width - turnMsgWidth) / 2, turnOrderY + 70);
         }
 
         // Message de statut général.
@@ -546,7 +550,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         // Configuration et dessin des boutons.
         int btnWidth = Math.max(180, width / 4);
         int btnHeight = Math.max(45, height / 13);
-        int btnFontSize = Math.min(width, height) / 35;
+        int btnFontSize = Math.max(14, Math.min(width, height) / 35);
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
 
         // Repositionner le bouton "Lancer la partie" au centre en bas
@@ -554,10 +558,13 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         startGameButton.setLocation(width / 2 - btnWidth / 2, height * 4 / 5);
         startGameButton.setFont(commonBtnFont);
 
-        // Maintenir le bouton Retour en bas à gauche
-        backButton.setSize(Math.max(120, btnWidth * 3/4), Math.max(35,btnHeight * 3/4));
-        backButton.setLocation(40, height - Math.max(35,btnHeight * 3/4) - 25);
-        backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12,btnFontSize * 3/4)));
+        // Maintenir le bouton Retour en bas à gauche - amélioration de la taille dynamique
+        int backBtnWidth = Math.max(120, width / 6);
+        int backBtnHeight = Math.max(35, height / 18);
+        int backBtnFontSize = Math.max(12, Math.min(width, height) / 45);
+        backButton.setSize(backBtnWidth, backBtnHeight);
+        backButton.setLocation(40, height - backBtnHeight - 25);
+        backButton.setFont(new Font("Arial", Font.PLAIN, backBtnFontSize));
 
         // Active ou désactive le bouton "Lancer la partie" en fonction de l'état.
         // Ne réactive pas le bouton s'il est temporairement désactivé pour éviter les clics multiples

@@ -32,7 +32,6 @@ public class SinglePlayerLobbyScene implements Scene {
     private Button firstPlayerButton;           
     private Button secondPlayerButton;          
     private boolean playerGoesFirst = true;     
-    private String turnOrderMessage = "Vous commencez (Blancs)"; 
 
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean aiPlayerConnected = false;
@@ -83,14 +82,12 @@ public class SinglePlayerLobbyScene implements Scene {
 
         firstPlayerButton = new Button(0, 0, 120, 35, "Vous Premier", () -> {
             playerGoesFirst = true;
-            turnOrderMessage = "Vous commencez (Blancs)";
             System.out.println("SinglePlayerLobbyScene: Joueur sélectionné pour commencer en premier (Blancs)");
             repaintPanel();
         });
 
         secondPlayerButton = new Button(0, 0, 120, 35, "IA Premier", () -> {
             playerGoesFirst = false;
-            turnOrderMessage = "IA commence (Blancs)";
             System.out.println("SinglePlayerLobbyScene: IA sélectionnée pour commencer en premier (Blancs)");
             repaintPanel();
         });
@@ -386,7 +383,7 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Titre
         g2d.setColor(Color.WHITE);
-        int titleFontSize = height / 18;
+        int titleFontSize = Math.max(16, Math.min(width, height) / 18);
         g2d.setFont(new Font("Arial", Font.BOLD, titleFontSize));
         String titleText = "Mode Solo - Combat contre IA";
         FontMetrics titleMetricsFont = g2d.getFontMetrics();
@@ -394,7 +391,7 @@ public class SinglePlayerLobbyScene implements Scene {
         g2d.drawString(titleText, (width - titleTextWidth) / 2, height / 7);
 
         // Titre de sélection de la difficulté
-        int infoFontSize = height / 28;
+        int infoFontSize = Math.max(12, Math.min(width, height) / 28);
         g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize));
         g2d.setColor(Color.LIGHT_GRAY);
         String difficultyText = "Sélectionner la difficulté:";
@@ -422,24 +419,33 @@ public class SinglePlayerLobbyScene implements Scene {
         int turnTitleWidth = turnTitleMetrics.stringWidth(turnOrderTitle);
         g2d.drawString(turnOrderTitle, (width - turnTitleWidth) / 2, turnOrderY);
         
-        int buttonSpacing = 20;
-        int totalButtonWidth = 120 * 2 + buttonSpacing;
+        // Amélioration de la taille dynamique des boutons d'ordre
+        int orderBtnWidth = Math.max(120, width / 8);
+        int orderBtnHeight = Math.max(35, height / 20);
+        int orderBtnFontSize = Math.max(12, Math.min(width, height) / 50);
+        int buttonSpacing = Math.max(20, width / 40);
+        int totalButtonWidth = orderBtnWidth * 2 + buttonSpacing;
         int buttonStartX = (width - totalButtonWidth) / 2;
         
         firstPlayerButton.setLocation(buttonStartX, turnOrderY + 15);
-        firstPlayerButton.setSize(120, 35);
-        firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+        firstPlayerButton.setSize(orderBtnWidth, orderBtnHeight);
+        firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, orderBtnFontSize));
         
-        secondPlayerButton.setLocation(buttonStartX + 120 + buttonSpacing, turnOrderY + 15);
-        secondPlayerButton.setSize(120, 35);
-        secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+        secondPlayerButton.setLocation(buttonStartX + orderBtnWidth + buttonSpacing, turnOrderY + 15);
+        secondPlayerButton.setSize(orderBtnWidth, orderBtnHeight);
+        secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, orderBtnFontSize));
         
+        // Configuration des couleurs avec effet spécial pour le survol
         if (playerGoesFirst) {
-            firstPlayerButton.setNormalColor(new Color(50, 150, 50)); 
-            secondPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+            firstPlayerButton.setNormalColor(new Color(50, 150, 50)); // Vert pour sélectionné
+            firstPlayerButton.setHoverColor(new Color(80, 255, 80)); // Vert brillant pour survol du sélectionné
+            secondPlayerButton.setNormalColor(new Color(100, 100, 200)); // Bleu pour non-sélectionné
+            secondPlayerButton.setHoverColor(new Color(130, 130, 230)); // Bleu clair pour survol du non-sélectionné
         } else {
-            firstPlayerButton.setNormalColor(new Color(100, 100, 200)); 
-            secondPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+            firstPlayerButton.setNormalColor(new Color(100, 100, 200)); // Bleu pour non-sélectionné
+            firstPlayerButton.setHoverColor(new Color(130, 130, 230)); // Bleu clair pour survol du non-sélectionné
+            secondPlayerButton.setNormalColor(new Color(50, 150, 50)); // Vert pour sélectionné
+            secondPlayerButton.setHoverColor(new Color(80, 255, 80)); // Vert brillant pour survol du sélectionné
         }
         
         firstPlayerButton.render(g2d);
@@ -448,8 +454,6 @@ public class SinglePlayerLobbyScene implements Scene {
         g2d.setColor(Color.CYAN);
         g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize));
         FontMetrics turnMsgMetrics = g2d.getFontMetrics();
-        int turnMsgWidth = turnMsgMetrics.stringWidth(turnOrderMessage);
-        g2d.drawString(turnOrderMessage, (width - turnMsgWidth) / 2, turnOrderY + 70);
 
         // Message d'état
         if (statusMessage != null && !statusMessage.isEmpty()) {
@@ -463,22 +467,22 @@ public class SinglePlayerLobbyScene implements Scene {
             g2d.drawString(displayMessage, (width - statusWidth) / 2, height * 2 / 3 + 40);
         }
 
-        // Paramètres du bouton
-        int btnWidth = width / 4;
-        int btnHeight = height / 13;
-        int btnFontSize = height / 35;
+        // Paramètres du bouton - amélioration de la taille dynamique
+        int btnWidth = Math.max(180, width / 4);
+        int btnHeight = Math.max(45, height / 13);
+        int btnFontSize = Math.max(14, Math.min(width, height) / 35);
         Font commonBtnFont = new Font("Arial", Font.BOLD, btnFontSize);
 
         // Placement du menu déroulant de sélection de difficulté
         if (sceneManager.getPanel() != null && !sceneManager.getPanel().isAncestorOf(difficultyComboBox)) {
             sceneManager.getPanel().add(difficultyComboBox);
         }
-        int comboBoxWidth = width / 10;
-        int comboBoxHeight = height / 25;
+        int comboBoxWidth = Math.max(80, width / 10);
+        int comboBoxHeight = Math.max(25, height / 25);
         int comboBoxX = width * 75 / 100 - comboBoxWidth / 2; // 75% de la largeur;
         int comboBoxY = height * 6 / 13 - comboBoxHeight / 2; // Centré verticalement
         difficultyComboBox.setBounds(comboBoxX, comboBoxY, comboBoxWidth, comboBoxHeight);
-        difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, btnFontSize * 2 / 3));
+        difficultyComboBox.setFont(new Font("Arial", Font.PLAIN, Math.max(10, btnFontSize * 2 / 3)));
         difficultyComboBox.setVisible(true);
 
         // Bouton de démarrage du jeu
@@ -491,10 +495,13 @@ public class SinglePlayerLobbyScene implements Scene {
         loadGameButton.setLocation(width / 2 - btnWidth / 2, height * 3 / 4 + btnHeight + 10);
         loadGameButton.setFont(commonBtnFont);
 
-        // Bouton de retour
-        backButton.setSize(btnWidth * 3 / 4, btnHeight * 3 / 4);
-        backButton.setLocation(40, height - btnHeight * 3 / 4 - 25);
-        backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, btnFontSize * 3 / 4)));
+        // Bouton de retour - amélioration de la taille dynamique
+        int backBtnWidth = Math.max(120, width / 6);
+        int backBtnHeight = Math.max(35, height / 18);
+        int backBtnFontSize = Math.max(12, Math.min(width, height) / 45);
+        backButton.setSize(backBtnWidth, backBtnHeight);
+        backButton.setLocation(40, height - backBtnHeight - 25);
+        backButton.setFont(new Font("Arial", Font.PLAIN, backBtnFontSize));
 
         // Rendu des boutons
         startGameButton.render(g2d);

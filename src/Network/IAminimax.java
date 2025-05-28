@@ -184,9 +184,10 @@ public class IAminimax {
                     simCoup.joueurSuivant();
                     simCoup.majPlateauCourant();
 
+                    this.mode = "MEDIUM"; // On choisit le mode MEDIUM pour l'heuristique pour un des coups proches
                     int heuristique = heuristique(simCoup, false, true);
-                    // System.out.println("Jeu:");
-                    // simCoup.printGamePlay();
+                    this.mode = "HARD"; // On remet le mode HARD pour le reste de l'IA
+                    
                     System.out.println(" => Heuristique: " + heuristique);
 
                     if (heuristique > bestHeuristique) {
@@ -355,12 +356,10 @@ public class IAminimax {
         //         + hBordPlateau(jeu, joueur) + " * 1 - "
         //         + hCoinPlateau(jeu, joueur) + " * 2 - "
         //         + hChoixPlateau(jeu, joueur) + " * 1");
-        if (this.mode.equals("EASY")) {
-            return hMateriel(jeu, joueur);
-        } else if (this.mode.equals("HARD")) {
+        if (this.mode.equals("HARD")) {
             // System.out.println("DEBUG: Mode HARD");
             return 25 * hMateriel(jeu, joueur)
-                    + 2 * hControlePlateaux(jeu, joueur)
+                    + 1 * hControlePlateaux(jeu, joueur)
                     - 1 * hPiecesAdjacentes(jeu, joueur)
                     - 5 * hDiffPionEtClone(jeu, joueur)
                     - 3 * hBordPlateau(jeu, joueur)

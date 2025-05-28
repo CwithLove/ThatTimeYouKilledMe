@@ -31,11 +31,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
     private volatile boolean playerTwoConfirmedConnected = false; // Indique si le Joueur 2 s'est connecté (via callback).
     private volatile boolean hostClientConnected = false;     // Indique si le client de l'hôte lui-même est connecté.
 
-    // 新增：先后顺序选择功能
-    private Button firstPlayerButton;           // 按钮：选择J1先开始
-    private Button secondPlayerButton;          // 按钮：选择J2先开始
-    private boolean hostGoesFirst = true;       // 默认J1先开始
-    private String turnOrderMessage = "J1 commence (Blancs)"; // 显示当前选择
+    // Ajouter l'ordre
+    private Button firstPlayerButton;           // Button pour J1 commence
+    private Button secondPlayerButton;          // Button pour J2 commence
+    private boolean hostGoesFirst = true;       // Par default J1 commence
+    private String turnOrderMessage = "J1 commence (Blancs)";
 
     private MouseAdapter mouseAdapterInternal;  // Adaptateur pour les événements de la souris.
     private long startTime;                     // Pour l'animation de fondu (fade-in).

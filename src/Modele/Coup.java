@@ -33,24 +33,26 @@ public class Coup {
         return typeCoup;
     }
 
-    public Coup stringToCoup(Piece piece, Plateau plateau, String coupstr) {
+    public static Coup stringToCoup(Piece piece, Plateau plateau, String coupstr) {
         //System.out.println("pendant: " + plateau.getType());
-        switch(coupstr){
-            case "UP":
-                return new Coup(piece, plateau, TypeCoup.UP);
-            case "DOWN":
-                return new Coup(piece, plateau, TypeCoup.DOWN);
-            case "RIGHT":
-                return new Coup(piece, plateau, TypeCoup.RIGHT);
-            case "LEFT":
-                return new Coup(piece, plateau, TypeCoup.LEFT);
-            case "CLONE":
-                return new Coup(piece, plateau, TypeCoup.CLONE);
-            case "JUMP":
-                return new Coup(piece, plateau, TypeCoup.JUMP);
-            default:
-                System.out.println("BUG: erreur dans la méthode stringToCoup.");
-                break;
+        if (coupstr != null){
+            switch(coupstr){
+                case "UP":
+                    return new Coup(piece, plateau, TypeCoup.UP);
+                case "DOWN":
+                    return new Coup(piece, plateau, TypeCoup.DOWN);
+                case "RIGHT":
+                    return new Coup(piece, plateau, TypeCoup.RIGHT);
+                case "LEFT":
+                    return new Coup(piece, plateau, TypeCoup.LEFT);
+                case "CLONE":
+                    return new Coup(piece, plateau, TypeCoup.CLONE);
+                case "JUMP":
+                    return new Coup(piece, plateau, TypeCoup.JUMP);
+                default:
+                    System.out.println("BUG: erreur dans la méthode stringToCoup.");
+                    break;
+            }
         }
         return null;
     }

@@ -1,12 +1,18 @@
 package Network;
 
+import Modele.IAFields;
 import Modele.Jeu;
+import Modele.Piece;
+import Modele.Plateau;
 import java.io.*;
 import java.net.*;
-// import Modele.Plateau; // Ne pas utiliser Plateau directement
-// import Modele.Piece; // Ne pas utiliser Piece directement
+import javax.swing.SwingWorker;
 
 public class GameClient {
+    private boolean calculatedIn0 = false;
+    private AIClient aiClient;
+    IAFields<Piece,String,String,Plateau.TypePlateau> AImove = null; 
+    private boolean playByAI = false; // Indique si le joueur joue contre l'IA
     private String serverIpAddress;
     private int serverPort = 12345; // Port par défaut
     private Jeu gameInstance;
@@ -16,13 +22,17 @@ public class GameClient {
     private int myPlayerId = -1; // ID de ce client, attribué par le serveur
     private Thread receptionThread;
     private volatile boolean isConnected = false; // Pour vérifier l'état de la connexion
+    private volatile boolean gameEnded = false; // Pour indiquer si le jeu est terminé
     private ObjectInputStream inputStream;
+    private IAminimax ia;
 
     public GameClient(String ipAddress, GameStateUpdateListener listener) {
         this.serverIpAddress = ipAddress;
         this.listener = listener;
         this.gameInstance = new Jeu(); // Initialiser une copie locale du jeu
                                       // Joueur 1 et Joueur 2 sont créés avec des ID par défaut 1 et 2 dans Jeu
+        this.aiClient = new AIClient(ipAddress, 5); // Initialiser l'IA avec l'instance de jeu
+        this.ia = new IAminimax(5, gameInstance); // Initialiser l'IA avec l'instance de jeu
     }
 
     public void connect() throws IOException {
@@ -86,6 +96,89 @@ public class GameClient {
         }
     }
     
+    /**
+     * Tente de reconnecter au serveur si la connexion a été perdue.
+     * Conserve l'ID du joueur et autres informations de session si possible.
+     * @return true si la reconnexion a réussi, false sinon
+     */
+    public boolean reconnect() {
+        if (isConnected()) {
+            System.out.println("GameClient: Déjà connecté, pas besoin de reconnexion");
+            return true;
+        }
+        
+        System.out.println("GameClient: Tentative de reconnexion avec ID: " + myPlayerId);
+        
+        // Nettoyage des ressources existantes
+        try {
+            if (outputStream != null) outputStream.close();
+            if (inputStream != null) inputStream.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            // Ignorer les erreurs de fermeture
+        }
+        
+        outputStream = null;
+        inputStream = null;
+        socket = null;
+        
+        try {
+            // Établir une nouvelle connexion socket
+            socket = new Socket(serverIpAddress, serverPort);
+            isConnected = true;
+            
+            // Recréer les flux dans le bon ordre (comme pour connect())
+            inputStream = new ObjectInputStream(socket.getInputStream());
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.flush();
+            
+            // Lire l'ID envoyé par le serveur
+            Object idMessageObj = inputStream.readObject();
+            if (idMessageObj instanceof String) {
+                String idMessage = (String) idMessageObj;
+                if (idMessage.startsWith("ID:")) {
+                    int newPlayerId = Integer.parseInt(idMessage.substring(3));
+                    System.out.println("GameClient: Reconnexion réussie. Nouvel ID: " + newPlayerId);
+                    
+                    // Mise à jour de l'ID si nécessaire
+                    this.myPlayerId = newPlayerId;
+                } else {
+                    throw new IOException("Message ID invalide lors de la reconnexion: " + idMessage);
+                }
+            } else {
+                throw new IOException("Type de message d'ID invalide lors de la reconnexion");
+            }
+            
+            // Recréer le thread de réception
+            setupReceptionThread();
+            
+            if (listener != null) {
+                listener.onGameMessage("RECONNECTED", "Reconnexion réussie avec ID: " + myPlayerId);
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("GameClient: Échec de la tentative de reconnexion: " + e.getMessage());
+            isConnected = false;
+            
+            // Nettoyage en cas d'échec
+            try {
+                if (outputStream != null) outputStream.close();
+                if (inputStream != null) inputStream.close();
+                if (socket != null && !socket.isClosed()) socket.close();
+            } catch (IOException closeEx) {
+                // Ignorer les erreurs de fermeture
+            }
+            
+            if (listener != null) {
+                listener.onGameMessage("ERROR", "Échec de la reconnexion: " + e.getMessage());
+            }
+            
+            return false;
+        }
+    }
+    
     // Déplacer la configuration du thread de réception dans une méthode séparée pour améliorer la clarté du code
     private void setupReceptionThread() {
         receptionThread = new Thread(() -> {
@@ -133,13 +226,23 @@ public class GameClient {
                                     System.out.println("GameClient: Current etapeCoup after parsing: " + gameInstance.getEtapeCoup());
                                     
                                     listener.onGameStateUpdate(gameInstance);
+                                    
+                                    if (gameInstance.getJoueurCourant().getId() == myPlayerId && playByAI) {
+                                        // Si le joueur joue contre l'IA, on lui demande de jouer
+                                        AIplayGame(gameInstance);
+                                    }
+                                    
                                     break;
 
                                 case GAGNE:
+                                    gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("WIN", finalContent);
+                                    this.playByAI = false; // Désactiver le mode IA si le joueur a gagné
                                     break;
                                 case PERDU:
+                                    gameEnded = true; // Marquer que le jeu est terminé
                                     listener.onGameMessage("LOSE", finalContent);
+                                    this.playByAI = false; // Désactiver le mode IA si le joueur a perdu
                                     break;
                                     
                                 case PIECE:
@@ -153,6 +256,12 @@ public class GameClient {
                                     // nouveau format：COUP:TYPE_COUP:success
                                     if (listener != null) {
                                         listener.onGameMessage("COUP", finalContent);
+                                    }
+                                    break;
+                                case REDOABLE:
+                                    // nouveau format：REDOABLE:success
+                                    if (listener != null) {
+                                        listener.onGameMessage("REDOABLE", finalContent);
                                     }
                                     break;
                                 case PLATEAU:
@@ -171,6 +280,9 @@ public class GameClient {
                                 case DESELECT:   // Le joueur a désélectionné une pièce
                                     listener.onGameMessage("DESELECT", finalContent);
                                     break;
+                                case SERVER_SHUTDOWN:  // Le serveur est en cours de fermeture
+                                    listener.onGameMessage("SERVER_SHUTDOWN", finalContent);
+                                    break;
                                 default:
                                     System.out.println("GameClient (ID: " + myPlayerId + "): Commande serveur non gérée par listener: " + finalCode.name());
                                     listener.onGameMessage("UNHANDLED_SERVER_CMD", finalContent);
@@ -180,12 +292,14 @@ public class GameClient {
                     }
                 }
             } catch (SocketException | EOFException se) {
-                if (isConnected) { // Enregistrer uniquement lorsque la connexion est attendue
+                if (isConnected && !gameEnded) { // Enregistrer uniquement lorsque la connexion est attendue et le jeu n'est pas terminé
                     System.out.println("GameClient (ID: " + myPlayerId + "): Connexion serveur perdue ou fermée. " + se.getMessage());
                     final GameStateUpdateListener currentListener = listener;
                     if (currentListener != null) {
                          javax.swing.SwingUtilities.invokeLater(() -> currentListener.onGameMessage("DISCONNECTED", "Connexion au serveur perdue."));
                     }
+                } else if (gameEnded) {
+                    System.out.println("GameClient (ID: " + myPlayerId + "): Connexion fermée après fin de partie (normal).");
                 }
             } catch (IOException | ClassNotFoundException e) {
                 if (isConnected) {
@@ -204,6 +318,108 @@ public class GameClient {
         receptionThread.setName("GameClient-ReceptionThread-ID-" + myPlayerId);
         receptionThread.start();
         System.out.println("GameClient (ID: " + myPlayerId + "): Thread de réception démarré.");
+    }
+
+    private void AIplayGame(Jeu gameInstance) {
+        final int currentEtape = gameInstance.getEtapeCoup();
+
+        SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+            private boolean resetAfterEtape3 = false;
+
+            @Override
+            protected String doInBackground() throws Exception {
+                System.out.println("GameClient (ID: " + myPlayerId + "): L'IA commence à jouer pour l'étape " + currentEtape);
+                String cmdToSend = null;
+                IAFields<Piece, String, String, Plateau.TypePlateau> moveForThisTurn = GameClient.this.AImove;
+
+
+                if (currentEtape == 0) {
+                    System.out.println("GameClient (ID: " + myPlayerId + "): IA calculating move (Etape 0)...");
+                    moveForThisTurn = ia.coupIA(gameInstance);
+                    System.out.println("GameClient (ID: " + myPlayerId + "): moveForThisTurn = " + moveForThisTurn);
+                    
+                    if (moveForThisTurn == null) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): IA n'a pas pu calculer un coup pour l'étape 0.");
+                        return null; // Retourner null si l'IA ne peut pas jouer
+                    }
+                    aiClient.setAIMove(moveForThisTurn);
+                    GameClient.this.AImove = moveForThisTurn; // Mettre à jour l'IA avec le coup calculé
+                    GameClient.this.calculatedIn0 = true; // Indiquer que l'IA a calculé un coup pour l'étape 0
+                } else if (currentEtape == 3 && !GameClient.this.calculatedIn0) {
+                    // Si l'étape est 3 et que l'IA a déjà calculé un coup pour l'étape 0
+                    System.out.println("GameClient (ID: " + myPlayerId + "): IA joue son coup pour l'étape 3...");
+                    moveForThisTurn = ia.coupIA(gameInstance);
+                    if (moveForThisTurn == null) {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): IA n'a pas pu calculer un coup pour l'étape 3.");
+                        return null; // Retourner null si l'IA ne peut pas jouer
+                    }
+                    GameClient.this.AImove = moveForThisTurn; // Mettre à jour l'IA avec le coup calculé
+                    aiClient.setAIMove(moveForThisTurn);
+                }
+
+                if (GameClient.this.AImove == null) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): AImove est null, impossible de jouer.");
+                    return null; // Retourner null si l'IA n'a pas de coup à jouer
+                }
+
+                // try {
+                //     Thread.sleep(500 + (int)(Math.random() * 500));
+                // } catch (InterruptedException e) {
+                //     Thread.currentThread().interrupt();
+                //     System.err.println("GameClient (ID: " + myPlayerId + "): Thread interrupted during AI wait: " + e.getMessage());
+                // }
+                cmdToSend = aiClient.joueCoup(gameInstance, currentEtape);
+
+                if (currentEtape == 3) {
+                    resetAfterEtape3 = true; // Indiquer qu'on doit réinitialiser après l'étape 3
+                }
+
+                return cmdToSend; // Retourner la commande à envoyer
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String cmdToSend = get(); // Récupérer le résultat de doInBackground
+                    if (cmdToSend != null && !cmdToSend.isEmpty()) {
+                        System.out.println("GameClient (ID: " + myPlayerId + "): IA envoie la commande: " + cmdToSend);
+                        sendPlayerAction(cmdToSend); // Envoyer la commande au serveur
+                    } else {
+                        System.err.println("GameClient (ID: " + myPlayerId + "): Aucune commande à envoyer, l'IA n'a pas pu jouer.");
+                    }
+                } catch (InterruptedException e) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): IA execution interrupted: " + e.getMessage());
+                    Thread.currentThread().interrupt();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    System.err.println("GameClient (ID: " + myPlayerId + "): Erreur lors de l'exécution de l'IA: " + e.getCause());
+                } finally {
+                    if (resetAfterEtape3) {
+                        GameClient.this.calculatedIn0 = false; // Réinitialiser pour le prochain tour
+                        GameClient.this.AImove = null; // Réinitialiser AImove pour le prochain tour
+                        System.out.println("GameClient (ID: " + myPlayerId + "): Réinitialisation après l'étape 3.");
+                    }
+                }
+            }
+        };
+        worker.execute(); // Démarrer le worker
+    }
+
+    public void switchToAIMode() {
+        if (this.playByAI) {
+            this.playByAI = false;
+            System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA désactivé.");
+        } else {
+            this.playByAI = true;
+            System.out.println("GameClient (ID: " + myPlayerId + "): Mode IA activé.");
+            if (gameInstance.getJoueurCourant().getId() == myPlayerId) {
+                // Si c'est le tour du joueur, on annule tout ce qu'il a fait
+                if (gameInstance.getEtapeCoup() != 0) {
+                    sendPlayerAction("1:null:null:x:y"); // Envoie une action fictive pour activer le mode IA
+                } else {
+                    AIplayGame(gameInstance); // Si c'est le tour de l'IA, on joue directement
+                }
+            }
+        }
     }
 
     public void sendPlayerAction(String actionString) {
@@ -242,6 +458,7 @@ public class GameClient {
         if (!isConnected && socket == null) return; // Déjà déconnecté ou jamais connecté
 
         isConnected = false; // Définir avant pour arrêter les boucles
+        gameEnded = false; // Réinitialiser pour la prochaine connexion
         System.out.println("GameClient (ID: " + myPlayerId + "): Déconnexion...");
 
         if (receptionThread != null && receptionThread.isAlive()) {
@@ -298,5 +515,26 @@ public class GameClient {
             System.err.println("GameClient: erreur de recuperer etatpeCoup: " + e.getMessage());
             return "0"; //valeur de default
         }
+    }
+
+    /**
+     * Permet de définir un port personnalisé pour la connexion au serveur
+     * @param port Le numéro de port à utiliser
+     */
+    public void setServerPort(int port) {
+        if (!isConnected) {
+            this.serverPort = port;
+            System.out.println("GameClient: Port du serveur défini à " + port);
+        } else {
+            System.out.println("GameClient: Impossible de changer le port une fois connecté");
+        }
+    }
+    
+    /**
+     * Retourne le port utilisé pour la connexion au serveur
+     * @return Le numéro de port
+     */
+    public int getServerPort() {
+        return this.serverPort;
     }
 }

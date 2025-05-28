@@ -132,6 +132,7 @@ public class GameStateParser {
 
             // Les informations sur l'état du jeu (GS) et le gagnant (W) peuvent être traitées séparément
             // via un listener si le serveur envoie un code GAGNE/PERDU.
+            jeuToUpdate.setPlateauCourant(jeuToUpdate.getJoueurCourant().getProchainPlateau());
 
             System.out.println("GameStateParser: Analyse de l'état du jeu terminée, ID du joueur courant : " + 
                 (jeuToUpdate.getJoueurCourant() != null ? jeuToUpdate.getJoueurCourant().getId() : "non défini"));

@@ -53,6 +53,83 @@ public class Jeu {
     }
 
     /**
+     * Crée une nouvelle instance du jeu avec ordre de joueur personnalisé
+     *
+     * @param hostGoesFirst true si le joueur hôte (J1) commence en premier,
+     * false si J2 commence
+     */
+    public Jeu(boolean hostGoesFirst) {
+        if (hostGoesFirst) {
+            // J1 commence en premier comme blanc
+            joueur1 = new Joueur("Blanc", 1, 4, Plateau.TypePlateau.PAST);
+            joueur2 = new Joueur("Noir", 2, 4, Plateau.TypePlateau.FUTURE);
+            joueurCourant = joueur1;
+        } else {
+            // J2 commence en premier comme blanc, J1 devient noir
+            joueur1 = new Joueur("Noir", 1, 4, Plateau.TypePlateau.FUTURE);
+            joueur2 = new Joueur("Blanc", 2, 4, Plateau.TypePlateau.PAST);
+            joueurCourant = joueur2;
+        }
+
+        // Initialiser les plateaux
+        past = new Plateau(Plateau.TypePlateau.PAST,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+        present = new Plateau(Plateau.TypePlateau.PRESENT,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+        future = new Plateau(Plateau.TypePlateau.FUTURE,
+                hostGoesFirst ? joueur1 : joueur2,
+                hostGoesFirst ? joueur2 : joueur1);
+
+        etapeCoup = 0;
+        pieceCourante = null;
+        gameState = 0;
+        plateauCourant = joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PAST ? past
+                : (joueurCourant.getProchainPlateau() == Plateau.TypePlateau.PRESENT ? present : future);
+
+        historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
+
+        System.out.println("Jeu: Nouveau jeu créé. Joueur qui commence: " + joueurCourant.getNom()
+                + " (ID: " + joueurCourant.getId() + ")");
+    }
+
+    public Jeu(Jeu jeu) {
+        // Initialiser les joueurs
+        joueur1 = new Joueur("Blanc", 1, jeu.getJoueur1().getNbClones(), jeu.getJoueur1().getProchainPlateau());
+        joueur2 = new Joueur("Noir", 2, jeu.getJoueur2().getNbClones(), jeu.getJoueur2().getProchainPlateau());
+        //IAminmax ia = new IAminmax(1);
+
+        // Initialiser les plateaux
+        past = new Plateau(jeu.getPast(), joueur1, joueur2);
+        present = new Plateau(jeu.getPresent(), joueur1, joueur2);
+        future = new Plateau(jeu.getFuture(), joueur1, joueur2);
+        this.etapeCoup = jeu.etapeCoup;
+
+        switch (jeu.joueurCourant.getId()) {
+            case 1 ->
+                this.joueurCourant = joueur1;
+            case 2 ->
+                this.joueurCourant = joueur2;
+        }
+
+        switch (jeu.plateauCourant.getType()) {
+            case PAST:
+                this.plateauCourant = past;
+                break;
+            case PRESENT:
+                this.plateauCourant = present;
+                break;
+            case FUTURE:
+                this.plateauCourant = future;
+                break;
+        }
+
+        this.gameState = jeu.gameState;
+        historiqueJeu = new HistoriqueJeu(past, present, future, joueur1, joueur2);
+    }
+
+    /**
      * Donne l'étape du coup en cours
      *
      * @return l'étape du coup en cours
@@ -184,16 +261,14 @@ public class Jeu {
             plateauCourant.setPiece(pieceCourante, ligDes, colDes);
             piece.setPosition(new Point(ligDes, colDes));
             plateauCourant.removePiece(src.x, src.y);
-        }
-        // Case occupée par un pion de l'autre joueur
+        } // Case occupée par un pion de l'autre joueur
         else if (!pieceDestination.getOwner().equals(piece.getOwner())) {
             deplacerPiece(coup, dir, pieceDestination);
             plateauCourant.removePiece(ligDes, colDes);
             plateauCourant.setPiece(piece, ligDes, colDes);
             piece.setPosition(new Point(ligDes, colDes));
             plateauCourant.removePiece(src.x, src.y);
-        }
-        // Case occupée par un pion de la même couleur => Ce qui cause paradox
+        } // Case occupée par un pion de la même couleur => Ce qui cause paradox
         else {
             plateauCourant.removePiece(src.x, src.y);
             plateauCourant.removePiece(ligDes, colDes);
@@ -207,6 +282,7 @@ public class Jeu {
             }
         }
     }
+
     // Jump - Travel forward => Fini
     /**
      * Fait une action jump
@@ -360,7 +436,7 @@ public class Jeu {
     }
 
     // 
-    boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
+    public boolean choisirPlateau(Plateau.TypePlateau prochainPlateau) {
         try {
             if (gameOver(joueurCourant) != 0 && etapeCoup != 3) {
                 return false;
@@ -442,6 +518,12 @@ public class Jeu {
 
                         printGamePlay();
                     }
+                    //redo test
+                    if (lig == 44 && col == 44) {
+                        Redo();
+
+                        printGamePlay();
+                    }
                 } while (!choisirPiece(lig, col));
 
             } catch (Exception e) {
@@ -476,6 +558,14 @@ public class Jeu {
                         printGamePlay();
                         break;
                     }
+                    //redo test
+                    if (input.equals("REDO")) {
+                        Redo();
+                        undo = 1;
+                        saute_tour = 1;
+                        printGamePlay();
+                        break;
+                    }
                     System.out.println(input);
                     while (!input.equals("UP") && !input.equals("DOWN") && !input.equals("LEFT") && !input.equals("RIGHT") && !input.equals("JUMP") && !input.equals("CLONE")) {
                         System.out.print("\nMauvaise saisie : Veuillez entrer le coup (UP, DOWN, LEFT, RIGHT, JUMP, CLONE) : ");
@@ -493,6 +583,7 @@ public class Jeu {
 
                 // Affichage
                 printGamePlay();
+                setEtapeCoup(etapeCoup + 1);
             } while (etapeCoup < 3 && etapeCoup >= 1);
 
             if (breakFlag) {
@@ -526,8 +617,8 @@ public class Jeu {
         };
 
         if (gameState == 2) {
-            System.out.println("Joueur 2 a gagné !"); 
-        }else if (gameState == 1) {
+            System.out.println("Joueur 2 a gagné !");
+        } else if (gameState == 1) {
             System.out.println("Joueur 1 a gagné !");
         }
 
@@ -542,9 +633,9 @@ public class Jeu {
     public boolean estCoupValide(Coup coup) {
         System.out.println("Coup: " + coup.getTypeCoup());
         ArrayList<Coup> coupsPossibles = getCoupPossibles(coup.getPltCourant(), coup.getPiece());
-        for (Coup possibleCoup : coupsPossibles) {
-            System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
-        }
+        // for (Coup possibleCoup : coupsPossibles) {
+        // System.out.println("Coup possible: " + possibleCoup.getTypeCoup());
+        // }
         for (Coup possibleCoup : coupsPossibles) {
             if (possibleCoup.equals(coup)) {
                 return true; //attention peut etre overide le equals
@@ -557,7 +648,7 @@ public class Jeu {
     // condition d'arret
     public int gameOver(Joueur joueur) {
         if (joueur.equals(joueur1)) {
-            System.out.println("Joueur 1: " + past.getNbNoirs() + " " + present.getNbNoirs() + " " + future.getNbNoirs());
+            // System.out.println("Joueur 1: " + past.getNbNoirs() + " " + present.getNbNoirs() + " " + future.getNbNoirs());
             if (past.getNbNoirs() > 0 && present.getNbNoirs() == 0 && future.getNbNoirs() == 0) {
                 gameState = 1;
                 return 1; //joueur 1 a gagne
@@ -571,7 +662,6 @@ public class Jeu {
                 return 1;
             }
         } else if (joueur.equals(joueur2)) {
-            System.out.println("Joueur 2: " + past.getNbBlancs() + " " + present.getNbBlancs() + " " + future.getNbBlancs());
             if (past.getNbBlancs() > 0 && present.getNbBlancs() == 0 && future.getNbBlancs() == 0) {
                 gameState = 2;
                 return 2;
@@ -706,13 +796,13 @@ public class Jeu {
                 break;
 
             case FUTURE:
-                if (present.getPiece(piece.getPosition().x, piece.getPosition().y) == null && joueurCourant.getNbClones() > 0) {
+                if (present.getPiece(piece.getPosition().x, piece.getPosition().y) == null && piece.getOwner().getNbClones() > 0) {
                     coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.CLONE));
                 }
                 break;
 
             case PRESENT:
-                if (past.getPiece(piece.getPosition().x, piece.getPosition().y) == null && joueurCourant.getNbClones() > 0) {
+                if (past.getPiece(piece.getPosition().x, piece.getPosition().y) == null && piece.getOwner().getNbClones() > 0) {
                     coupsPossibles.add(new Coup(piece, plateau, Coup.TypeCoup.CLONE));
                 }
                 if (future.getPiece(piece.getPosition().x, piece.getPosition().y) == null) {
@@ -736,6 +826,20 @@ public class Jeu {
 
     public void setJoueurCourant(Joueur joueur) {
         this.joueurCourant = joueur;
+    }
+
+    public void setPlateauCourant(TypePlateau type) {
+        switch (type) {
+            case PAST:
+                plateauCourant = past;
+                break;
+            case PRESENT:
+                plateauCourant = present;
+                break;
+            case FUTURE:
+                plateauCourant = future;
+                break;
+        }
     }
 
     public Plateau getPast() {
@@ -864,7 +968,6 @@ public class Jeu {
                 etapeCoup = 1;
             }
 
-
             Coup playerCoup = new Coup(selectedPiece, selectedPlateau, typeCoup);
             boolean isValid = jouerCoup(playerCoup);
 
@@ -873,9 +976,7 @@ public class Jeu {
                 return false;
             }
 
-
             // if (etapeCoup >= 3) {
-
             //     Plateau.TypePlateau nextPlateau = null;
             //     if (plateauType != Plateau.TypePlateau.PAST) {
             //         nextPlateau = Plateau.TypePlateau.PAST;
@@ -886,7 +987,6 @@ public class Jeu {
             //     etapeCoup = 0;
             //     joueurSuivant();
             //     majPlateauCourant();
-
             //     System.out.println("Jeu: Joueur suivant - ID: " + joueurCourant.getId() +
             //                        " (" + (joueurCourant.equals(joueur1) ? "Blanc/Lemiel" : "Noir/Zarek") + ")");
             // }
@@ -985,7 +1085,6 @@ public class Jeu {
         } else {
             sb.append("null"); // Aucune pièce sélectionnée
         }
-        
 
         return sb.toString();
     }
@@ -1001,6 +1100,7 @@ public class Jeu {
     public void Undo() {
         //si EtapeCoup == 0,
         if (historiqueJeu.getNbTours() > 0 && etapeCoup == 0) {
+            historiqueJeu.setRedo(true);
             historiqueJeu.pop();
             joueur1 = historiqueJeu.getJoueur1();
             joueur2 = historiqueJeu.getJoueur2();
@@ -1031,4 +1131,26 @@ public class Jeu {
         historiqueJeu.add(past, present, future, joueur1, joueur2);
     }
 
+    public HistoriqueJeu getHistoriqueJeu() {
+        return historiqueJeu;
+    }
+
+    public void setHistoriqueJeu(HistoriqueJeu historiqueJeu) {
+        this.historiqueJeu = historiqueJeu;
+    }
+
+    public void Redo() {
+        if (historiqueJeu.getNbTours() >= 0 && historiqueJeu.isRedoPossible()) {
+            System.out.println("DEBUG REDO");
+            historiqueJeu.redo();
+            joueur1 = historiqueJeu.getJoueur1();
+            joueur2 = historiqueJeu.getJoueur2();
+            past = historiqueJeu.getPast(joueur1, joueur2);
+            present = historiqueJeu.getPresent(joueur1, joueur2);
+            future = historiqueJeu.getFuture(joueur1, joueur2);
+            joueurSuivant();
+            majPlateauCourant();
+            majJoueurCourant();
+        }
+    }
 }

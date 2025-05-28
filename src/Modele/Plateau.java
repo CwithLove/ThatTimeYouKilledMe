@@ -18,6 +18,7 @@ public class Plateau {
     public Plateau(TypePlateau type, Joueur joueur1, Joueur joueur2) {
         this.nbBlancs = 1;
         this.nbNoirs = 1;
+
         this.type = type;
         this.grille = new Piece[4][4];
         for (int lig = 0; lig < 4; lig++) {
@@ -27,10 +28,31 @@ public class Plateau {
         }
 
         // Initialisation des pièces sur le plateau
-        this.grille[0][0] = new Piece(joueur1, new Point(0, 0));
+        this.grille[0][0] = new Piece(joueur1, new Point(0, 0)); 
         this.grille[3][3] = new Piece(joueur2, new Point(3, 3));
         
         this.size = 4;
+    }
+
+    //Permet de faire des copies du plateau
+    public Plateau(Plateau copie, Joueur joueur1, Joueur joueur2) {
+        this.type = copie.getType();
+        this.nbBlancs = copie.getNbBlancs();
+        this.nbNoirs = copie.getNbNoirs();
+        this.size = copie.getSize();
+
+        this.grille = new Piece[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                Piece p = copie.getPiece(i, j);
+                if (p != null) {
+                    Joueur owner = (copie.getPiece(i, j).getOwner().getId() == 1) ? joueur1 : joueur2;
+                    this.grille[i][j] = new Piece(owner, new Point(i, j));
+                } else {
+                    this.grille[i][j] = null;
+                }
+            }
+        }
     }
 
     public int getSize() { return size; }

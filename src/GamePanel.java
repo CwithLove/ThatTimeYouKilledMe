@@ -1,5 +1,6 @@
 import SceneManager.IntroductionScene;
 import SceneManager.SceneManager;
+import SceneManager.MenuScene; // Added import for MenuScene
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -27,6 +28,7 @@ public class GamePanel extends JPanel implements ActionListener {
         
         // Initialisation du gestionnaire de scènes
         sceneManager = new SceneManager(this);
+        //sceneManager.setScene(new MenuScene(sceneManager));//TO DO change here 
         sceneManager.setScene(new IntroductionScene(sceneManager));
         
         // Démarrage de la boucle de jeu

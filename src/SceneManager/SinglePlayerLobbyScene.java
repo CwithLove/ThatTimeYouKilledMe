@@ -29,6 +29,11 @@ public class SinglePlayerLobbyScene implements Scene {
     private String selectedDifficulty = "Facile"; // Difficulté par défaut: facile
     private final String[] DIFFICULTY_OPTIONS = {"Facile", "Moyen", "Difficile"};
 
+    private Button firstPlayerButton;           
+    private Button secondPlayerButton;          
+    private boolean playerGoesFirst = true;     
+    private String turnOrderMessage = "Vous commencez (Blancs)"; 
+
     private volatile boolean serverSuccessfullyStarted = false;
     private volatile boolean aiPlayerConnected = false;
     private volatile boolean hostClientConnected = false;
@@ -67,7 +72,7 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Bouton de démarrage du jeu
         startGameButton = new Button(300, 450, 200, 50, "Commencer", () -> {
-            sceneManager.setScene(new GameScene(sceneManager, true, levelAI));
+            sceneManager.setScene(new GameScene(sceneManager, true, levelAI, playerGoesFirst));
         });
 
         // Bouton pour charger une partie sauvegardée
@@ -75,6 +80,20 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Bouton de retour
         backButton = new Button(50, 500, 150, 40, "Retour", this::cleanUpAndGoToMenu);
+
+        firstPlayerButton = new Button(0, 0, 120, 35, "Vous Premier", () -> {
+            playerGoesFirst = true;
+            turnOrderMessage = "Vous commencez (Blancs)";
+            System.out.println("SinglePlayerLobbyScene: Joueur sélectionné pour commencer en premier (Blancs)");
+            repaintPanel();
+        });
+
+        secondPlayerButton = new Button(0, 0, 120, 35, "IA Premier", () -> {
+            playerGoesFirst = false;
+            turnOrderMessage = "IA commence (Blancs)";
+            System.out.println("SinglePlayerLobbyScene: IA sélectionnée pour commencer en premier (Blancs)");
+            repaintPanel();
+        });
     }
 
     /**
@@ -331,6 +350,9 @@ public class SinglePlayerLobbyScene implements Scene {
                 startGameButton.update(mousePos);
                 loadGameButton.update(mousePos);
                 backButton.update(mousePos);
+                
+                firstPlayerButton.update(mousePos);
+                secondPlayerButton.update(mousePos);
             }
         }
 
@@ -390,6 +412,44 @@ public class SinglePlayerLobbyScene implements Scene {
 
         // Zone du joueur IA (droite)
         drawPlayerZone(g2d, width / 2 + 10, zoneY, zoneWidth, zoneHeight, false, infoFontSize);
+
+        int turnOrderY = height * 2 / 3 - 20;
+        
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, infoFontSize + 2));
+        String turnOrderTitle = "Choisir l'ordre de jeu:";
+        FontMetrics turnTitleMetrics = g2d.getFontMetrics();
+        int turnTitleWidth = turnTitleMetrics.stringWidth(turnOrderTitle);
+        g2d.drawString(turnOrderTitle, (width - turnTitleWidth) / 2, turnOrderY);
+        
+        int buttonSpacing = 20;
+        int totalButtonWidth = 120 * 2 + buttonSpacing;
+        int buttonStartX = (width - totalButtonWidth) / 2;
+        
+        firstPlayerButton.setLocation(buttonStartX, turnOrderY + 15);
+        firstPlayerButton.setSize(120, 35);
+        firstPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+        
+        secondPlayerButton.setLocation(buttonStartX + 120 + buttonSpacing, turnOrderY + 15);
+        secondPlayerButton.setSize(120, 35);
+        secondPlayerButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12, infoFontSize * 2 / 3)));
+        
+        if (playerGoesFirst) {
+            firstPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+            secondPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+        } else {
+            firstPlayerButton.setNormalColor(new Color(100, 100, 200)); 
+            secondPlayerButton.setNormalColor(new Color(50, 150, 50)); 
+        }
+        
+        firstPlayerButton.render(g2d);
+        secondPlayerButton.render(g2d);
+        
+        g2d.setColor(Color.CYAN);
+        g2d.setFont(new Font("Arial", Font.ITALIC, infoFontSize));
+        FontMetrics turnMsgMetrics = g2d.getFontMetrics();
+        int turnMsgWidth = turnMsgMetrics.stringWidth(turnOrderMessage);
+        g2d.drawString(turnOrderMessage, (width - turnMsgWidth) / 2, turnOrderY + 70);
 
         // Message d'état
         if (statusMessage != null && !statusMessage.isEmpty()) {
@@ -495,6 +555,10 @@ public class SinglePlayerLobbyScene implements Scene {
                     loadGameButton.onClick();
                 } else if (backButton.contains(mousePoint)) {
                     backButton.onClick();
+                } else if (firstPlayerButton.contains(mousePoint)) {
+                    firstPlayerButton.onClick();
+                } else if (secondPlayerButton.contains(mousePoint)) {
+                    secondPlayerButton.onClick();
                 }
             }
 
@@ -510,6 +574,10 @@ public class SinglePlayerLobbyScene implements Scene {
                     loadGameButton.setClicked(true);
                 } else if (backButton.isEnabled() && backButton.contains(mousePoint)) {
                     backButton.setClicked(true);
+                } else if (firstPlayerButton.contains(mousePoint)) {
+                    firstPlayerButton.setClicked(true);
+                } else if (secondPlayerButton.contains(mousePoint)) {
+                    secondPlayerButton.setClicked(true);
                 }
                 repaintPanel();
             }
@@ -522,6 +590,8 @@ public class SinglePlayerLobbyScene implements Scene {
                 startGameButton.setClicked(false);
                 loadGameButton.setClicked(false);
                 backButton.setClicked(false);
+                firstPlayerButton.setClicked(false);
+                secondPlayerButton.setClicked(false);
                 repaintPanel();
             }
         };

@@ -90,6 +90,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private static AIClient aiClientInstance; // Conserve l'instance de l'IA pour pouvoir la déconnecter
     private int levelAI = 0;
     private boolean controlledByAI = false; // Indique si l'IA contrôle le jeu
+    
+    private boolean playerGoesFirst = true;
 
     private MouseAdapter mouseAdapterInternal;
     // MouseMotionListener est intégré dans MouseAdapter si mouseAdapterInternal
@@ -132,6 +134,27 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         if (isSinglePlayer) {
             this.serverIpToConnectOnDemand = "127.0.0.1"; // Le client UI se connecte au serveur local
             this.statusMessage = "Mode Solo : Préparation...";
+        } else {
+            // Ce constructeur ne doit être appelé qu'avec isSinglePlayer = true
+            throw new IllegalArgumentException(
+                    "Pour le mode multijoueur client, utilisez le constructeur avec l'IP du serveur.");
+        }
+        loadResources();
+        commonUIInit();
+    }
+
+    // Constructeur pour le mode Solo avec choix de l'ordre de jeu
+    public GameScene(SceneManager sceneManager, boolean isSinglePlayer, int difficultyLevel, boolean playerGoesFirst) {
+        this.sceneManager = sceneManager;
+        this.isOperatingInSinglePlayerMode = isSinglePlayer;
+        this.levelAI = difficultyLevel; // Niveau de difficulté de l'IA
+        this.playerGoesFirst = playerGoesFirst;
+        if (isSinglePlayer) {
+            this.serverIpToConnectOnDemand = "127.0.0.1"; // Le client UI se connecte au serveur local
+            this.statusMessage = "Mode Solo : Préparation...";
+            // Note: L'ordre de jeu sera géré lors de la création du serveur local
+            // Pour l'instant, nous stockons cette information pour l'utiliser plus tard
+            System.out.println("GameScene: Mode solo initialisé - Joueur commence en premier: " + playerGoesFirst);
         } else {
             // Ce constructeur ne doit être appelé qu'avec isSinglePlayer = true
             throw new IllegalArgumentException(
@@ -588,6 +611,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 }
 
                 localSinglePlayerServerManager = new GameServerManager(null); // callback = null
+                // 设置单人模式的先后顺序
+                localSinglePlayerServerManager.setTurnOrder(playerGoesFirst);
                 localSinglePlayerServerManager.startServer(); // Lancement serveur local 127.0.0.1
                 Thread.sleep(300); // Petit délai pour éviter les courses\
 

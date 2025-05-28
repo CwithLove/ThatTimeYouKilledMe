@@ -79,7 +79,7 @@ public class IAminimax {
             // System.out.println("Tour " + this.difficulte + ": " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
             Jeu jeuClone = new Jeu(gameState);
             if (tour.getPremier() != null) {
-                System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
+                // System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
@@ -180,6 +180,7 @@ public class IAminimax {
 
                         simCoup.choisirPlateau(tour.getQuatrieme());
                     } else {
+                        System.out.println("Tour: null, null, null, " + tour.getQuatrieme());
                         simCoup.choisirPlateau(tour.getQuatrieme());
                     }
                     simCoup.joueurSuivant();
@@ -188,7 +189,7 @@ public class IAminimax {
                     int heuristique = heuristique(simCoup, false, true);
                     // System.out.println("Jeu:");
                     // simCoup.printGamePlay();
-                    // System.out.println(" => Heuristique: " + heuristique);
+                    System.out.println(" => Heuristique: " + heuristique);
                     if (heuristique >= bestHeuristique) {
                         bestHeuristique = heuristique;
                         best_coup = tour;
@@ -201,6 +202,11 @@ public class IAminimax {
                             coupsBestHeuristique.add(tour);
                         }
                     }
+                }
+                System.out.println("Coups avec la meilleure heuristique (" + bestHeuristique + ") :");
+                for (IAFields<Piece, String, String, Plateau.TypePlateau> coup : coupsBestHeuristique) {
+                    Piece p = coup.getPremier();
+                    System.out.println(" - " + (p == null ? "null" : p.getPosition()) + ", " + coup.getSecond() + ", " + coup.getTroisieme() + ", " + coup.getQuatrieme());
                 }
                 // Couple<IAFields<Piece, String, String, Plateau.TypePlateau>, Integer> unMeilleurCoup = lst_coup.get(r.nextInt(lst_coup.size()));
                 best_coup = coupsBestHeuristique.get(r.nextInt(coupsBestHeuristique.size()));
@@ -257,7 +263,7 @@ public class IAminimax {
             }
             
             int score = heuristique(clone, tourIA, false);
-            System.out.println("Heuristique: " + score);
+            // System.out.println("Heuristique: " + score);
             return score;
         } 
 
@@ -354,7 +360,7 @@ public class IAminimax {
         //         + hCoinPlateau(jeu, joueur) + " * 2 - "
         //         + hChoixPlateau(jeu, joueur) + " * 1");
 
-        return 20 * hMateriel(jeu, joueur)
+        return 25 * hMateriel(jeu, joueur)
                 + 1 * hControlePlateaux(jeu, joueur)
                 - 3 * hPiecesAdjacentes(jeu, joueur)
                 - 5 * hDiffPionEtClone(jeu, joueur)
@@ -508,9 +514,9 @@ public class IAminimax {
                             // Si la piece est au bord, on retire 1 point
                             score += 1;
                         }
-                        // else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
-                          //  score -= 1;
-                        //}
+                        else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
+                           score -= 1;
+                        }
                     }
                 }
             }

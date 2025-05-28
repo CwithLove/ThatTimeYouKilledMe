@@ -216,6 +216,9 @@ public class GameServerManager {
                     continue;
                 }
 
+                Joueur currentPick = gameInstance.getJoueurCourant();
+                Joueur otherPick = (currentPick.getId() == 1) ? gameInstance.getJoueur2()
+                        : gameInstance.getJoueur1();
                 // Vérifier si c'est une commande Undo
                 int undo = Integer.parseInt(parts[0]);
                 if (undo == 1) {
@@ -228,13 +231,6 @@ public class GameServerManager {
                         // precedent
                         if (clientId != joueurCourant.getId()) {
 
-                            // else {
-                            // sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas
-                            // refaire un coup.");
-                            // sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas
-                            // refaire un coup.");
-                            // }
-
                             if (etapeCoup == 0) {
                                 gameInstance.Undo();
                                 gameInstance.setEtapeCoup(0); // Retour à l'étape 0
@@ -242,9 +238,9 @@ public class GameServerManager {
                                 // Dans Undo il a deja le majJoueurCourant
                                 sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
                                 System.out.println("GameServerManager: Undo effectué par l'adversaire " + clientId);
-                                continue;
                             } else {
                                 gameInstance.Undo(); // Undo le coup de l'adversaire
+                                gameInstance.setJoueurCourant(otherPick); // Changer de joueur courant
                                 gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                                 gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
                                 // L'adversaire doit aussi deselectionner la piece courante
@@ -262,20 +258,23 @@ public class GameServerManager {
                                             "GameServerManager: Erreur inattendue lors de l'attente après undo: "
                                                     + e.getMessage());
                                 }
+                                gameInstance.setJoueurCourant(currentPick); // Revenir au joueur courant
                                 gameInstance.Undo(); // Undo le coup du joueur courant
                                 gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                                 gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
                                 sendGameStateToAllClients();
                             }
-
+                            continue;
                         }
                         // Si c'est ton tour, il faut verifier si c'est etapeCoup 0, si c'est 0 cad, il
                         // faut demander a l'adversaire de undo ce qu'il a fait
                         else {
+
                             // Si c'est la, on va undo le tour total ce que l'adversaire a fait
                             if (etapeCoup == 0) {
                                 gameInstance.Undo();
                                 gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setJoueurCourant(currentPick);
                                 gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
                                 sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
                                 System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
@@ -290,6 +289,7 @@ public class GameServerManager {
                                                     + e.getMessage());
                                 }
                                 // On va undo le coup du joueur courant
+                                gameInstance.setJoueurCourant(otherPick); // Changer de joueur courant
                                 gameInstance.Undo(); // Undo le coup du joueur courant
                                 gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                                 gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante

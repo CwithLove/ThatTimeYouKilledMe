@@ -47,7 +47,7 @@ public class Plateau {
                 Piece p = copie.getPiece(i, j);
                 if (p != null) {
                     Joueur owner = (copie.getPiece(i, j).getOwner().getId() == 1) ? joueur1 : joueur2;
-                    this.grille[i][j] = new Piece(owner, copie.getPiece(i, j).getPosition());
+                    this.grille[i][j] = new Piece(owner, new Point(i, j));
                 } else {
                     this.grille[i][j] = null;
                 }

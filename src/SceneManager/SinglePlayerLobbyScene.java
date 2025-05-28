@@ -43,7 +43,7 @@ public class SinglePlayerLobbyScene implements Scene {
     private String statusMessage = "Appuyer sur Commencer pour commencer le jeu";
 
     // vs AI
-    private int levelAI = 2;
+    private int levelAI = 3;
 
     private boolean transitioningToGameScene = false;
 

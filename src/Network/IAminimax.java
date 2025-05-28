@@ -25,8 +25,6 @@ public class IAminimax {
         }
     }
 
-    private boolean iaLost = false;
-    private boolean iaWon = false;
     private int iaId;
 
     private Jeu jeu;
@@ -53,25 +51,7 @@ public class IAminimax {
         // }
         this.mode = "HARD";
         System.out.println("REMPLISSAGE...");
-        for (int i = 0; i < 9; i++) {
-            if (i == 0) {
-                poids.add(1);
-            } else {
-                poids.add(0);
-            }
-            // poids.add(r.nextInt(15));
-            // System.out.println(i + " : " + poids.get(i));
-        }
 
-        // poids.add(8);
-        // poids.add(2);                
-        // poids.add(7);
-        // poids.add(4);
-        // poids.add(9);
-        // poids.add(6);
-        // poids.add(7);
-        // poids.add(5);
-        // poids.add(10);
     }
 
     public IAFields<Piece, String, String, Plateau.TypePlateau> coupIA(Jeu gameState) {
@@ -87,14 +67,14 @@ public class IAminimax {
         Joueur joueur = gameState.getJoueurCourant();
         this.iaId = joueur.getId();
         ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> tours = getTourPossible(joueur, gameState);
-        /*
-        for (int i = 0; i < tours.size(); i++) {
-            System.out.println("DEBUG TOURS POSSIBLE : "+tours.get(i).getSecond()+", "+tours.get(i).getTroisieme()+", "+tours.get(i).getQuatrieme());
-        }*/
+        
+        // for (int i = 0; i < tours.size(); i++) {
+        //     System.out.println("DEBUG TOURS POSSIBLE : "+tours.get(i).getSecond()+", "+tours.get(i).getTroisieme()+", "+tours.get(i).getQuatrieme());
+        // }
 
         //Minimax de profondeur [difficulte] (max 3, 6 avec heuristique) avec elagage
-        System.out.println("--------MiniMax--------");
-        System.out.println("Profondeur: " + this.difficulte);
+        // System.out.println("--------MiniMax--------");
+        // System.out.println("Profondeur: " + this.difficulte);
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
             // System.out.println("Tour " + this.difficulte + ": " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
             Jeu jeuClone = new Jeu(gameState);
@@ -121,14 +101,14 @@ public class IAminimax {
                 }
                 
             } else {
-                System.out.println("Tour 0: null, null, null, " + tour.getQuatrieme());
+                // System.out.println("Tour 0: null, null, null, " + tour.getQuatrieme());
             }
 
             jeuClone.choisirPlateau(tour.getQuatrieme());
             jeuClone.joueurSuivant();
+            jeuClone.majPlateauCourant();
 
-            Jeu jeuClone2 = new Jeu(jeuClone);
-            int score = alphabeta(1, alpha, beta, false, jeuClone2);
+            int score = alphabeta(1, alpha, beta, false, jeuClone);
             ////System.out.println("Pour le coup :"+coup+", on a le score (pas encore a jour) :"+score);
             lst_coup.add(new Couple<>(tour, score));
 
@@ -144,7 +124,7 @@ public class IAminimax {
         // System.out.println("Meilleur score pour cette profondeur: " + best);
         // System.out.println("--------------------------------------");
 
-        ////System.out.println("Le meilleur coup est:"+best_coup.getPremier().getPosition().getX()+","+best_coup.getPremier().getPosition().getY()+","+best_coup.getSecond()+","+best_coup.getTroisieme()+","+best_coup.getQuatrieme());
+        // System.out.println("Le meilleur coup est:" + best_coup);
         if (lst_coup.size() > 1) {
             int seuil = 0;
             if (this.mode.equals("HARD")) {
@@ -177,7 +157,6 @@ public class IAminimax {
                     Jeu simCoup = new Jeu(gameState);
                     IAFields<Piece, String, String, Plateau.TypePlateau> tour = lst_coup.get(i).getPremier();
                     if (tour.getPremier() != null) {
-                        // System.out.print("Tour " + profondeur + ":" + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme() + "||");
                         int x = (int) tour.getPremier().getPosition().getX();
                         int y = (int) tour.getPremier().getPosition().getY();
                         Piece pieceCourant = simCoup.getPlateauCourant().getPiece(x, y);
@@ -193,10 +172,10 @@ public class IAminimax {
 
                         Coup coup2 = Coup.stringToCoup(pieceCourant, simCoup.getPlateauCourant(), tour.getTroisieme());
                         if (coup2 != null) {
-                            System.out.print("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
+                            System.out.println("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                             simCoup.appliquerCoup(coup2);
                         } else {
-                            System.out.print("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", null," + tour.getQuatrieme());
+                            System.out.println("Tour: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", null," + tour.getQuatrieme());
                         }
 
                         simCoup.choisirPlateau(tour.getQuatrieme());
@@ -204,14 +183,15 @@ public class IAminimax {
                         simCoup.choisirPlateau(tour.getQuatrieme());
                     }
                     simCoup.joueurSuivant();
+                    simCoup.majPlateauCourant();
 
                     int heuristique = heuristique(simCoup, false, true);
                     // System.out.println("Jeu:");
                     // simCoup.printGamePlay();
-                    System.out.println(" => Heuristique: " + heuristique);
+                    // System.out.println(" => Heuristique: " + heuristique);
                     if (heuristique >= bestHeuristique) {
-                        // bestHeuristique = heuristique;
-                        // best_coup = tour;
+                        bestHeuristique = heuristique;
+                        best_coup = tour;
                         if (heuristique > bestHeuristique) {
                             bestHeuristique = heuristique;
                             // On vide la pile et on ajoute le nouveau meilleur coup
@@ -249,38 +229,50 @@ public class IAminimax {
         if (memoisation1 != null && memoisation1.profondeur >= profondeur) {
             return memoisation1.evaluation;
         }*/
-
-        if (profondeur >= this.difficulte || clone.gameOver(clone.getJoueurCourant()) != 0) {
-            int score = heuristique(clone, tourIA, false);
-            System.out.println("Heuristique score: " + score);
-            //memoisation.put(hash, new Memoisation(score, profondeur));
-            return score;
+        Joueur joueur = jeu.getJoueurCourant();
+        // System.out.println("DEBUG: Joueur courant: " + joueur.getId() + ", Tour IA: " + tourIA + ", Profondeur: " + profondeur);
+        Joueur opponent = null;
+        if (joueur.getId() == 1) {
+            opponent = jeu.getJoueur2();
+        } else {
+            opponent = jeu.getJoueur1();
         }
+        if (tourIA) {
+            joueur = opponent;
+        }
+
+        if (clone.gameOver(clone.getJoueurCourant()) != 0 || profondeur >= this.difficulte) {
+            // System.out.println("Joueur " + joueur.getId()); 
+            // System.out.println("clone.getGameState() = " + clone.getGameState());
+            if (clone.getGameState() == joueur.getId()) {
+                // clone.printGamePlay();
+                System.out.println("IA gagne => heuristique: " + (1000000 - profondeur));
+                // IA a gagné
+                return 1000000 - profondeur; 
+            } else if (clone.getGameState() == opponent.getId()) {
+                // IA a perdu
+                // clone.printGamePlay();
+                System.out.println("IA perd => heuristique: " + (-1000000 + profondeur));
+                return -1000000 + profondeur;
+            }
+            
+            int score = heuristique(clone, tourIA, false);
+            System.out.println("Heuristique: " + score);
+            return score;
+        } 
 
         // System.out.println("\n--------alphaBeta--------");
         // System.out.println("Profondeur: " + profondeur + ", Tour " +  (tourIA ? "IA" : "Adversaire"));
+        // clone.printGamePlay();
         ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> tours = null;
         tours = getTourPossible(clone.getJoueurCourant(), clone);
-
-        if (tours.isEmpty()) {
-            System.out.println("Pas de tours possibles");
-            if (iaLost) {
-                System.out.println("IA a perdu" + -1000000 + profondeur);
-                return -1000000 + profondeur;
-            } else if (iaWon) {
-                System.out.println("IA a gagné" + (1000000 - profondeur));
-                return 1000000 - profondeur;
-            }
-            this.iaLost = false;
-            this.iaWon = false;
-        }
 
         //trierToursParHeuristique(tours, tourIA, clone);
         int best = tourIA ? Integer.MIN_VALUE : Integer.MAX_VALUE;
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
             Jeu jeuClone = new Jeu(clone);
             if (tour.getPremier() != null) {
-                // System.out.print("Tour " + profondeur + ":" + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme() + "||");
+                // System.out.println("Tour " + profondeur + ":" + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme() + "||");
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourant = jeuClone.getPlateauCourant().getPiece(x, y);
@@ -301,6 +293,7 @@ public class IAminimax {
 
                 jeuClone.choisirPlateau(tour.getQuatrieme());
                 jeuClone.joueurSuivant();
+                jeuClone.majPlateauCourant();
 
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
@@ -311,9 +304,10 @@ public class IAminimax {
                     beta = Math.min(beta, best);
                 }
             } else {
-                System.out.print("Tour " + profondeur + ": null, null, null, " + tour.getQuatrieme() + "||");
+                // System.out.println("Tour " + profondeur + ": null, null, null, " + tour.getQuatrieme() + "||");
                 jeuClone.choisirPlateau(tour.getQuatrieme());
                 jeuClone.joueurSuivant();
+                jeuClone.majPlateauCourant();
                 Jeu jeuClone2 = new Jeu(jeuClone);
                 if (tourIA) {
                     best = Math.max(best, alphabeta(profondeur + 1, alpha, beta, false, jeuClone2));
@@ -331,12 +325,13 @@ public class IAminimax {
         }
         // System.out.println("Fin de la profondeur: " + profondeur + ", Meilleur score: " + best);
         // System.out.println("--------------------------------------");
-        //memoisation.put(hash, new Memoisation(best, profondeur));
+        // memoisation.put(hash, new Memoisation(best, profondeur));
         return best;
     }
 
     // heuristique
     private int heuristique(Jeu jeu, boolean tourIA, boolean debug) {
+        // jeu.printGamePlay();
 
         Joueur joueur = jeu.getJoueurCourant();
         Joueur opponent = null;
@@ -359,13 +354,17 @@ public class IAminimax {
         //         + hCoinPlateau(jeu, joueur) + " * 2 - "
         //         + hChoixPlateau(jeu, joueur) + " * 1");
 
-        return 25 * hMateriel(jeu, joueur)
-                + 40 * hControlePlateaux(jeu, joueur)
+        return 20 * hMateriel(jeu, joueur)
+                + 1 * hControlePlateaux(jeu, joueur)
                 - 3 * hPiecesAdjacentes(jeu, joueur)
-                - 2 * hDiffPionEtClone(jeu, joueur);
-                // - 1 * hBordPlateau(jeu, joueur)
-                // - 2 * hCoinPlateau(jeu, joueur)
-                // + 2 * hChoixPlateau(jeu, joueur);
+                - 5 * hDiffPionEtClone(jeu, joueur)
+                - 3 * hBordPlateau(jeu, joueur)
+                - 5 * hCoinPlateau(jeu, joueur)
+                //+ 2 * hChoixPlateau(jeu, joueur);
+                + 2 * hCentrePlateau(jeu, joueur)
+                + 2 * hClone(jeu, joueur)
+                + 2 * hSurPlt(jeu, joueur);
+                
     }
 
     // Pour chaque piece en plus de l'adversaire, on ajoute un point
@@ -382,7 +381,42 @@ public class IAminimax {
                 }
             }
         }
+        if (ia.getId() == 1) {
+            score += jeu.getJoueur1().getNbClones();
+            score -= jeu.getJoueur2().getNbClones();
+        } else {
+            score += jeu.getJoueur2().getNbClones();
+            score -= jeu.getJoueur1().getNbClones();
+        }
         // System.out.println("DEBUG hMateriel score: " + score);
+        return score;
+    }
+
+    private int hClone(Jeu jeu, Joueur ia) {
+        // System.out.println("DEBUG hClone " + ia.getNom());
+        int score = 0;
+        if (ia.getId() == 1) {
+            score += jeu.getJoueur1().getNbClones();
+            score -= jeu.getJoueur2().getNbClones();
+        } else {
+            score += jeu.getJoueur2().getNbClones();
+            score -= jeu.getJoueur1().getNbClones();
+        }
+        // System.out.println("DEBUG hClone score: " + score);
+        return score;
+    }
+
+    private int hSurPlt(Jeu jeu, Joueur ia) {
+        // System.out.println("DEBUG hSurPlt " + ia.getNom());
+        int score = 0;
+        if (ia.getId() == 1) {
+            score += jeu.getPast().getNbBlancs() + jeu.getPresent().getNbBlancs() + jeu.getFuture().getNbBlancs();
+            score -= jeu.getPast().getNbNoirs() + jeu.getPresent().getNbNoirs() + jeu.getFuture().getNbNoirs();
+        } else {
+            score += jeu.getPast().getNbNoirs() + jeu.getPresent().getNbNoirs() + jeu.getFuture().getNbNoirs();
+            score -= jeu.getPast().getNbBlancs() + jeu.getPresent().getNbBlancs() + jeu.getFuture().getNbBlancs();
+        }
+        // System.out.println("DEBUG hSurPlt score: " + score);
         return score;
     }
 
@@ -391,16 +425,16 @@ public class IAminimax {
         // System.out.println("DEBUG hControlePlateaux " + ia.getNom());
         int score = 0;
         if (ia.getId() == 1) {
-            score += jeu.getPast().getNbBlancs() > 0 ? 1 : 0;
-            score += jeu.getPresent().getNbBlancs() > 0 ? 1 : 0;
-            score += jeu.getFuture().getNbBlancs() > 0 ? 1 : 0;
+            score += jeu.getPast().getNbBlancs() > 0 ? 45 : 0;
+            score += jeu.getPresent().getNbBlancs() > 0 ? 40 : 0;
+            score += jeu.getFuture().getNbBlancs() > 0 ? 35 : 0;
             score += jeu.getPast().getNbNoirs() > 0 ? 0 : 1;
             score += jeu.getPresent().getNbNoirs() > 0 ? 0 : 1;
             score += jeu.getFuture().getNbNoirs() > 0 ? 0 : 1;
         } else {
-            score += jeu.getPast().getNbNoirs() > 0 ? 1 : 0;
-            score += jeu.getPresent().getNbNoirs() > 0 ? 1 : 0;
-            score += jeu.getFuture().getNbNoirs() > 0 ? 1 : 0;
+            score += jeu.getPast().getNbNoirs() > 0 ? 45 : 0;
+            score += jeu.getPresent().getNbNoirs() > 0 ? 40 : 0;
+            score += jeu.getFuture().getNbNoirs() > 0 ? 35 : 0;
             score += jeu.getPast().getNbBlancs() > 0 ? 0 : 1;
             score += jeu.getPresent().getNbBlancs() > 0 ? 0 : 1;
             score += jeu.getFuture().getNbBlancs() > 0 ? 0 : 1;
@@ -472,10 +506,11 @@ public class IAminimax {
                         // Verifier si la piece courante appartient a l'IA
                         if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
                             // Si la piece est au bord, on retire 1 point
-                            score += 2;
-                        } else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
-                            score -= 1;
+                            score += 1;
                         }
+                        // else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
+                          //  score -= 1;
+                        //}
                     }
                 }
             }
@@ -524,7 +559,7 @@ public class IAminimax {
                             }
                         }
                         if (pieceAdversaireProche) {
-                            score += 2;
+                            score += 5;
                         }
                     }
 
@@ -534,69 +569,82 @@ public class IAminimax {
         return score;
     }
 
-    private int hChoixPlateau(Jeu jeu, Joueur ia) {
+    private int hCentrePlateau(Jeu jeu, Joueur ia) {
+        // Pour chaque piece de l'ia au centre du plateau, on ajoute 1 point
         int score = 0;
-        Plateau plt = jeu.getPlateauByType(ia.getProchainPlateau());
-        Joueur adversaire = ia.getId() == 1 ? jeu.getJoueur2() : jeu.getJoueur1();
-        // score += ia.getId() == 1 ? (plt.getNbBlancs() > 0 ? 1 : 0) : (plt.getNbNoirs() > 0 ? 1 : 0);
-
-        // si le pion du ia est au bord et il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 1 point
-        if (adversaire.getProchainPlateau() == plt.getType()) {
-            for (int i = 0; i < plt.getSize(); i++) {
-                for (int j = 0; j < plt.getSize(); j++) {
+        for (Plateau plt : new Plateau[]{jeu.getPast(), jeu.getPresent(), jeu.getFuture()}) {
+            for (int i = 1; i < plt.getSize() - 1; i++) {
+                for (int j = 1; j < plt.getSize() - 1; j++) {
                     Piece pieceIACourante = plt.getPiece(i, j);
                     if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
-                        boolean estBord = (i == 0 && j == 1)
-                                || (i == 0 && j == 2)
-                                || (i == 1 && j == 0)
-                                || (i == 1 && j == plt.getSize() - 1)
-                                || (i == 2 && j == 0)
-                                || (i == 2 && j == plt.getSize() - 1)
-                                || (i == plt.getSize() - 1 && j == 1)
-                                || (i == plt.getSize() - 1 && j == 2)
-                                || (i == 0 && j == 0)
-                                || (i == 0 && j == plt.getSize() - 1)
-                                || (i == plt.getSize() - 1 && j == 0)
-                                || (i == plt.getSize() - 1 && j == plt.getSize() - 1);
-
-                        if (estBord) {
-                            score += 1;
-                            boolean pieceAdversaireProche = false;
-                            for (int x = 0; x < plt.getSize(); x++) {
-                                for (int y = 0; y < plt.getSize(); y++) {
-                                    Piece pieceAdversaire = plt.getPiece(x, y);
-                                    if (pieceAdversaire != null && !pieceAdversaire.getOwner().equals(ia)) {
-                                        int distanceManhattan = Math.abs(i - x) + Math.abs(j - y);
-                                        if (distanceManhattan <= 2) {
-                                            pieceAdversaireProche = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (pieceAdversaireProche) {
-                                    break;
-                                }
-                            }
-                            if (pieceAdversaireProche) {
-                                score += 5;
-                            }
-                        }
+                        score += 1;
                     }
                 }
             }
         }
-
         return score;
     }
+
+    // // Pour chaque plateau, si le pion de l'ia est au bord et il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 5 points 
+    // private int hChoixPlateau(Jeu jeu, Joueur ia) {
+    //     int score = 0;
+    //     Plateau plt = jeu.getPlateauByType(ia.getProchainPlateau());
+    //     Joueur adversaire = ia.getId() == 1 ? jeu.getJoueur2() : jeu.getJoueur1();
+    //     // score += ia.getId() == 1 ? (plt.getNbBlancs() > 0 ? 1 : 0) : (plt.getNbNoirs() > 0 ? 1 : 0);
+
+    //     // si le pion du ia est au bord et il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 1 point
+    //     if (adversaire.getProchainPlateau() == plt.getType()) {
+    //         for (int i = 0; i < plt.getSize(); i++) {
+    //             for (int j = 0; j < plt.getSize(); j++) {
+    //                 Piece pieceIACourante = plt.getPiece(i, j);
+    //                 if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
+    //                     boolean estBord = (i == 0 && j == 1)
+    //                             || (i == 0 && j == 2)
+    //                             || (i == 1 && j == 0)
+    //                             || (i == 1 && j == plt.getSize() - 1)
+    //                             || (i == 2 && j == 0)
+    //                             || (i == 2 && j == plt.getSize() - 1)
+    //                             || (i == plt.getSize() - 1 && j == 1)
+    //                             || (i == plt.getSize() - 1 && j == 2)
+    //                             || (i == 0 && j == 0)
+    //                             || (i == 0 && j == plt.getSize() - 1)
+    //                             || (i == plt.getSize() - 1 && j == 0)
+    //                             || (i == plt.getSize() - 1 && j == plt.getSize() - 1);
+
+    //                     if (estBord) {
+    //                         score += 1;
+    //                         boolean pieceAdversaireProche = false;
+    //                         for (int x = 0; x < plt.getSize(); x++) {
+    //                             for (int y = 0; y < plt.getSize(); y++) {
+    //                                 Piece pieceAdversaire = plt.getPiece(x, y);
+    //                                 if (pieceAdversaire != null && !pieceAdversaire.getOwner().equals(ia)) {
+    //                                     int distanceManhattan = Math.abs(i - x) + Math.abs(j - y);
+    //                                     if (distanceManhattan <= 2) {
+    //                                         pieceAdversaireProche = true;
+    //                                         break;
+    //                                     }
+    //                                 }
+    //                             }
+    //                             if (pieceAdversaireProche) {
+    //                                 break;
+    //                             }
+    //                         }
+    //                         if (pieceAdversaireProche) {
+    //                             score += 5;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     return score;
+    // }
+
 
     private ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> getTourPossible(Joueur joueur, Jeu clone) {
         int gameState;
         if ((gameState = clone.gameOver(joueur)) != 0) {
-            if (gameState == this.iaId) {
-                this.iaWon = true;
-            } else {
-                this.iaLost = true;
-            }
             return new ArrayList<>();
         }
         ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> listeCoups = new ArrayList<>();
@@ -645,7 +693,6 @@ public class IAminimax {
                 piece.setPosition(new Point(posx, posy));
             }
         } else {
-            //System.out.println("IAMinimax: pieces null");
             for (Plateau.TypePlateau plateau : PlateauValide(joueur.getProchainPlateau())) {
                 coup = new IAFields<>(null, null, null, plateau);
                 listeCoups.add(coup);
@@ -657,20 +704,8 @@ public class IAminimax {
     }
 
     private ArrayList<Piece> listePieces(Jeu jeu) {
-        ArrayList<Piece> listePieces = new ArrayList<>();
-        Piece tmp = null;
-        for (int i = 0; i < jeu.getPlateauCourant().getSize(); i++) {
-            for (int j = 0; j < jeu.getPlateauCourant().getSize(); j++) {
-                if (jeu.getPlateauCourant().getPiece(i, j) != null) {
-                    if (jeu.getPlateauCourant().getPiece(i, j).getOwner().equals(jeu.getJoueurCourant())) {
-                        tmp = jeu.getPlateauCourant().getPiece(i, j);
-                        listePieces.add(tmp);
-                    }
-                }
-            }
-        }
         ////System.out.println("LISTE DES PIECES DU JOUEUR "+joueur.getNom()+", au plateau "+plateauCourant.plateauToString()+" : "+listePieces.size());
-        return listePieces;
+        return jeu.getPlateauCourant().getPieces(jeu.getJoueurCourant());
     }
 
     private ArrayList<Plateau.TypePlateau> PlateauValide(Plateau.TypePlateau precedent) {

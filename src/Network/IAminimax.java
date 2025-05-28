@@ -65,19 +65,10 @@ public class IAminimax {
         Joueur joueur = gameState.getJoueurCourant();
         this.iaId = joueur.getId();
         ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> tours = getTourPossible(joueur, gameState);
-        
-        // for (int i = 0; i < tours.size(); i++) {
-        //     System.out.println("DEBUG TOURS POSSIBLE : "+tours.get(i).getSecond()+", "+tours.get(i).getTroisieme()+", "+tours.get(i).getQuatrieme());
-        // }
 
-        //Minimax de profondeur [difficulte] (max 3, 6 avec heuristique) avec elagage
-        // System.out.println("--------MiniMax--------");
-        // System.out.println("Profondeur: " + this.difficulte);
         for (IAFields<Piece, String, String, Plateau.TypePlateau> tour : tours) {
-            // System.out.println("Tour " + this.difficulte + ": " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
             Jeu jeuClone = new Jeu(gameState);
             if (tour.getPremier() != null) {
-                // System.out.println("Tour 0: " + tour.getPremier().getPosition() + ", " + tour.getSecond() + ", " + tour.getTroisieme() + ", " + tour.getQuatrieme());
                 int x = (int) tour.getPremier().getPosition().getX();
                 int y = (int) tour.getPremier().getPosition().getY();
                 Piece pieceCourante = jeuClone.getPlateauCourant().getPiece(x, y);
@@ -97,9 +88,7 @@ public class IAminimax {
                 } else {
                     jeuClone.appliquerCoup(coup2);
                 }
-                
-            } else {
-                // System.out.println("Tour 0: null, null, null, " + tour.getQuatrieme());
+
             }
 
             jeuClone.choisirPlateau(tour.getQuatrieme());
@@ -187,7 +176,7 @@ public class IAminimax {
                     this.mode = "MEDIUM"; // On choisit le mode MEDIUM pour l'heuristique pour un des coups proches
                     int heuristique = heuristique(simCoup, false, true);
                     this.mode = "HARD"; // On remet le mode HARD pour le reste de l'IA
-                    
+
                     System.out.println(" => Heuristique: " + heuristique);
 
                     if (heuristique > bestHeuristique) {
@@ -195,10 +184,10 @@ public class IAminimax {
                         // On vide la pile et on ajoute le nouveau meilleur coup
                         coupsBestHeuristique = new ArrayList<>();
                         coupsBestHeuristique.add(tour);
-                    } else if (heuristique == bestHeuristique ) {
+                    } else if (heuristique == bestHeuristique) {
                         coupsBestHeuristique.add(tour);
                     }
-                    
+
                 }
                 System.out.println("Coups avec la meilleure heuristique (" + bestHeuristique + ") :");
                 for (IAFields<Piece, String, String, Plateau.TypePlateau> coup : coupsBestHeuristique) {
@@ -251,18 +240,18 @@ public class IAminimax {
                 // clone.printGamePlay();
                 // System.out.println("IA gagne => heuristique: " + (1000000 - profondeur));
                 // IA a gagné
-                return 1000000 - profondeur; 
+                return 1000000 - profondeur;
             } else if (clone.getGameState() == opponent.getId()) {
                 // IA a perdu
                 // clone.printGamePlay();
                 // System.out.println("IA perd => heuristique: " + (-1000000 + profondeur));
                 return -1000000 + profondeur;
             }
-            
+
             int score = heuristique(clone, tourIA, false);
             // System.out.println("Heuristique: " + score);
             return score;
-        } 
+        }
 
         // System.out.println("\n--------alphaBeta--------");
         // System.out.println("Profondeur: " + profondeur + ", Tour " +  (tourIA ? "IA" : "Adversaire"));
@@ -348,16 +337,7 @@ public class IAminimax {
             // opponent = jeu.getJoueurCourant();
         }
 
-        // if (debug)
-        //     System.out.println(hMateriel(jeu, joueur) + " * 25 + "
-        //         + hControlePlateaux(jeu, joueur) + " * 40 - "
-        //         + hPiecesAdjacentes(jeu, joueur) + " * 3 - "
-        //         + hDiffPionEtClone(jeu, joueur) + " * 2 - "
-        //         + hBordPlateau(jeu, joueur) + " * 1 - "
-        //         + hCoinPlateau(jeu, joueur) + " * 2 - "
-        //         + hChoixPlateau(jeu, joueur) + " * 1");
         if (this.mode.equals("HARD")) {
-            // System.out.println("DEBUG: Mode HARD");
             return 25 * hMateriel(jeu, joueur)
                     + 1 * hControlePlateaux(jeu, joueur)
                     - 1 * hPiecesAdjacentes(jeu, joueur)
@@ -365,7 +345,7 @@ public class IAminimax {
                     - 3 * hBordPlateau(jeu, joueur)
                     - 3 * hCoinPlateau(jeu, joueur)
                     + 2 * hCentrePlateau(jeu, joueur);
-        } 
+        }
         return 25 * hMateriel(jeu, joueur)
                 + 1 * hControlePlateaux(jeu, joueur)
                 - 3 * hPiecesAdjacentes(jeu, joueur)
@@ -376,7 +356,7 @@ public class IAminimax {
                 + 2 * hCentrePlateau(jeu, joueur)
                 + 2 * hClone(jeu, joueur)
                 + 2 * hSurPlt(jeu, joueur);
-                
+
     }
 
     // Pour chaque piece en plus de l'adversaire, on ajoute un point
@@ -405,7 +385,6 @@ public class IAminimax {
     }
 
     private int hClone(Jeu jeu, Joueur ia) {
-        // System.out.println("DEBUG hClone " + ia.getNom());
         int score = 0;
         if (ia.getId() == 1) {
             score += jeu.getJoueur1().getNbClones();
@@ -414,12 +393,10 @@ public class IAminimax {
             score += jeu.getJoueur2().getNbClones();
             score -= jeu.getJoueur1().getNbClones();
         }
-        // System.out.println("DEBUG hClone score: " + score);
         return score;
     }
 
     private int hSurPlt(Jeu jeu, Joueur ia) {
-        // System.out.println("DEBUG hSurPlt " + ia.getNom());
         int score = 0;
         if (ia.getId() == 1) {
             score += jeu.getPast().getNbBlancs() + jeu.getPresent().getNbBlancs() + jeu.getFuture().getNbBlancs();
@@ -428,13 +405,11 @@ public class IAminimax {
             score += jeu.getPast().getNbNoirs() + jeu.getPresent().getNbNoirs() + jeu.getFuture().getNbNoirs();
             score -= jeu.getPast().getNbBlancs() + jeu.getPresent().getNbBlancs() + jeu.getFuture().getNbBlancs();
         }
-        // System.out.println("DEBUG hSurPlt score: " + score);
         return score;
     }
 
     // Pour chaque plateau, on ajoute un point si l'ia controle le plateau, on en retire un si l'adversaire le controle
     private int hControlePlateaux(Jeu jeu, Joueur ia) {
-        // System.out.println("DEBUG hControlePlateaux " + ia.getNom());
         int score = 0;
         if (ia.getId() == 1) {
             score += jeu.getPast().getNbBlancs() > 0 ? 45 : 0;
@@ -451,14 +426,12 @@ public class IAminimax {
             score += jeu.getPresent().getNbBlancs() > 0 ? -35 : 0;
             score += jeu.getFuture().getNbBlancs() > 0 ? -30 : 0;
         }
-        // System.out.println("DEBUG hControlePlateaux score: " + score);
         return score;
     }
 
     // Pour chaque piece adjacente a une piece de l'ia, on ajoute un point
     private int hPiecesAdjacentes(Jeu jeu, Joueur ia) {
         int score = 0;
-        // System.out.println("DEBUG hPiecesAdjacentes " + ia.getNom());
         for (int i = 0; i < jeu.getPlateauCourant().getSize(); i++) {
             for (int j = 0; j < jeu.getPlateauCourant().getSize(); j++) {
                 Piece piece = jeu.getPlateauCourant().getPiece(i, j);
@@ -478,13 +451,11 @@ public class IAminimax {
                 }
             }
         }
-        // System.out.println("DEBUG hPiecesAdjacentes score: " + score);
         return score;
     }
 
     // Pour chaque difference entre les pieces de l'ia sur le plateau et celles dans les NBclones, on enleve un point
     private int hDiffPionEtClone(Jeu jeu, Joueur ia) {
-        // System.out.println("DEBUG hDiffPionEtClone " + ia.getNom());
         int score = 0;
         if (ia.getId() == 1) {
             score += jeu.getPresent().getNbBlancs() + jeu.getPast().getNbBlancs() + jeu.getFuture().getNbBlancs();
@@ -493,11 +464,10 @@ public class IAminimax {
             score += jeu.getPresent().getNbNoirs() + jeu.getPast().getNbNoirs() + jeu.getFuture().getNbNoirs();
             score -= jeu.getJoueur2().getNbClones();
         }
-        // System.out.println("DEBUG hDiffPionEtClone score: " + score);
         return Math.abs(score);
     }
 
-    // Pour chaque plateau, Pour chaque piece au bord d'un plateau (pas au coin), on enleve un point, si il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 2 points 
+    // Pour chaque plateau, Pour chaque piece au bord d'un plateau (pas au coin), on enleve un point, si il existe un pion de l'adversaire dont la distance manhattan <= 2, on enleve 2 points
     private int hBordPlateau(Jeu jeu, Joueur ia) {
         int score = 0;
         int size = 4;
@@ -519,9 +489,8 @@ public class IAminimax {
                         if (pieceIACourante != null && pieceIACourante.getOwner().equals(ia)) {
                             // Si la piece est au bord, on retire 1 point
                             score += 1;
-                        }
-                        else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
-                           score -= 1;
+                        } else if (pieceIACourante != null && !pieceIACourante.getOwner().equals(ia)) {
+                            score -= 1;
                         }
                     }
                 }
@@ -657,7 +626,6 @@ public class IAminimax {
 
         return score;
     }
-
 
     private ArrayList<IAFields<Piece, String, String, Plateau.TypePlateau>> getTourPossible(Joueur joueur, Jeu clone) {
         int gameState;

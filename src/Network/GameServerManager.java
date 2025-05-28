@@ -205,6 +205,13 @@ public class GameServerManager {
                 // demande le undo
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
+                // Vérifier si c'est une commande LOAD_GAME
+                if (msg.contenu.startsWith("LOAD_GAME:")) {
+                    if (processLoadGameMessage(msg, clientId)) {
+                        continue;
+                    }
+                }
+
                 // Traiter le message en fonction de l'étape du coup
                 String[] parts = msg.contenu.split(":");
                 System.out.println("GameServerManager: Message du client " + clientId + ": " + msg.contenu);

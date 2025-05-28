@@ -38,6 +38,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
         this.serverIpAddress = serverIpAddress;
         this.gameInstance = new Jeu(); // Initialiser l'instance de jeu
         ia = new IAminimax(difficuletAI, gameInstance);
+        System.out.println(aiName + ": Initialisation de l'AIClient pour " + difficuletAI + " difficulté.");
     }
 
     public void connect() throws IOException {
@@ -142,6 +143,7 @@ public class AIClient implements GameStateUpdateListener, Runnable {
                         case ADVERSAIRE:
                         case ACTION:
                         case COUP:
+                        case REDOABLE:
                             onGameMessage(code.name(), content);
                             break;
                         default:

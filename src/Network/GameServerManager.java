@@ -1,10 +1,6 @@
 package Network;
 
-import Modele.Coup;
-import Modele.Jeu;
-import Modele.Joueur;
-import Modele.Piece;
-import Modele.Plateau;
+import Modele.*;
 import Modele.Plateau.TypePlateau;
 import SceneManager.HostingScene;
 import SceneManager.SinglePlayerLobbyScene;
@@ -25,8 +21,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class GameServerManager {
 
     private static final int PORT = 12345;
-    private static final int MAX_PORT_ATTEMPTS = 5;  // Nombre maximal de tentatives de port
-    private int currentPort = PORT;  // Port actuellement utilisé
+    private static final int MAX_PORT_ATTEMPTS = 5; // Nombre maximal de tentatives de port
+    private int currentPort = PORT; // Port actuellement utilisé
     private ServerSocket serverSocket;
     private Thread acceptConnectionsThread;
     private Thread gameEngineThread;
@@ -34,25 +30,28 @@ public class GameServerManager {
 
     private final BlockingQueue<Message> incomingMessages = new LinkedBlockingQueue<>();
     private final Map<Integer, BlockingQueue<String>> outgoingQueues = new ConcurrentHashMap<>();
-    // Utilisation de synchronizedList pour la sécurité des threads lorsque plusieurs clients se connectent en même temps
+    // Utilisation de synchronizedList pour la sécurité des threads lorsque
+    // plusieurs clients se connectent en même temps
     private final List<Integer> connectedClientIds = Collections.synchronizedList(new ArrayList<>());
-    private volatile int clientIdCounter = 0; // volatile car il peut être accédé depuis plusieurs threads client handler
+    private volatile int clientIdCounter = 0; // volatile car il peut être accédé depuis plusieurs threads client
+                                              // handler
     private int maxClients = 2;
     private int currentTurnPlayerId; // ID du joueur dont c'est le tour
 
     private HostingScene hostingSceneCallback; // Callback pour HostingScene (si l'hôte est en mode multijoueur)
-    private SinglePlayerLobbyScene singlePlayerCallbackScene; // Callback pour SinglePlayerLobbyScene (si l'hôte est en mode solo)
+    private SinglePlayerLobbyScene singlePlayerCallbackScene; // Callback pour SinglePlayerLobbyScene (si l'hôte est en
+                                                              // mode solo)
     private volatile boolean isServerRunning = false;
     // Stocker les récepteurs client
     private final Map<Integer, ClientReceiver> clientReceivers = new ConcurrentHashMap<>();
-    
 
-    
+    private boolean redoable = false; // Indique si le redo est possible
+
     // Interface pour le callback de déconnexion
     public interface PlayerDisconnectionListener {
         void onPlayerDisconnected();
     }
-    
+
     // Référence au listener de déconnexion (GameScene)
     private PlayerDisconnectionListener disconnectionListener;
     private volatile boolean notifiedDisconnection = false;
@@ -66,12 +65,12 @@ public class GameServerManager {
 
     /**
      * Constructeur standard pour le mode multijoueur
+     * 
      * @param callback Le callback vers HostingScene
      */
     public GameServerManager(HostingScene callback) {
         this.hostingSceneCallback = callback;
     }
-
 
     /**
      * Démarrer le serveur de jeu
@@ -81,31 +80,31 @@ public class GameServerManager {
             System.out.println("GameServerManager: Le serveur est déjà en cours d'exécution.");
             return;
         }
-        
+
         boolean serverStarted = false;
         IOException lastException = null;
-        
+
         // Tenter de démarrer le serveur sur différents ports si nécessaire
         for (int attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
-            currentPort = PORT + attempt;  // Essayer le port de base + tentative
+            currentPort = PORT + attempt; // Essayer le port de base + tentative
             try {
                 serverSocket = new ServerSocket(currentPort);
                 serverStarted = true;
-                break;  // Sortir de la boucle si le serveur démarre avec succès
+                break; // Sortir de la boucle si le serveur démarre avec succès
             } catch (IOException e) {
                 lastException = e;
-                System.out.println("GameServerManager: Échec de démarrage sur le port " + currentPort + 
-                                   ": " + e.getMessage() + " - Tentative sur un autre port...");
+                System.out.println("GameServerManager: Échec de démarrage sur le port " + currentPort +
+                        ": " + e.getMessage() + " - Tentative sur un autre port...");
                 // Continue to try the next port
             }
         }
-        
+
         if (!serverStarted) {
-            System.err.println("GameServerManager: Impossible de démarrer le serveur après " + 
-                              MAX_PORT_ATTEMPTS + " tentatives.");
-            throw lastException;  // Lancer la dernière exception si toutes les tentatives échouent
+            System.err.println("GameServerManager: Impossible de démarrer le serveur après " +
+                    MAX_PORT_ATTEMPTS + " tentatives.");
+            throw lastException; // Lancer la dernière exception si toutes les tentatives échouent
         }
-        
+
         isServerRunning = true;
         notifiedDisconnection = false; // Réinitialiser l'indicateur de notification de déconnexion
         System.out.println("GameServerManager: Serveur démarré sur le port " + currentPort);
@@ -138,7 +137,8 @@ public class GameServerManager {
             // Envoyer l'état initial du jeu à tous les clients
             sendGameStateToAllClients();
         } else {
-            System.out.println("GameServerManager: Pas assez de joueurs (" + connectedClientIds.size() + "/" + maxClients + ") pour démarrer le moteur de jeu.");
+            System.out.println("GameServerManager: Pas assez de joueurs (" + connectedClientIds.size() + "/"
+                    + maxClients + ") pour démarrer le moteur de jeu.");
         }
     }
 
@@ -152,45 +152,57 @@ public class GameServerManager {
             while (isServerRunning) {
 
                 // Vérifier si la partie est terminée
-                if (checkGameOver()) break;
+                if (checkGameOver())
+                    break;
 
                 System.out.println("\nGameServerManager: Boucle de jeu en cours...");
                 int etapeCoup = gameInstance.getEtapeCoup();
-                System.out.println("GameServerManager: En attente de messages des clients (étape du coup: " + etapeCoup + ")...");
+                System.out.println(
+                        "GameServerManager: En attente de messages des clients (étape du coup: " + etapeCoup + ")...");
                 Joueur joueurCourant = gameInstance.getJoueurCourant();
                 Plateau plateauCourant = gameInstance.getPlateauCourant();
 
-                // Verifier si l'etapeCoup est 0, si oui, verifier si sur le plateau il y a des pieces de joueurCourant
+                // Verifier si l'etapeCoup est 0, si oui, verifier si sur le plateau il y a des
+                // pieces de joueurCourant
                 if (etapeCoup == 0) {
-                    if (joueurCourant.getId() == 1 && plateauCourant.getNbBlancs() == 0  || joueurCourant.getId() == 2 && plateauCourant.getNbNoirs() == 0) {
+                    if (joueurCourant.getId() == 1 && plateauCourant.getNbBlancs() == 0
+                            || joueurCourant.getId() == 2 && plateauCourant.getNbNoirs() == 0) {
                         // Si le joueur n'a plus de pièces, passer à l'étape 3
                         gameInstance.setEtapeCoup(3);
-                        System.out.println("GameServerManager: Aucun coup possible pour le joueur " + joueurCourant.getId() + ", passage à l'étape 3.");
-                        sendMessageToClient(joueurCourant.getId(), Code.ETAT.name() + ":" + gameInstance.getGameStateAsString());
+                        System.out.println("GameServerManager: Aucun coup possible pour le joueur "
+                                + joueurCourant.getId() + ", passage à l'étape 3.");
+                        sendMessageToClient(joueurCourant.getId(),
+                                Code.ETAT.name() + ":" + gameInstance.getGameStateAsString());
                         continue; // Passer à l'étape suivante sans attendre de message
                     } else {
                         // Attendre un message du joueur courant
-                        System.out.println("GameServerManager: En attente du message du joueur " + joueurCourant.getId() + "...");
+                        System.out.println(
+                                "GameServerManager: En attente du message du joueur " + joueurCourant.getId() + "...");
+                    }
+                }
+
+                if (gameInstance.getHistoriqueJeu().isRedoPossible()) {
+                    if (!redoable) {
+                        sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");
+                        sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous pouvez refaire un coup.");
+                        redoable = true; // Indiquer que le redo est possible
+                    }
+                } else {
+                    if (redoable) {
+                        sendMessageToClient(1, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas refaire un coup.");
+                        sendMessageToClient(2, Code.REDOABLE.name() + ":" + "Vous ne pouvez pas refaire un coup.");
+                        redoable = false; // Indiquer que le redo n'est plus possible
                     }
                 }
 
                 Message msg = incomingMessages.take();
                 int clientId = msg.clientId;
-                System.out.println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
+                System.out
+                        .println("GameServerManager: Traitement du message du client " + clientId + ": " + msg.contenu);
 
                 // Vérifier si c'est le tour du joueur actuel
-                if (clientId != joueurCourant.getId()) {
-                    System.out.println("GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
-                    continue;
-                }
-
-                if (msg.contenu == null) {
-                    System.err.println("GameServerManager: Message du client " + clientId + " est null.");
-                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
-                    continue;
-                }
-
+                // Si c'est pas le tour du joueur actuel, le seul message qu'il est accepte est
+                // demande le undo
                 System.out.println("GameServerManager: Étape du coup: " + etapeCoup);
 
                 // Traiter le message en fonction de l'étape du coup
@@ -202,15 +214,124 @@ public class GameServerManager {
                     continue;
                 }
 
+                if (msg.contenu == null) {
+                    System.err.println("GameServerManager: Message du client " + clientId + " est null.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Message du client null.");
+                    continue;
+                }
+
+                Joueur currentPick = gameInstance.getJoueurCourant();
+                Joueur otherPick = (currentPick.getId() == 1) ? gameInstance.getJoueur2()
+                        : gameInstance.getJoueur1();
                 // Vérifier si c'est une commande Undo
                 int undo = Integer.parseInt(parts[0]);
                 if (undo == 1) {
-                    gameInstance.Undo();
-                    System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
-                    gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                    gameInstance.setPieceCourante(null);
-                    sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
-                    sendGameStateToAllClients();
+                    String redoMsg = parts[1];
+
+                    if (redoMsg.equals("null")) {
+                        // Si le message est "null", on va faire un undo
+
+                        // Si c'est pas ton tour, on va undo ce que l'adversaire a fait et ton tour
+                        // precedent
+                        if (clientId != joueurCourant.getId()) {
+
+                            if (etapeCoup == 0) {
+                                gameInstance.Undo();
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                // Dans Undo il a deja le majJoueurCourant
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                                System.out.println("GameServerManager: Undo effectué par l'adversaire " + clientId);
+                            } else {
+                                gameInstance.Undo(); // Undo le coup de l'adversaire
+                                gameInstance.setJoueurCourant(otherPick); // Changer de joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                // L'adversaire doit aussi deselectionner la piece courante
+                                sendMessageToClient(clientId == 1 ? 2 : 1,
+                                        Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Undo effectué par l'adversaire " + clientId);
+                                sendGameStateToAllClients();
+                                try {
+                                    Thread.sleep(1500); // Attendre un peu pour que l'adversaire puisse voir le undo
+                                } catch (InterruptedException e) {
+                                    System.err.println("GameServerManager: Erreur lors de l'attente après undo: "
+                                            + e.getMessage());
+                                } catch (Exception e) {
+                                    System.err.println(
+                                            "GameServerManager: Erreur inattendue lors de l'attente après undo: "
+                                                    + e.getMessage());
+                                }
+                                gameInstance.setJoueurCourant(currentPick); // Revenir au joueur courant
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendGameStateToAllClients();
+                            }
+                            continue;
+                        }
+                        // Si c'est ton tour, il faut verifier si c'est etapeCoup 0, si c'est 0 cad, il
+                        // faut demander a l'adversaire de undo ce qu'il a fait
+                        else {
+
+                            // Si c'est la, on va undo le tour total ce que l'adversaire a fait
+                            if (etapeCoup == 0) {
+                                gameInstance.Undo();
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setJoueurCourant(currentPick);
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                try {
+                                    Thread.sleep(500); // Attendre un peu pour que l'adversaire puisse voir le undo
+                                } catch (InterruptedException e) {
+                                    System.err.println("GameServerManager: Erreur lors de l'attente après undo: "
+                                            + e.getMessage());
+                                } catch (Exception e) {
+                                    System.err.println(
+                                            "GameServerManager: Erreur inattendue lors de l'attente après undo: "
+                                                    + e.getMessage());
+                                }
+                                // On va undo le coup du joueur courant
+                                gameInstance.setJoueurCourant(otherPick); // Changer de joueur courant
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendMessageToClient(clientId,
+                                        Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+
+                            } else {
+                                gameInstance.Undo(); // Undo le coup du joueur courant
+                                gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                                gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                                sendMessageToClient(clientId,
+                                        Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                                System.out.println("GameServerManager: Undo effectué par le joueur " + clientId);
+                                sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+                            }
+                            continue;
+                        }
+                        // Sinon c'est un redo
+                    } else {
+                        // Si c'est ton tour, on va redo ce que l'adversaire et ce que tu as fait
+                        gameInstance.Redo();
+                        gameInstance.setEtapeCoup(0); // Retour à l'étape 0
+                        gameInstance.setPieceCourante(null); // Réinitialiser la pièce courante
+                        sendMessageToClient(clientId,
+                                        Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                        System.out.println("GameServerManager: Redo effectué par le joueur " + clientId);
+                        sendGameStateToAllClients(); // Envoyer l'état du jeu à tous les clients
+
+                    }
+
+                }
+
+                if (clientId != joueurCourant.getId()) {
+                    System.out.println(
+                            "GameServerManager: Message du client " + clientId + " ignoré car ce n'est pas son tour.");
+                    sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Ce n'est pas votre tour.");
                     continue;
                 }
 
@@ -253,11 +374,13 @@ public class GameServerManager {
                     case 0: // Étape initiale: sélection d'une pièce
 
                         if (selectedPlateauType != null && selectedPlateauType != plateauCourant.getType()) {
-                            System.err.println("GameServerManager: Plateau sélectionné " + selectedPlateauType + " ne correspond pas au plateau courant " + plateauCourant.getType());
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Le plateau sélectionné ne correspond pas au plateau courant.");
+                            System.err.println("GameServerManager: Plateau sélectionné " + selectedPlateauType
+                                    + " ne correspond pas au plateau courant " + plateauCourant.getType());
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":"
+                                    + "Le plateau sélectionné ne correspond pas au plateau courant.");
                             continue;
                         }
-                        
+
                         if (selectedPiece == null) {
                             sendMessageToClient(clientId, Code.ACTION.name() + ":" + "Aucune pièce à cette position.");
                             continue;
@@ -265,14 +388,16 @@ public class GameServerManager {
 
                         // Vérifier que la pièce appartient au joueur courant
                         if (!selectedPiece.getOwner().equals(joueurCourant)) {
-                            sendMessageToClient(clientId, Code.ACTION.name() + ":" + "Cette pièce ne vous appartient pas.");
+                            sendMessageToClient(clientId,
+                                    Code.ACTION.name() + ":" + "Cette pièce ne vous appartient pas.");
                             continue;
                         }
 
                         // Vérifier s'il y a des coups possibles pour cette pièce
                         ArrayList<Coup> coupsPossibles = gameInstance.getCoupPossibles(plateauCourant, selectedPiece);
                         if (coupsPossibles.isEmpty()) {
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";null" );
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":"
+                                    + selectedPiece.getPosition().y + ";null");
                             continue;
                         }
 
@@ -280,13 +405,15 @@ public class GameServerManager {
 
                         gameInstance.setPieceCourante(selectedPiece);
                         gameInstance.setEtapeCoup(1); // Passer à l'étape suivante
-                        
-                        System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
-                                          " sur plateau " + plateauCourant.getType());
+
+                        System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x
+                                + "," + selectedPiece.getPosition().y +
+                                " sur plateau " + plateauCourant.getType());
 
                         // Envoyer les informations de la pièce et ses mouvements possibles
-                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr.toString());
-                        
+                        sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":"
+                                + selectedPiece.getPosition().y + ";" + possibleMovesStr.toString());
+
                         // Mettre à jour l'état du jeu
                         sendGameStateToAllClients();
 
@@ -294,93 +421,97 @@ public class GameServerManager {
 
                     case 1: // Premier coup: déplacement ou action spéciale
                         Plateau.TypePlateau currentPieceBoard;
-                        Point piecePosition; 
+                        Point piecePosition;
                         Point clickedPosition = new Point(x, y);
-                        Coup.TypeCoup typeCoup ;
+                        Coup.TypeCoup typeCoup;
                         Piece pieceCourante = gameInstance.getPieceCourante();
 
                         if (pieceCourante == null) {
                             System.err.println("GameServerManager: Pièce courante null à l'étape 1");
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
+                            sendMessageToClient(clientId,
+                                    Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
                             continue;
                         }
 
                         currentPieceBoard = plateauCourant.getType();
-                        
+
                         piecePosition = pieceCourante.getPosition();
-                        
-                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType() && selectedPiece != null && selectedPiece.getOwner() == joueurCourant && selectedPiece.getPosition() != pieceCourante.getPosition()) {
+
+                        if (selectedPlateauType != null && selectedPlateauType == plateauCourant.getType()
+                                && selectedPiece != null && selectedPiece.getOwner() == joueurCourant
+                                && selectedPiece.getPosition() != pieceCourante.getPosition()) {
                             // Si le joueur click sur un autre pion de son équipe
                             // => selectionner la piece courante
                             // Deselectionner la pièce courante
-                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendMessageToClient(clientId,
+                                    Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
 
                             // Sélectionner la nouvelle pièce
                             gameInstance.setPieceCourante(selectedPiece);
                             gameInstance.setEtapeCoup(1); // Rester à l'étape 1
 
-                            System.out.println("GameServerManager: Pièce sélectionnée à " + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y + 
-                                              " sur plateau " + plateauCourant.getType());
+                            System.out.println("GameServerManager: Pièce sélectionnée à "
+                                    + selectedPiece.getPosition().x + "," + selectedPiece.getPosition().y +
+                                    " sur plateau " + plateauCourant.getType());
 
                             possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, selectedPiece);
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":" + selectedPiece.getPosition().y + ";" + possibleMovesStr);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + selectedPiece.getPosition().x + ":"
+                                    + selectedPiece.getPosition().y + ";" + possibleMovesStr);
 
                             sendGameStateToAllClients();
 
                             continue;
-                            
+
                         }
 
-                        typeCoup = determineMovementType(piecePosition, clickedPosition, 
-                                                      currentPieceBoard, selectedPlateauType, clientId);
+                        typeCoup = determineMovementType(piecePosition, clickedPosition,
+                                currentPieceBoard, selectedPlateauType, clientId);
                         if (typeCoup == null) {
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                             gameInstance.setPieceCourante(null);
-                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendMessageToClient(clientId,
+                                    Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
                             sendGameStateToAllClients();
                             continue;
                         }
-                        
 
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (processMove(pieceCourante, plateauCourant, typeCoup, clientId, 2)) {
                             plateauCourant = gameInstance.getPlateauCourant();
                             possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
-                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                            sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":"
+                                    + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                             continue; // Si le coup est réussi, continuer à l'étape 2
                         } else {
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
                             gameInstance.setPieceCourante(null);
-                            sendMessageToClient(clientId, Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
+                            sendMessageToClient(clientId,
+                                    Code.DESELECT.name() + ":" + "Désélection de la pièce courante.");
                             sendGameStateToAllClients();
                             break;
                         }
-
 
                     case 2: // Deuxième coup: déplacement ou action spéciale
                         pieceCourante = gameInstance.getPieceCourante();
                         if (pieceCourante == null) {
                             System.err.println("GameServerManager: Pièce courante null à l'étape 2");
                             gameInstance.setEtapeCoup(0); // Retour à l'étape 0
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
+                            sendMessageToClient(clientId,
+                                    Code.ADVERSAIRE.name() + ":" + "Erreur: sélectionnez d'abord une pièce.");
                             continue;
                         }
 
-
                         currentPieceBoard = plateauCourant.getType();
-                        
 
                         clickedPosition = new Point(x, y);
                         piecePosition = pieceCourante.getPosition();
-                        
 
-                        typeCoup = determineMovementType(piecePosition, clickedPosition, 
-                                                      currentPieceBoard, selectedPlateauType, clientId);
+                        typeCoup = determineMovementType(piecePosition, clickedPosition,
+                                currentPieceBoard, selectedPlateauType, clientId);
                         if (typeCoup == null) {
                             continue;
                         }
-                        
 
                         System.out.println("GameServerManager: DEBUGGING: appeler provessMove dans etapeCoup ");
                         if (!processMove(pieceCourante, plateauCourant, typeCoup, clientId, 3)) {
@@ -390,7 +521,8 @@ public class GameServerManager {
 
                     case 3: // Sélection du prochain plateau
                         if (prochainPlateau == null) {
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Vous devez sélectionner un plateau (PAST, PRESENT ou FUTURE).");
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":"
+                                    + "Vous devez sélectionner un plateau (PAST, PRESENT ou FUTURE).");
                             continue;
                         }
 
@@ -400,8 +532,10 @@ public class GameServerManager {
                         TypePlateau currentPlateauJoueur = joueurCourant.getProchainPlateau();
 
                         if (prochainPlateau == currentPlateauJoueur) {
-                            System.err.println("GameServerManager: Le prochain plateau sélectionné est le même que le plateau actuel.");
-                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Le prochain plateau doit être différent du plateau actuel.");
+                            System.err.println(
+                                    "GameServerManager: Le prochain plateau sélectionné est le même que le plateau actuel.");
+                            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":"
+                                    + "Le prochain plateau doit être différent du plateau actuel.");
                             continue;
                         }
 
@@ -433,7 +567,6 @@ public class GameServerManager {
                         }
                         sendGameStateToAllClients();
 
-
                         break;
                 }
             }
@@ -446,40 +579,42 @@ public class GameServerManager {
         }
     }
 
+    private Coup.TypeCoup determineMovementType(Point piecePosition, Point clickedPosition,
+            Plateau.TypePlateau currentPieceBoard, Plateau.TypePlateau selectedPlateauType,
+            int clientId) {
 
-    private Coup.TypeCoup determineMovementType(Point piecePosition, Point clickedPosition, 
-                                               Plateau.TypePlateau currentPieceBoard, Plateau.TypePlateau selectedPlateauType,
-                                               int clientId) {
-        
         // verifie si c'est jump ou clone
         boolean isSamePosition = (piecePosition.x == clickedPosition.x && piecePosition.y == clickedPosition.y);
         boolean isDifferentPlateau = (currentPieceBoard != selectedPlateauType);
-        
 
         Coup.TypeCoup typeCoup = null;
-        
+
         if (isSamePosition && isDifferentPlateau) {
             if ((currentPieceBoard == Plateau.TypePlateau.PAST && selectedPlateauType == Plateau.TypePlateau.PRESENT) ||
-                (currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.FUTURE)) {
+                    (currentPieceBoard == Plateau.TypePlateau.PRESENT
+                            && selectedPlateauType == Plateau.TypePlateau.FUTURE)) {
                 // PAST→PRESENT ou PRESENT→FUTURE :JUMP
                 typeCoup = Coup.TypeCoup.JUMP;
                 System.out.println("GameServerManager: Détection automatique d'une opération JUMP");
-            } else if ((currentPieceBoard == Plateau.TypePlateau.PRESENT && selectedPlateauType == Plateau.TypePlateau.PAST) ||
-                      (currentPieceBoard == Plateau.TypePlateau.FUTURE && selectedPlateauType == Plateau.TypePlateau.PRESENT)) {
+            } else if ((currentPieceBoard == Plateau.TypePlateau.PRESENT
+                    && selectedPlateauType == Plateau.TypePlateau.PAST) ||
+                    (currentPieceBoard == Plateau.TypePlateau.FUTURE
+                            && selectedPlateauType == Plateau.TypePlateau.PRESENT)) {
                 // PRESENT→PAST ou FUTURE→PRESENT : CLONE
                 typeCoup = Coup.TypeCoup.CLONE;
                 System.out.println("GameServerManager: Détection automatique d'une opération CLONE");
             } else {
                 // cas ou le changement de plateau interdit
-                System.err.println("GameServerManager: Transition de plateau non autorisée: " + currentPieceBoard + " -> " + selectedPlateauType);
+                System.err.println("GameServerManager: Transition de plateau non autorisée: " + currentPieceBoard
+                        + " -> " + selectedPlateauType);
                 sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Transition de plateau non autorisée.");
                 return null;
             }
         } else if (currentPieceBoard == selectedPlateauType) {
-            //mouvement dans le meme plateau
+            // mouvement dans le meme plateau
             int dx = clickedPosition.x - piecePosition.x;
             int dy = clickedPosition.y - piecePosition.y;
-            
+
             if (dx == -1 && dy == 0) {
                 typeCoup = Coup.TypeCoup.UP;
             } else if (dx == 1 && dy == 0) {
@@ -496,36 +631,37 @@ public class GameServerManager {
             }
         } else {
             // mouvemnt invalide dans le plateau different
-            System.err.println("GameServerManager: Opération invalide entre plateaux différents à des positions différentes.");
-            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Pour JUMP/CLONE, cliquez sur la même position dans un plateau adjacent.");
+            System.err.println(
+                    "GameServerManager: Opération invalide entre plateaux différents à des positions différentes.");
+            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":"
+                    + "Pour JUMP/CLONE, cliquez sur la même position dans un plateau adjacent.");
             return null;
         }
-        
+
         return typeCoup;
     }
-    
+
     // traitement de move et verifie si cela marche
-    private boolean processMove(Piece pieceCourante, Plateau plateauCourant, Coup.TypeCoup typeCoup, 
-                               int clientId, int nextEtape) {
+    private boolean processMove(Piece pieceCourante, Plateau plateauCourant, Coup.TypeCoup typeCoup,
+            int clientId, int nextEtape) {
 
         Coup coup = new Coup(pieceCourante, plateauCourant, typeCoup);
-        
 
         ArrayList<Coup> possibleCoups = gameInstance.getCoupPossibles(plateauCourant, pieceCourante);
         boolean coupValide = false;
-        
+
         for (Coup possibleCoup : possibleCoups) {
             if (possibleCoup.getTypeCoup() == typeCoup) {
                 coupValide = true;
                 break;
             }
         }
-        
+
         if (!coupValide) {
             sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":" + "Coup invalide.");
             return false;
         }
-        
+
         // executer le mouvement
         boolean coupReussi = gameInstance.jouerCoup(coup);
         if (coupReussi) {
@@ -535,15 +671,15 @@ public class GameServerManager {
                 gameInstance.setEtapeCoup(3);
                 System.out.println("GameServerManager: Deuxième coup réussi, etapeCoup passé à 3");
             }
-            
+
             // recuperer la nouvelle position de piece et le plateau
             Point newPosition = pieceCourante.getPosition();
             Plateau currentPlateau = gameInstance.getPlateauCourant();
-            
-            //retourne le message de reussite
-            String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":" 
-                                   + newPosition.x + ":" + newPosition.y + ":" 
-                                   + currentPlateau.getType().name() + ":success";
+
+            // retourne le message de reussite
+            String responseMessage = Code.COUP.name() + ":" + typeCoup.name() + ":"
+                    + newPosition.x + ":" + newPosition.y + ":"
+                    + currentPlateau.getType().name() + ":success";
             sendMessageToClient(clientId, responseMessage);
 
             if (nextEtape == 2) {
@@ -551,7 +687,8 @@ public class GameServerManager {
                 String possibleMovesStr = getPossibleMovesString(gameInstance, plateauCourant, pieceCourante);
                 if (!"null".equals(possibleMovesStr)) {
                     gameInstance.setEtapeCoup(2);
-                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":" + pieceCourante.getPosition().y + ";" + possibleMovesStr);
+                    sendMessageToClient(clientId, Code.PIECE.name() + ":" + pieceCourante.getPosition().x + ":"
+                            + pieceCourante.getPosition().y + ";" + possibleMovesStr);
                 } else {
                     gameInstance.setEtapeCoup(3);
                 }
@@ -574,9 +711,9 @@ public class GameServerManager {
 
         // Déterminer le gagnant en fonction de l'état du jeu
         if (gameState == 1) {
-            winnerId = gameInstance.getJoueur1().getId();  
+            winnerId = gameInstance.getJoueur1().getId();
         } else if (gameState == 2) {
-            winnerId = gameInstance.getJoueur2().getId(); 
+            winnerId = gameInstance.getJoueur2().getId();
         }
 
         System.out.println("GameServerManager: Winner ID: " + winnerId);
@@ -626,7 +763,8 @@ public class GameServerManager {
                 + ", Game state begins with: " + gameStateString.substring(0, Math.min(20, gameStateString.length())));
 
         sendStateToAllClients(messageToSend);
-        System.out.println("GameServerManager: État du jeu envoyé à tous les clients (etapeCoup=" + gameInstance.getEtapeCoup() + ")");
+        System.out.println("GameServerManager: État du jeu envoyé à tous les clients (etapeCoup="
+                + gameInstance.getEtapeCoup() + ")");
     }
 
     public synchronized void stopServer() {
@@ -635,13 +773,15 @@ public class GameServerManager {
             return;
         }
         System.out.println("GameServerManager: Arrêt du serveur...");
-        
-        // Envoyer un message SERVER_SHUTDOWN à tous les clients connectés avant de fermer
+
+        // Envoyer un message SERVER_SHUTDOWN à tous les clients connectés avant de
+        // fermer
         if (!connectedClientIds.isEmpty()) {
-            System.out.println("GameServerManager: Envoi de message SERVER_SHUTDOWN à " + connectedClientIds.size() + " clients");
+            System.out.println(
+                    "GameServerManager: Envoi de message SERVER_SHUTDOWN à " + connectedClientIds.size() + " clients");
             String shutdownMessage = Code.SERVER_SHUTDOWN.name() + ":Le serveur est en cours de fermeture.";
             sendStateToAllClients(shutdownMessage);
-            
+
             // Attendre un court instant pour permettre l'envoi des messages
             try {
                 Thread.sleep(200);
@@ -649,7 +789,7 @@ public class GameServerManager {
                 Thread.currentThread().interrupt();
             }
         }
-        
+
         isServerRunning = false; // Définir ce drapeau en premier
         notifiedDisconnection = false; // Réinitialiser l'indicateur de notification
 
@@ -662,12 +802,13 @@ public class GameServerManager {
                 acceptConnectionsThread.interrupt(); // Essayer d'interrompre le thread d'acceptation
                 System.out.println("GameServerManager: Thread d'acceptation interrompu.");
             }
-            
+
             // Attendre un peu avant de fermer le socket
             Thread.sleep(100);
-            
+
             if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close(); // Fermer le server socket fera que accept() lève une exception et sort de la boucle
+                serverSocket.close(); // Fermer le server socket fera que accept() lève une exception et sort de la
+                                      // boucle
                 System.out.println("GameServerManager: ServerSocket fermé.");
                 // Tentative de libération forcée du port
                 serverSocket = null;
@@ -683,26 +824,29 @@ public class GameServerManager {
             gameEngineThread.interrupt(); // Essayer d'interrompre le thread du moteur de jeu
             System.out.println("GameServerManager: Thread du moteur de jeu interrompu.");
         }
-        
+
         // Supprimer les clients connectés et leurs files d'attente
         connectedClientIds.clear();
-        outgoingQueues.clear(); // Les ClientSenders se termineront automatiquement lorsque la file d'attente sera vidée ou qu'une exception sera levée
+        outgoingQueues.clear(); // Les ClientSenders se termineront automatiquement lorsque la file d'attente
+                                // sera vidée ou qu'une exception sera levée
         incomingMessages.clear(); // Les ClientReceivers se termineront lorsque le socket sera fermé
         clientReceivers.clear(); // Nettoyer explicitement les récepteurs client
 
         System.out.println("GameServerManager: Serveur arrêté.");
-        
-        // Attendre un peu plus pour s'assurer que toutes les ressources réseau sont libérées
+
+        // Attendre un peu plus pour s'assurer que toutes les ressources réseau sont
+        // libérées
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
-        // Réinitialiser le compteur pour le prochain démarrage du serveur (le cas échéant)
+
+        // Réinitialiser le compteur pour le prochain démarrage du serveur (le cas
+        // échéant)
         clientIdCounter = 0;
     }
-    
+
     /**
      * Ferme proprement toutes les connexions client
      */
@@ -716,7 +860,7 @@ public class GameServerManager {
                 receiver.closeConnection();
             }
         }
-        
+
         // Attendre un instant pour que les connexions se ferment proprement
         try {
             Thread.sleep(200);
@@ -734,7 +878,8 @@ public class GameServerManager {
                     queue.put(message);
                 } catch (InterruptedException e) {
                     System.err.println(
-                            "GameServerManager: Erreur lors de l'envoi du message au client " + clientId + " : " + e.getMessage());
+                            "GameServerManager: Erreur lors de l'envoi du message au client " + clientId + " : "
+                                    + e.getMessage());
                     Thread.currentThread().interrupt();
                 }
             }
@@ -748,7 +893,8 @@ public class GameServerManager {
             try {
                 clientQueue.put(message);
             } catch (InterruptedException e) {
-                System.err.println("GameServerManager: Erreur lors de l'envoi du message au client " + clientId + " : " + e.getMessage());
+                System.err.println("GameServerManager: Erreur lors de l'envoi du message au client " + clientId + " : "
+                        + e.getMessage());
                 Thread.currentThread().interrupt();
             }
         }
@@ -760,6 +906,7 @@ public class GameServerManager {
 
     /**
      * Retourne le port actuellement utilisé par le serveur
+     * 
      * @return Le numéro de port actuel
      */
     public int getCurrentPort() {
@@ -778,10 +925,10 @@ public class GameServerManager {
         }
 
         StringBuilder possibleMovesStr = new StringBuilder();
-        
+
         for (Coup coup : coupsPossibles) {
             Point currentPos = selectedPiece.getPosition();
-            Point targetPos = new Point(currentPos.x, currentPos.y); 
+            Point targetPos = new Point(currentPos.x, currentPos.y);
             String nextPlateau = plateauCourant.getType().name();
 
             switch (coup.getTypeCoup()) {
@@ -805,15 +952,18 @@ public class GameServerManager {
                     break;
             }
 
-            possibleMovesStr.append(nextPlateau).append(":").append(targetPos.x).append(":").append(targetPos.y).append(";");
+            possibleMovesStr.append(nextPlateau).append(":").append(targetPos.x).append(":").append(targetPos.y)
+                    .append(";");
         }
-        
+
         return possibleMovesStr.toString();
     }
 
     /**
      * Définit le listener de déconnexion pour la phase de jeu
-     * @param listener L'objet qui implémente PlayerDisconnectionListener (GameScene)
+     * 
+     * @param listener L'objet qui implémente PlayerDisconnectionListener
+     *                 (GameScene)
      */
     public void setDisconnectionListener(PlayerDisconnectionListener listener) {
         this.disconnectionListener = listener;
@@ -822,11 +972,12 @@ public class GameServerManager {
 
     /**
      * Gestion de la déconnexion d'un client
+     * 
      * @param clientId ID du client qui s'est déconnecté
      */
     public synchronized void handleClientDisconnection(int clientId) {
         System.out.println("GameServerManager: Client " + clientId + " s'est déconnecté.");
-        
+
         connectedClientIds.remove(Integer.valueOf(clientId));
         outgoingQueues.remove(clientId);
         clientReceivers.remove(clientId);
@@ -835,14 +986,17 @@ public class GameServerManager {
         if (gameInstance != null) {
             // Notifier l'autre joueur que son adversaire s'est déconnecté
             int otherPlayerId = (clientId == 1) ? 2 : 1;
-            
+
             if (connectedClientIds.contains(otherPlayerId)) {
-                String disconnectionMessage = Code.ADVERSAIRE.name() + ":Votre adversaire (Joueur " + clientId + ") s'est déconnecté.";
+                String disconnectionMessage = Code.ADVERSAIRE.name() + ":Votre adversaire (Joueur " + clientId
+                        + ") s'est déconnecté.";
                 sendMessageToClient(otherPlayerId, disconnectionMessage);
-                System.out.println("GameServerManager: Notification envoyée au joueur " + otherPlayerId + " que le joueur " + clientId + " s'est déconnecté.");
+                System.out.println("GameServerManager: Notification envoyée au joueur " + otherPlayerId
+                        + " que le joueur " + clientId + " s'est déconnecté.");
             }
-            
-            // Notifier GameScene qu'un joueur s'est déconnecté, seulement si nous n'avons pas déjà notifié
+
+            // Notifier GameScene qu'un joueur s'est déconnecté, seulement si nous n'avons
+            // pas déjà notifié
             if (disconnectionListener != null && !notifiedDisconnection && isServerRunning) {
                 notifiedDisconnection = true; // Marquer comme déjà notifié
                 System.out.println("GameServerManager: Notification à GameScene qu'un joueur s'est déconnecté");
@@ -850,29 +1004,33 @@ public class GameServerManager {
             }
         } else {
             // Si nous sommes encore en phase de Lobby (gameInstance n'existe pas encore)
-            System.out.println("GameServerManager: Déconnexion en phase de Lobby, nettoyage des ressources du joueur " + clientId);
-            
-            // Si c'est le joueur 2 qui s'est déconnecté, on redémarre le thread d'acceptation pour permettre 
+            System.out.println(
+                    "GameServerManager: Déconnexion en phase de Lobby, nettoyage des ressources du joueur " + clientId);
+
+            // Si c'est le joueur 2 qui s'est déconnecté, on redémarre le thread
+            // d'acceptation pour permettre
             // à un nouveau joueur 2 de se connecter
             if (clientId == 2 && isServerRunning) {
                 // Réinitialisation du compteur d'ID pour que le prochain client ait l'ID 2
                 synchronized (this) {
                     clientIdCounter = 1; // Réinitialiser à 1, le prochain ID sera 2
                 }
-                System.out.println("GameServerManager: Réinitialisation du compteur d'ID client à 1 (prochain ID sera 2)");
-                System.out.println("GameServerManager: Redémarrage du thread d'acceptation pour permettre une nouvelle connexion.");
+                System.out.println(
+                        "GameServerManager: Réinitialisation du compteur d'ID client à 1 (prochain ID sera 2)");
+                System.out.println(
+                        "GameServerManager: Redémarrage du thread d'acceptation pour permettre une nouvelle connexion.");
                 restartAcceptConnectionsThread();
             }
         }
-        
+
         // Si le joueur 2 s'est déconnecté et nous avons un callback pour HostingScene
         if (clientId == 2 && hostingSceneCallback != null) {
             notifyPlayerTwoDisconnected();
         }
-        
+
         System.out.println("GameServerManager: Clients restants connectés: " + connectedClientIds.size());
     }
-    
+
     /**
      * Notifier HostingScene que le joueur 2 s'est déconnecté
      */
@@ -884,7 +1042,8 @@ public class GameServerManager {
     }
 
     /**
-     * Redémarre le thread d'acceptation des connexions après la déconnexion d'un client
+     * Redémarre le thread d'acceptation des connexions après la déconnexion d'un
+     * client
      */
     private void restartAcceptConnectionsThread() {
         // Vérifier si un thread existe déjà et s'il est toujours en cours d'exécution
@@ -892,13 +1051,14 @@ public class GameServerManager {
             System.out.println("GameServerManager: Le thread d'acceptation est déjà en cours d'exécution.");
             return;
         }
-        
+
         // 使用封装方法创建并启动线程
         createAndStartAcceptThread("GSM-AcceptConnectionsThread-Restarted");
     }
-    
+
     /**
      * Crée et démarre un thread d'acceptation des connexions
+     * 
      * @param threadName Nom du thread à créer
      */
     private void createAndStartAcceptThread(String threadName) {
@@ -915,11 +1075,12 @@ public class GameServerManager {
                     }
                     int newClientId = clientIdCounter;
 
-                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis " + clientSocket.getRemoteSocketAddress());
+                    System.out.println("GameServerManager: Client " + newClientId + " connecté depuis "
+                            + clientSocket.getRemoteSocketAddress());
 
                     try {
-                       // Suivre l'ordre de protocole unifié entre le client et le serveur :
-                       // 1. Le serveur crée un flux de sortie et le flush
+                        // Suivre l'ordre de protocole unifié entre le client et le serveur :
+                        // 1. Le serveur crée un flux de sortie et le flush
                         ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
                         out.flush();
 
@@ -937,29 +1098,29 @@ public class GameServerManager {
                         outgoingQueues.put(newClientId, clientOutgoingQueue);
                         connectedClientIds.add(newClientId);
 
-
                         // Créer et démarrer ClientReceiver et ClientSender avec l'ID du client
                         ClientReceiver receiver = new ClientReceiver(in, incomingMessages, newClientId, this);
-                        // Définir le socket client afin de pouvoir le fermer correctement lors de la fermeture de la connexion
+                        // Définir le socket client afin de pouvoir le fermer correctement lors de la
+                        // fermeture de la connexion
                         receiver.setClientSocket(clientSocket);
                         Thread receiverThread = new Thread(
                                 receiver,
-                                "ClientReceiver-" + newClientId
-                        );
+                                "ClientReceiver-" + newClientId);
                         receiverThread.start();
-                        
+
                         // Stocker le récepteur client
                         clientReceivers.put(newClientId, receiver);
 
                         Thread senderThread = new Thread(
                                 new ClientSender(out, clientOutgoingQueue, newClientId),
-                                "ClientSender-" + newClientId
-                        );
+                                "ClientSender-" + newClientId);
                         senderThread.start();
 
-                        System.out.println("GameServerManager: Client " + newClientId + " configuré. Clients connectés: " + connectedClientIds.size());
+                        System.out.println("GameServerManager: Client " + newClientId
+                                + " configuré. Clients connectés: " + connectedClientIds.size());
                     } catch (IOException e) {
-                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId + ": " + e.getMessage());
+                        System.err.println("GameServerManager: Erreur lors de la configuration du client " + newClientId
+                                + ": " + e.getMessage());
                         try {
                             clientSocket.close();
                         } catch (IOException closeEx) {
@@ -978,7 +1139,8 @@ public class GameServerManager {
                         } else {
                             // Si aucun callback (mode solo hébergé par GameScene),
                             // démarrer automatiquement GameEngineServer.
-                            System.out.println("GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
+                            System.out.println(
+                                    "GameServerManager: Pas de callback HostingScene, démarrage automatique du moteur de jeu.");
                             startGameEngine();
                         }
                     }
@@ -986,14 +1148,305 @@ public class GameServerManager {
                 System.out.println("GameServerManager: Thread d'acceptation terminé.");
             } catch (IOException e) {
                 if (isServerRunning && serverSocket != null && !serverSocket.isClosed()) {
-                    System.err.println("GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
+                    System.err.println(
+                            "GameServerManager: Erreur lors de l'acceptation d'une connexion: " + e.getMessage());
                 } else {
-                    System.out.println("GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
+                    System.out.println(
+                            "GameServerManager: Le socket serveur a été fermé, arrêt de l'acceptation des connexions.");
                 }
             }
         });
         acceptConnectionsThread.setName(threadName);
         acceptConnectionsThread.start();
     }
+
+    /**
+     * Handle LOAD_GAME command in the GameServerManager
+     * Add this method to your GameServerManager class
+     */
+    private boolean handleLoadGameCommand(String gameDataString, int clientId) {
+        System.out.println("GameServerManager: Processing LOAD_GAME command from client " + clientId);
+
+        // Only allow player 1 (host) to load games
+        if (clientId != 1) {
+            sendMessageToClient(clientId, Code.ADVERSAIRE.name() + ":Only host can load games.");
+            return false;
+        }
+
+        try {
+            // Parse the game data string
+            if (gameDataString == null || gameDataString.trim().isEmpty()) {
+                System.err.println("GameServerManager: Empty game data string");
+                sendMessageToClient(clientId, ":Empty game data");
+                return false;
+            }
+
+            // Parse the save data format:
+            // etapeCoup:0;JC:1;C1:4;C2:3;P1:PRESENT;P2:PRESENT;P:0000000000000002;PR:1100000000020002;F:1000000000020000;PC:null
+            Map<String, String> gameData = parseSaveData(gameDataString);
+
+            if (gameData == null) {
+                sendMessageToClient(clientId, ":Invalid save data format");
+                return false;
+            }
+
+            // Create new game instance from save data
+            if (reconstructGameFromSaveData(gameData)) {
+                System.out.println("GameServerManager: Game successfully loaded from save data");
+
+                // Update current turn player
+                currentTurnPlayerId = gameInstance.getJoueurCourant().getId();
+
+                // Send success message to client
+                sendMessageToClient(clientId, Code.ETAT.name() + ":Game loaded successfully");
+
+                // Send updated game state to all clients
+                sendGameStateToAllClients();
+
+                return true;
+            } else {
+                sendMessageToClient(clientId, ":Failed to reconstruct game from save data");
+                return false;
+            }
+
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Error loading game: " + e.getMessage());
+            e.printStackTrace();
+            sendMessageToClient(clientId, ":Error loading game: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Parse save data string into a map
+     */
+    private Map<String, String> parseSaveData(String gameDataString) {
+        try {
+            Map<String, String> gameData = new java.util.HashMap<>();
+            String[] dataParts = gameDataString.split(";");
+
+            if (dataParts.length < 8) {
+                System.err.println("GameServerManager: Save data format incomplete, requires at least 8 fields");
+                return null;
+            }
+
+            for (String part : dataParts) {
+                String[] keyValue = part.split(":", 2);
+                if (keyValue.length == 2) {
+                    gameData.put(keyValue[0], keyValue[1]);
+                }
+            }
+
+            // Validate required fields
+            String[] requiredFields = { "etapeCoup", "JC", "C1", "C2", "P1", "P2", "P", "PR", "F" };
+            for (String field : requiredFields) {
+                if (!gameData.containsKey(field)) {
+                    System.err.println("GameServerManager: Missing required field: " + field);
+                    return null;
+                }
+            }
+
+            return gameData;
+
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Error parsing save data: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Reconstruct game instance from save data
+     */
+    private boolean reconstructGameFromSaveData(Map<String, String> gameData) {
+        try {
+            System.out.println("GameServerManager: Reconstructing game from save data...");
+
+            // Create new game instance
+            gameInstance = new Jeu();
+
+            // Parse and set etapeCoup
+            int etapeCoup = Integer.parseInt(gameData.get("etapeCoup"));
+            gameInstance.setEtapeCoup(etapeCoup);
+            System.out.println("GameServerManager: Set etapeCoup to: " + etapeCoup);
+
+            // Parse current player
+            int currentPlayerId = Integer.parseInt(gameData.get("JC"));
+
+            // Set current player
+            while (gameInstance.getJoueurCourant().getId() != currentPlayerId) {
+                gameInstance.joueurSuivant();
+            }
+            System.out.println("GameServerManager: Set current player to: " + currentPlayerId);
+
+            // Parse and set clone counts
+            int player1Clones = Integer.parseInt(gameData.get("C1"));
+            int player2Clones = Integer.parseInt(gameData.get("C2"));
+
+            gameInstance.getJoueur1().setNbClones(player1Clones);
+            gameInstance.getJoueur2().setNbClones(player2Clones);
+            System.out.println(
+                    "GameServerManager: Set clones - Player 1: " + player1Clones + ", Player 2: " + player2Clones);
+
+            // Parse and set selected plateaus
+            Plateau.TypePlateau p1Plateau = Plateau.TypePlateau.valueOf(gameData.get("P1"));
+            Plateau.TypePlateau p2Plateau = Plateau.TypePlateau.valueOf(gameData.get("P2"));
+
+            gameInstance.getJoueur1().setProchainPlateau(p1Plateau);
+            gameInstance.getJoueur2().setProchainPlateau(p2Plateau);
+            System.out.println("GameServerManager: Set plateaus - Player 1: " + p1Plateau + ", Player 2: " + p2Plateau);
+
+            // Parse and reconstruct board states
+            if (!reconstructBoardStates(gameData)) {
+                System.err.println("GameServerManager: Failed to reconstruct board states");
+                return false;
+            }
+
+            // Update current plateau based on current player
+            gameInstance.majPlateauCourant();
+
+            // Handle selected piece if any
+            String selectedPiece = gameData.get("PC");
+            if (selectedPiece != null && !selectedPiece.equals("null")) {
+                // Parse selected piece coordinates if needed
+                // For now, we'll set it to null as the game will handle piece selection
+                gameInstance.setPieceCourante(null);
+            }
+
+            System.out.println("GameServerManager: Game reconstruction completed successfully");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Error reconstructing game: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Reconstruct board states from save data
+     */
+    private boolean reconstructBoardStates(Map<String, String> gameData) {
+        try {
+            // Get board data strings
+            String pastData = gameData.get("P");
+            String presentData = gameData.get("PR");
+            String futureData = gameData.get("F");
+
+            if (pastData.length() != 16 || presentData.length() != 16 || futureData.length() != 16) {
+                System.err.println("GameServerManager: Invalid board data length");
+                return false;
+            }
+
+            // Reconstruct Past board
+            if (!reconstructSingleBoard(gameInstance.getPast(), pastData, "Past")) {
+                return false;
+            }
+
+            // Reconstruct Present board
+            if (!reconstructSingleBoard(gameInstance.getPresent(), presentData, "Present")) {
+                return false;
+            }
+
+            // Reconstruct Future board
+            if (!reconstructSingleBoard(gameInstance.getFuture(), futureData, "Future")) {
+                return false;
+            }
+
+            HistoriqueJeu historiqueJeu = new HistoriqueJeu(gameInstance.getPast(), gameInstance.getPresent(),
+                    gameInstance.getFuture(), gameInstance.getJoueur1(), gameInstance.getJoueur2());
+
+            gameInstance.setHistoriqueJeu(historiqueJeu);
+
+            System.out.println("GameServerManager: All boards reconstructed successfully");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Error reconstructing boards: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Reconstruct a single board from save data
+     */
+    private boolean reconstructSingleBoard(Plateau plateau, String boardData, String boardName) {
+        try {
+            System.out.println("GameServerManager: Reconstructing " + boardName + " board...");
+
+            plateau.clearPieces();
+            System.out.println("GameServerManager: Cleared existing pieces on " + boardName + " board");
+
+            // Place pieces according to save data
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    int index = row * 4 + col;
+                    char pieceChar = boardData.charAt(index);
+
+                    if (pieceChar != '0') {
+                        Joueur owner = null;
+                        if (pieceChar == '1') {
+                            owner = gameInstance.getJoueur1();
+                        } else if (pieceChar == '2') {
+                            owner = gameInstance.getJoueur2();
+                        }
+
+                        if (owner != null) {
+                            Piece piece = new Piece(owner, new Point(row, col));
+                            plateau.setPiece(piece, row, col);
+                        }
+                    }
+                }
+            }
+
+            plateau.updatePieceCount();
+
+            System.out.println("GameServerManager: " + boardName + " board reconstructed - Player 1 pieces: " +
+                    plateau.getNbBlancs() + ", Player 2 pieces: " + plateau.getNbNoirs());
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("GameServerManager: Error reconstructing " + boardName + " board: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Add this to the message processing section in runGameEngine()
+     * Insert this code in the message processing switch/if statements where you
+     * handle different message types
+     */
+    private boolean processLoadGameMessage(Message msg, int clientId) {
+        String[] parts = msg.contenu.split(":", 2);
+
+        if (parts.length != 2 || !parts[0].equals("LOAD_GAME")) {
+            return false; // Not a LOAD_GAME message
+        }
+
+        String gameDataString = parts[1];
+        System.out.println("GameServerManager: Received LOAD_GAME command from client " + clientId);
+
+        if (handleLoadGameCommand(gameDataString, clientId)) {
+            System.out.println("GameServerManager: Game loaded successfully");
+            return true;
+        } else {
+            System.err.println("GameServerManager: Failed to load game");
+            return true; // Message was processed even if it failed
+        }
+    }
+
+    /**
+     * Modify your message processing in runGameEngine() to include this check
+     * Add this check before your existing switch statement for etapeCoup
+     */
+    // In runGameEngine(), before processing etapeCoup, add:
+    /*
+     * // Check if this is a LOAD_GAME command
+     * if (msg.contenu.startsWith("LOAD_GAME:")) {
+     * if (processLoadGameMessage(msg, clientId)) {
+     * continue; // Skip normal game processing for this message
+     * }
+     * }
+     */
 
 }

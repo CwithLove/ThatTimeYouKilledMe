@@ -48,6 +48,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
     // Drapeau pour gérer correctement la ressource gameServerManager lors du passage à GameScene.
     private boolean transitioningToGameScene = false;
+    
+    // Drapeau pour indiquer si le bouton de démarrage est temporairement désactivé pour éviter les clics multiples
+    private volatile boolean startGameButtonTemporarilyDisabled = false;
 
     /**
      * Constructeur de HostingScene.
@@ -59,12 +62,14 @@ public class HostingScene implements Scene, GameStateUpdateListener {
 
         // Configuration du bouton "Lancer la partie"
         startGameButton = new Button(300, 400, 200, 50, "Lancer la partie", () -> {
+            // Désactive immédiatement le bouton pour éviter les clics multiples
+            startGameButtonTemporarilyDisabled = true;
+            startGameButton.setEnabled(false);
+            
             // Conditions pour lancer la partie : serveur démarré, joueur 2 connecté, client hôte connecté.
             if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {
                 System.out.println("HostingScene: Tentative de lancement du jeu...");
                 if (gameServerManager != null && gameServerManager.areAllPlayersConnected()) {
-                    // Désactive le bouton pour éviter les clics multiples pendant le chargement.
-                    startGameButton.setEnabled(false);
                     statusMessage = "Démarrage du jeu en cours...";
                     repaintPanel();
 
@@ -144,7 +149,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                                             e_scene.printStackTrace();
                                             statusMessage = "Erreur critique: " + e_scene.getMessage();
                                             JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur Critique", JOptionPane.ERROR_MESSAGE);
-                                            startGameButton.setEnabled(true); // Réactive le bouton en cas d'erreur.
+                                            startGameButtonTemporarilyDisabled = false; // Réactive le bouton en cas d'erreur.
                                             setTransitioningToGameScene(false); // Annule la transition.
                                             repaintPanel();
                                         }
@@ -157,22 +162,33 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                                 System.err.println("HostingScene: Erreur dans gameStarterWorker done(): " + e.getMessage());
                                 statusMessage = "Échec du lancement du jeu: " + e.getMessage();
                                 JOptionPane.showMessageDialog(sceneManager.getPanel(), statusMessage, "Erreur de Lancement", JOptionPane.ERROR_MESSAGE);
-                                startGameButton.setEnabled(true); // Réactive le bouton.
+                                startGameButtonTemporarilyDisabled = false; // Réactive le bouton.
                                 repaintPanel();
                             }
                         }
                     };
                     gameStarterWorker.execute(); // Exécute le SwingWorker.
                 } else {
-                    statusMessage = "Attente: Tous les joueurs ne sont pas encore prêts.";
-                    startGameButton.setEnabled(true); // Réactive si les conditions ne sont pas remplies (devrait être rare ici).
+                    statusMessage = "Erreur: Tous les joueurs ne sont pas encore prêts.";
+                    // Réactive le bouton seulement si c'est une erreur temporaire
+                    startGameButtonTemporarilyDisabled = false;
                     repaintPanel();
                 }
             } else {
                  // Log si les conditions de base ne sont pas remplies.
                  System.out.println("HostingScene: Conditions de lancement non remplies (Serveur: " + serverSuccessfullyStarted +
                                     ", Joueur2: " + playerTwoConfirmedConnected + ", ClientHôte: " + hostClientConnected +")");
-                 startGameButton.setEnabled(true); // Assure que le bouton est réactivable si l'utilisateur a cliqué trop tôt.
+                 statusMessage = "Erreur: Conditions de lancement non remplies. Veuillez attendre que tous les joueurs soient connectés.";
+                 // Réactive le bouton seulement après un délai pour éviter le spam de clics
+                 javax.swing.Timer reactivationTimer = new javax.swing.Timer(2000, e -> {
+                     if (serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected) {
+                         startGameButtonTemporarilyDisabled = false;
+                         repaintPanel();
+                     }
+                 });
+                 reactivationTimer.setRepeats(false);
+                 reactivationTimer.start();
+                 repaintPanel();
             }
         });
 
@@ -217,7 +233,9 @@ public class HostingScene implements Scene, GameStateUpdateListener {
                 "Erreur Hôte", JOptionPane.ERROR_MESSAGE);
         repaintPanel();
         // Réactive le bouton de démarrage pour permettre une nouvelle tentative ou un retour.
-        if (startGameButton != null) startGameButton.setEnabled(true);
+        if (startGameButton != null) {
+            startGameButtonTemporarilyDisabled = false;
+        }
     }
 
     /**
@@ -253,6 +271,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         alpha = 0f;
         fadeComplete = false;
         transitioningToGameScene = false; // Réinitialise à chaque init
+        startGameButtonTemporarilyDisabled = false; // Réinitialise l'état du bouton
         
         // Vérifie si un serveur et un client existent déjà, pour éviter de les réinitialiser lorsque le joueur revient au lobby
         boolean hasExistingServer = (gameServerManager != null && gameServerManager.isServerRunning());
@@ -275,10 +294,8 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             statusMessage = "Connexions restaurées après la partie précédente.";
             if (playerTwoConfirmedConnected) {
                 statusMessage += " Prêt à commencer une nouvelle partie!";
-                startGameButton.setEnabled(true);
             } else {
                 statusMessage += " En attente de la connexion du Joueur 2...";
-                startGameButton.setEnabled(false);
             }
         } else {
             // Pas de connexion existante, on fait une initialisation normale
@@ -286,7 +303,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             serverSuccessfullyStarted = false;
             hostClientConnected = false;
             statusMessage = "Démarrage du serveur hôte...";
-            if(startGameButton != null) startGameButton.setEnabled(true); // S'assurer que le bouton est actif à l'init
+            // Le bouton sera activé automatiquement via render() une fois les conditions remplies
 
             // Utilise SwingWorker pour les opérations de réseau et de démarrage du serveur.
             SwingWorker<Void, String> initWorker = new SwingWorker<Void, String>() {
@@ -387,7 +404,7 @@ public class HostingScene implements Scene, GameStateUpdateListener {
             playerTwoConfirmedConnected = false;
             statusMessage = "Joueur 2 déconnecté. En attente d'une nouvelle connexion.";
             System.out.println("HostingScene: Joueur 2 déconnecté.");
-            startGameButton.setEnabled(false);
+            // Le bouton sera automatiquement désactivé via render() car playerTwoConfirmedConnected = false
             repaintPanel();
         });
     }
@@ -544,7 +561,11 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         backButton.setFont(new Font("Arial", Font.PLAIN, Math.max(12,btnFontSize * 3/4)));
 
         // Active ou désactive le bouton "Lancer la partie" en fonction de l'état.
-        startGameButton.setEnabled(serverSuccessfullyStarted && playerTwoConfirmedConnected && hostClientConnected && !transitioningToGameScene);
+        // Ne réactive pas le bouton s'il est temporairement désactivé pour éviter les clics multiples
+        boolean shouldEnableStartButton = serverSuccessfullyStarted && playerTwoConfirmedConnected && 
+                                        hostClientConnected && !transitioningToGameScene && 
+                                        !startGameButtonTemporarilyDisabled;
+        startGameButton.setEnabled(shouldEnableStartButton);
         startGameButton.render(g2d);
         backButton.render(g2d);
         
@@ -780,18 +801,16 @@ public class HostingScene implements Scene, GameStateUpdateListener {
         }
         
         // Mise à jour de l'interface utilisateur
+        startGameButtonTemporarilyDisabled = false; // Réactive le bouton lors de la restauration
         if (hostClientConnected) {
             statusMessage = "Serveur et client restaurés après la partie précédente";
             if (playerTwoConfirmedConnected) {
                 statusMessage += ". Prêt à commencer une nouvelle partie!";
-                startGameButton.setEnabled(true);
             } else {
                 statusMessage += ". En attente de la connexion du Joueur 2...";
-                startGameButton.setEnabled(false);
             }
         } else {
             statusMessage = "Erreur lors de la restauration de la connexion";
-            startGameButton.setEnabled(false);
         }
         
         // Forcer une mise à jour de l'interface

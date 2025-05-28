@@ -65,7 +65,7 @@ public class HistoriqueJeu {
         this.present.push(present.copie(joueur1, joueur2));
         this.future.push(future.copie(joueur1, joueur2));
         this.nbTours++;
-
+        this.redo = false; // reset redo state when a new move is added
         // redo stack
         this.redoPast = new Stack<>();
         this.redoPresent = new Stack<>();
@@ -95,6 +95,9 @@ public class HistoriqueJeu {
     }
 
     public void redo() {
+        if (redoPast.isEmpty()) {
+            this.redo = false;
+        }
         if (!redoPast.isEmpty()) {
             this.past.push(this.redoPast.pop().copie(this.joueur1.peek(), this.joueur2.peek()));
             this.present.push(this.redoPresent.pop().copie(this.joueur1.peek(), this.joueur2.peek()));
@@ -102,10 +105,12 @@ public class HistoriqueJeu {
             this.joueur1.push(this.redoJoueur1.pop().copie());
             this.joueur2.push(this.redoJoueur2.pop().copie());
             this.nbTours++;
+
+            if (redoPast.isEmpty()) {
+                this.redo = false;
+            }
         }
-        if (redoPast.isEmpty()) {
-            this.redo = false;
-        }
+
     }
 
     public Plateau getPast(Joueur joueur1, Joueur joueur2) {

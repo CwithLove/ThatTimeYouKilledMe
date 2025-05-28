@@ -15,6 +15,12 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +57,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private Button backButton; // Bouton pour revenir au menu principal
     private Button undoButton; // Bouton pour annuler une action
     private Button switchToAiButton; // Bouton pour se mettre en IA
+    private Button redoButton;
     private Button choosePlateauButton; // Bouton pour choisir un plateau
 
     // Réseau et Mode de Jeu
@@ -96,6 +103,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     // Ajout pour la gestion du serveur en mode multijoueur
     private GameServerManager hostServerManager; // Instance du serveur reprise de HostingScene
 
+    private boolean redoable = false; // Indique si on est en mode redo
+
     // Stocke les plateaux sélectionnés par les joueurs
     private Plateau.TypePlateau joueur1SelectedPlateau = Plateau.TypePlateau.PAST;
     private Plateau.TypePlateau joueur2SelectedPlateau = Plateau.TypePlateau.FUTURE;
@@ -113,6 +122,9 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
     private int caseMouseX;
     private int caseMouseY;
     private int modeSolo = 1;
+
+    private Button saveButton; // Bouton pour sauvegarder la partie
+
 
     // Constructeur pour le mode Solo (auto-hébergement du serveur et de l'IA)
     public GameScene(SceneManager sceneManager, boolean isSinglePlayer, int difficultyLevel) {
@@ -301,10 +313,21 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
         int switchToAiX = undoX;
         int switchToAiY = undoY + 50;
-        switchToAiButton = new Button(switchToAiX, switchToAiY, 100, 40, "IA", this::handleSwitchToAiAction);
+        switchToAiButton = new Button(0, 0, 100, 40, "IA", this::handleSwitchToAiAction);
+
+        int redoX = undoX;
+        int redoY = undoY + 50; // Position du bouton REDO en dessous du bouton UNDO
+        redoButton = new Button(redoX, redoY, 100, 40, "REDO", this::handleRedoAction);
+
 
         // Ajouter un bouton pour choisir un plateau
         choosePlateauButton = new Button(0, 0, 180, 40, "Choisir ce plateau", this::handleChoosePlateauAction);
+
+        saveButton = new Button(0, 0, 150, 40, "Sauvegarder", this::handleSaveGame);
+    }
+
+    private void handleRedoAction() {
+        gameClient.sendPlayerAction("1:redo:null:null:null");
     }
 
     private void handleSwitchToAiAction() {
@@ -326,8 +349,10 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         }
     }
 
+
+
     private void cleanUpAndGoToMenu() {
-        isLoading = false; // Arrête tous les états de chargement
+
 
         // Demander d'abord au joueur s'il souhaite se reconnecter, si c'est le joueur 2
         if (gameClient != null && !gameClient.isConnected() && gameClient.getMyPlayerId() == 2) {
@@ -411,6 +436,95 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         }
         sceneManager.setScene(new MenuScene(sceneManager));
     }
+
+     private void handleSaveGame() {
+
+        String gamedata = gameClient.getGameInstance().getGameStateAsString();
+        try {
+           System.out.println("NetWorkGameSaveManager : ");
+           Files.createDirectories(Paths.get("saves"));
+        } catch (IOException e) {
+           System.err.println("NetworkGameSaveManager: Unable to create save directory: " + e.getMessage());
+           JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                "Erreur lors de la création du dossier de sauvegarde : " + e.getMessage(),
+                "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+        return;
+        }
+        if (gameClient == null || !gameClient.isConnected()) {
+            JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                    "Impossible de sauvegarder : non connecté au serveur.",
+                    "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+    // Demander le nom de la sauvegarde à l'utilisateur
+    String saveName = JOptionPane.showInputDialog(sceneManager.getPanel(),
+            "Entrez un nom pour cette sauvegarde (non nulle):",
+            "Sauvegarder le Jeu",
+            JOptionPane.PLAIN_MESSAGE);
+
+    if (saveName != null && !saveName.trim().isEmpty()) {
+        // Utiliser SwingWorker pour éviter de bloquer l'interface
+        SwingWorker<Boolean, Void> saveWorker = new SwingWorker<Boolean, Void>() {
+            @Override
+            protected Boolean doInBackground() throws Exception {
+
+
+                try {
+                    // Créer le nom de fichier avec timestamp pour éviter les conflits
+                    String timestamp = java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                    String fileName = saveName + "_" + timestamp + ".save";
+                    Path savePath = Paths.get("saves", fileName);
+
+                    // Créer les métadonnées de sauvegarde
+                    String saveMetadata = String.format("# Save Metadata\n" +
+                            "SaveName: %s\n" +
+                            "PlayerID: %d\n" +
+                            "SaveTime: %s\n" +
+                            "GameVersion: 1.0\n" +
+                            "# Game Data\n%s",
+                            saveName,
+                            gameClient.getMyPlayerId(),
+                            java.time.LocalDateTime.now().toString(),
+                            gamedata);
+
+                    // Écrire le fichier de sauvegarde
+                    Files.write(savePath, saveMetadata.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+                    Thread.sleep(500); // Petit délai pour que l'utilisateur puisse voir le message
+
+                    return true;
+                } catch (IOException e) {
+                    System.err.println("Erreur lors de la sauvegarde : " + e.getMessage());
+                    throw e;
+                }
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    boolean success = get();
+                    if (success) {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Partie sauvegardée avec succès !",
+                                "Sauvegarde Réussie", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                                "Erreur lors de la sauvegarde.",
+                                "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(sceneManager.getPanel(),
+                            "Erreur lors de la sauvegarde : " + e.getMessage(),
+                            "Erreur de Sauvegarde", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        saveWorker.execute();
+      }
+    }
+
 
     @Override
     public void init() {
@@ -734,11 +848,11 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             return;
         }
 
-        if (!isMyTurn()) {
-            statusMessage = "Ce n'est pas votre tour.";
-            repaintPanel();
-            return;
-        }
+        // if (!isMyTurn()) {
+            // statusMessage = "Ce n'est pas votre tour.";
+            // repaintPanel();
+            // return;
+        // }
 
         // Utiliser le champ etapeCoup de GameScene=
         // L'annulation n'a de sens que lorsque etapeCoup est égal à 1 ou 2
@@ -786,7 +900,9 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
 
                 // Utiliser le champ etapeCoup de GameScene
                 undoButton.update(mousePos);
+                redoButton.update(mousePos);
                 switchToAiButton.update(mousePos);
+                saveButton.update(mousePos);
 
                 // Le repaint à chaque mouvement de souris est nécessaire pour l'effet de survol
                 repaintPanel();
@@ -872,10 +988,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         backButton.setSize(150 * width / 1920, 60 * width / 1920);
         backButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
 
+
         int spacingY = undoSizeY * 10 / 100;
+        redoButton.setSize(150 * width / 1920, 60 * width / 1920);
+        redoButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
+        redoButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY + undoSizeY + spacingY);
+
+        int switchToAiButtonX = (width - ((150+320) * width / 1920)) / 2; // À gauche du bouton undo
+        int switchToAiButtonY = height / 11 + 20; // Même hauteur que le bouton undo
         switchToAiButton.setSize(150 * width / 1920, 60 * width / 1920);
         switchToAiButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
-        switchToAiButton.setLocation((width - (150 * width / 1920)) / 2, undoPosY + undoSizeY + spacingY);
+        switchToAiButton.setLocation(switchToAiButtonX, switchToAiButtonY);
 
         // Créer un Graphics2D pour le rendu
         Graphics2D g2d = (Graphics2D) g.create();
@@ -933,6 +1056,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             Plateau present = jeu.getPresent();
             Plateau future = jeu.getFuture();
 
+            //Save
+            int saveButtonX = (width + (170 * width / 1920)) / 2 ; // À droite du bouton undo
+            int saveButtonY = height / 11 + 20; // Même hauteur que le bouton undo
+
+            saveButton.setSize(150 * width / 1920, 60 * width / 1920);
+            saveButton.setFont(new Font(police, Font.BOLD, 20 * width / 1920));
+            saveButton.setLocation(width-150 * width / 1920, height-60 * width / 1920);
+
+            // Activer le bouton seulement si c'est le tour du joueur ou si le jeu n'est pas terminé
+            saveButton.setEnabled(!gameHasEnded && gameClient != null && gameClient.isConnected());
+
             if (isMyTurn()) {
 
                 g2d.setFont(new Font(police, Font.BOLD, 25 * width / 1920));
@@ -948,36 +1082,48 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 g2d.setColor(Color.YELLOW);
                 g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, height - 62 * width / 1920);
 
+
+                // undoButton.setEnabled(true);
+                
+                saveButton.setEnabled(true);
+
+            } else {
+
+                // undoButton.setEnabled(false);
                 undoButton.setEnabled(true);
-
-            } else {
-
-                undoButton.setEnabled(false);
+                
+                saveButton.setEnabled(true);
             }
 
-            // Afficher le message de sélection de plateau
-            String AIControl = null;
-            if (controlledByAI) {
-                AIControl = "Contrôlé par l'IA";
+            if (redoable) {
+                redoButton.setEnabled(true);
             } else {
-                AIControl = "Contrôlé par vous";
+                redoButton.setEnabled(false);
             }
 
-            g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
-            FontMetrics font = g2d.getFontMetrics();
-            int AIMsgWidth = font.stringWidth(AIControl);
+            // // Afficher le message de sélection de plateau
+            // String AIControl = null;
+            // if (controlledByAI) {
+            //     AIControl = "Contrôlé par l'IA";
+            // } else {
+            //     AIControl = "Contrôlé par vous";
+            // }
+
+            // g2d.setFont(new Font(police, Font.BOLD, 36 * width / 1920));
+            // FontMetrics font = g2d.getFontMetrics();
+            // int AIMsgWidth = font.stringWidth(AIControl);
 
             // Position
-            int AIMsgX = pastStartX + tileWidth * 2 - AIMsgWidth / 2;
-            int AIMsgY = height - 62 * width / 1920;
+            // int AIMsgX = pastStartX + tileWidth * 2 - AIMsgWidth / 2;
+            // int AIMsgY = height - 62 * width / 1920;
 
             //rectangle autour du text
             // g2d.setColor(new Color(0, 0, 0, 150));
             // g2d.fillRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
             // g2d.drawRoundRect(((width - (AIMsgWidth + 200 * width / 1920)) / 2), (height - 100 * width / 1920), (AIMsgWidth + 200 * width / 1920), 50 * width / 1920, 10, 10);
             // Centrer le message en bas
-            g2d.setColor(Color.YELLOW);
-            g2d.drawString(AIControl, AIMsgX, AIMsgY);
+            // g2d.setColor(Color.YELLOW);
+            // g2d.drawString(AIControl, AIMsgX, AIMsgY);
 
             // Dessiner le nombre de clones 
             drawClones(g2d, gameClient.getMyPlayerId());
@@ -1090,6 +1236,7 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 // FontMetrics metrics = g2d.getFontMetrics();
                 // int selectMsgWidth = metrics.stringWidth(selectBoardMessage);
                 // g2d.drawString(selectBoardMessage, (width - selectMsgWidth) / 2, offsetY - 20);
+
             }
 
             // Message de statut
@@ -1102,12 +1249,17 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
             //     g2d.drawString(statusMessage, (width - msgWidth) / 2, 40);
             // }
             // Rendre les boutons
+
             backButton.render(g2d);
 
             // Afficher le bouton Annuler seulement si c'est mon tour et que etapeCoup n'est
             // pas égal à 3
             undoButton.render(g2d);
+            if(myPlayerId == 1){
+                saveButton.render(g2d);
+            }
             switchToAiButton.render(g2d);
+            redoButton.render(g2d);
 
         } else { // jeu est null (état initial non encore reçu)
             g2d.setColor(Color.WHITE);
@@ -1619,8 +1771,18 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     return;
                 }
 
+                if (redoButton.contains(mousePoint)) {
+                    redoButton.onClick();
+                    return;
+                }
+
                 if (switchToAiButton.contains(mousePoint)) {
                     switchToAiButton.onClick();
+                    return;
+                }
+
+                if(saveButton.contains(mousePoint)){
+                    saveButton.onClick();
                     return;
                 }
                 handleBoardClick(mousePoint); // Gérer le clic sur le plateau de jeu
@@ -1645,13 +1807,23 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                     needsRepaint = true;
                 }
 
-                // Ajouter la gestion des nouveaux boutons
-                if (isMyTurn()) {
-                    if (undoButton.contains(mousePoint)) {
+                if(saveButton.contains(mousePoint)){
+                    saveButton.setClicked(true);
+                    needsRepaint = true;
+                }
+
+                if (undoButton.contains(mousePoint)) {
                         undoButton.setClicked(true);
                         needsRepaint = true;
                     }
 
+                if (redoButton.contains(mousePoint)) {
+                    redoButton.setClicked(true);
+                    needsRepaint = true;
+                }
+
+                // Ajouter la gestion des nouveaux boutons
+                if (isMyTurn()) {
                     // Les trois boutons de sélection de plateau
                     if (etapeCoup == 3) {
 
@@ -1683,7 +1855,9 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 // Quand la souris est relâchée, réinitialiser simplement tous les boutons
                 backButton.setClicked(false);
                 undoButton.setClicked(false);
+                redoButton.setClicked(false);
                 switchToAiButton.setClicked(false);
+                saveButton.setClicked(false);
                 // choosePlateauButton.setClicked(false);
                 repaintPanel();
             }
@@ -2196,6 +2370,14 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
                 }
                 break;
 
+            case "REDOABLE":
+                // Gérer le message de succès de l'annulation
+                // Format : REDOABLE:succes
+                this.etapeCoup = 0; // Réinitialiser l'étape de coup après une annulation réussie
+                statusMessage = "Annulation réussie. Vous pouvez maintenant jouer à nouveau.";
+                redoable = !redoable; // Inverser l'état de redoable
+                break;
+
             case "WIN":
             case "LOSE":
                 gameHasEnded = true;
@@ -2552,6 +2734,8 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         return null;
     }
 
+
+
     /*private void animationTranslation() {
         timerAnim = new Timer(20, new ActionListener() {
             @Override
@@ -2562,4 +2746,273 @@ public class GameScene implements Scene, GameStateUpdateListener, GameServerMana
         });
         timerAnim.start();
     }*/
+
+    /**
+ * Load game state from save data string
+ *
+ * @param gameDataString Game data string in format:
+ *        etapeCoup:0;JC:1;C1:4;C2:3;P1:PRESENT;P2:PRESENT;P:0000000000000002;PR:1100000000020002;F:1000000000020000;PC:null
+ * @return true if loading successful, false if failed
+ */
+public boolean loadFromSaveData(String gameDataString) {
+    try {
+        System.out.println("GameScene: Starting to load save data: " + gameDataString);
+
+        if (gameDataString == null || gameDataString.trim().isEmpty()) {
+            System.err.println("GameScene: Save data is empty");
+            return false;
+        }
+
+        // Parse save data
+        String[] dataParts = gameDataString.split(";");
+
+        if (dataParts.length < 8) {
+            System.err.println("GameScene: Save data format incomplete, requires at least 8 fields");
+            return false;
+        }
+
+        // Create a map to store parsed data
+        java.util.Map<String, String> gameData = new java.util.HashMap<>();
+
+        for (String part : dataParts) {
+            String[] keyValue = part.split(":", 2);
+            if (keyValue.length == 2) {
+                gameData.put(keyValue[0], keyValue[1]);
+            }
+        }
+
+        // Validate required fields
+        String[] requiredFields = {"etapeCoup", "JC", "C1", "C2", "P1", "P2", "P", "PR", "F"};
+        for (String field : requiredFields) {
+            if (!gameData.containsKey(field)) {
+                System.err.println("GameScene: Missing required field: " + field);
+                return false;
+            }
+        }
+
+        // In single player mode, load game state through server
+        if (isOperatingInSinglePlayerMode) {
+            return loadSinglePlayerGameFromData(gameData);
+        } else {
+            // In multiplayer mode, send load command to server
+            return loadMultiPlayerGameFromData(gameDataString);
+        }
+
+    } catch (Exception e) {
+        System.err.println("GameScene: Error loading save data: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
+
+/**
+ * Load game data in single player mode
+ */
+private boolean loadSinglePlayerGameFromData(java.util.Map<String, String> gameData) {
+    try {
+        System.out.println("Game Scene : start to reload game");
+        // If server and AI are already running, stop them first
+        if (localSinglePlayerServerManager != null && localSinglePlayerServerManager.isServerRunning()) {
+            System.out.println("GameScene: Stopping existing single player server to load save data");
+
+            // Disconnect AI
+            if (aiClientInstance != null) {
+                aiClientInstance.disconnect();
+                aiClientInstance = null;
+            }
+
+            // Disconnect game client
+            if (gameClient != null) {
+                gameClient.disconnect();
+                gameClient = null;
+            }
+
+            // Stop server
+            localSinglePlayerServerManager.stopServer();
+            Thread.sleep(500); // Wait for server to fully stop
+        }
+
+        // Restart server
+        localSinglePlayerServerManager = new GameServerManager(null);
+        localSinglePlayerServerManager.startServer();
+        Thread.sleep(300);
+
+        // Reconnect game client
+        gameClient = new GameClient("127.0.0.1", this);
+        gameClient.connect();
+
+        if (!gameClient.isConnected()) {
+            System.err.println("GameScene: Unable to reconnect game client");
+            return false;
+        }
+
+        // Reconnect AI
+        aiClientInstance = new AIClient("127.0.0.1", levelAI);
+        if (localSinglePlayerServerManager != null) {
+            int serverPort = localSinglePlayerServerManager.getCurrentPort();
+            aiClientInstance.setServerPort(serverPort);
+        }
+        aiClientInstance.connect();
+
+        if (!aiClientInstance.isConnected()) {
+            System.err.println("GameScene: Unable to reconnect AI client");
+            return false;
+        }
+
+        aiClientInstance.startListeningAndPlaying();
+
+        Thread.sleep(500); // Wait for connections to stabilize
+
+        // Send load command to server
+        String loadCommand = "LOAD_GAME:" + reconstructGameDataString(gameData);
+        gameClient.sendPlayerAction(loadCommand);
+
+        System.out.println("GameScene: Load command sent to single player server");
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("GameScene: Single player mode loading failed: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
+
+/**
+ * Load game data in multiplayer mode
+ */
+private boolean loadMultiPlayerGameFromData(String gameDataString) {
+    try {
+        if (gameClient == null || !gameClient.isConnected()) {
+            System.err.println("GameScene: Client not connected in multiplayer mode");
+            return false;
+        }
+
+        // Only host (player 1) can load games
+        if (gameClient.getMyPlayerId() != 1) {
+            System.err.println("GameScene: Only host can load games");
+            return false;
+        }
+
+        // Send load command to server
+        String loadCommand = "LOAD_GAME:" + gameDataString;
+        gameClient.sendPlayerAction(loadCommand);
+
+        System.out.println("GameScene: Load command sent to multiplayer server");
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("GameScene: Multiplayer mode loading failed: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
+
+/**
+ * Reconstruct game data string
+ */
+private String reconstructGameDataString(java.util.Map<String, String> gameData) {
+    StringBuilder sb = new StringBuilder();
+
+    // Reconstruct string in original format
+    String[] orderedKeys = {"etapeCoup", "JC", "C1", "C2", "P1", "P2", "P", "PR", "F", "PC"};
+
+    for (int i = 0; i < orderedKeys.length; i++) {
+        if (i > 0) {
+            sb.append(";");
+        }
+        sb.append(orderedKeys[i]).append(":").append(gameData.getOrDefault(orderedKeys[i], "null"));
+    }
+
+    return sb.toString();
+}
+
+/**
+ * Update local game state (called after receiving server response)
+ */
+public void updateLocalGameStateFromSave(java.util.Map<String, String> gameData) {
+    try {
+        // Update etapeCoup
+        if (gameData.containsKey("etapeCoup")) {
+            this.etapeCoup = Integer.parseInt(gameData.get("etapeCoup"));
+            System.out.println("GameScene: Updated etapeCoup to: " + this.etapeCoup);
+        }
+
+        // Update player selected plateaus
+        if (gameData.containsKey("P1")) {
+            try {
+                this.joueur1SelectedPlateau = Plateau.TypePlateau.valueOf(gameData.get("P1"));
+                System.out.println("GameScene: Player 1 selected plateau: " + this.joueur1SelectedPlateau);
+            } catch (IllegalArgumentException e) {
+                System.err.println("GameScene: Invalid P1 plateau type: " + gameData.get("P1"));
+            }
+        }
+
+        if (gameData.containsKey("P2")) {
+            try {
+                this.joueur2SelectedPlateau = Plateau.TypePlateau.valueOf(gameData.get("P2"));
+                System.out.println("GameScene: Player 2 selected plateau: " + this.joueur2SelectedPlateau);
+            } catch (IllegalArgumentException e) {
+                System.err.println("GameScene: Invalid P2 plateau type: " + gameData.get("P2"));
+            }
+        }
+
+        // Set active plateau based on current player
+        if (jeu != null && jeu.getJoueurCourant() != null) {
+            if (jeu.getJoueurCourant().getId() == 1) {
+                this.activePlateau = this.joueur1SelectedPlateau;
+            } else {
+                this.activePlateau = this.joueur2SelectedPlateau;
+            }
+            System.out.println("GameScene: Active plateau set to: " + this.activePlateau);
+        }
+
+        // Clear possible selection states
+        resetSelection();
+
+        // Clear movement hints
+        casesPasse.clear();
+        casesPresent.clear();
+        casesFutur.clear();
+
+        // Update status message
+        updateStatusFromCurrentGame(false);
+
+        System.out.println("GameScene: Local game state update completed");
+
+    } catch (Exception e) {
+        System.err.println("GameScene: Error updating local game state: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+
+/**
+ * Parse board states from save data (for debugging)
+ */
+private void debugParseBoardStates(java.util.Map<String, String> gameData) {
+    System.out.println("=== Debug: Board State Parsing ===");
+
+    String[] boardKeys = {"P", "PR", "F"};
+    String[] boardNames = {"Past", "Present", "Future"};
+
+    for (int i = 0; i < boardKeys.length; i++) {
+        String boardData = gameData.get(boardKeys[i]);
+        if (boardData != null && boardData.length() == 16) {
+            System.out.println(boardNames[i] + " board state:");
+            for (int row = 0; row < 4; row++) {
+                StringBuilder line = new StringBuilder();
+                for (int col = 0; col < 4; col++) {
+                    char piece = boardData.charAt(row * 4 + col);
+                    line.append(piece).append(" ");
+                }
+                System.out.println("  " + line.toString());
+            }
+        }
+    }
+
+    System.out.println("Current player: " + gameData.get("JC"));
+    System.out.println("Player 1 clones: " + gameData.get("C1"));
+    System.out.println("Player 2 clones: " + gameData.get("C2"));
+    System.out.println("Game phase: " + gameData.get("etapeCoup"));
+    System.out.println("================================");
+}
 }

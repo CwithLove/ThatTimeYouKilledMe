@@ -1141,12 +1141,16 @@ public class Jeu {
 
     public void Redo() {
         if (historiqueJeu.getNbTours() >= 0 && historiqueJeu.isRedoPossible()) {
+            System.out.println("DEBUG REDO");
             historiqueJeu.redo();
             joueur1 = historiqueJeu.getJoueur1();
             joueur2 = historiqueJeu.getJoueur2();
             past = historiqueJeu.getPast(joueur1, joueur2);
             present = historiqueJeu.getPresent(joueur1, joueur2);
             future = historiqueJeu.getFuture(joueur1, joueur2);
+            joueurSuivant();
+            majPlateauCourant();
+            majJoueurCourant();
         }
     }
 }

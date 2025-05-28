@@ -12,5 +12,7 @@ public enum Code {
     COUP,           // Le coup a été joué
     GAGNE,          // Le joueur a gagné
     PERDU,          // Le joueur a perdu
-    SERVER_SHUTDOWN  // Le serveur est en cours de fermeture
+    SERVER_SHUTDOWN,  // Le serveur est en cours de fermeture
+
+    REDOABLE,     // Le joueur peut refaire un coup
 }

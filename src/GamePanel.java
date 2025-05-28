@@ -28,8 +28,8 @@ public class GamePanel extends JPanel implements ActionListener {
         
         // Initialisation du gestionnaire de scènes
         sceneManager = new SceneManager(this);
-        sceneManager.setScene(new MenuScene(sceneManager));//TO DO change here 
-        //sceneManager.setScene(new IntroductionScene(sceneManager));
+        //sceneManager.setScene(new MenuScene(sceneManager));//TO DO change here 
+        sceneManager.setScene(new IntroductionScene(sceneManager));
         
         // Démarrage de la boucle de jeu
         timer = new Timer(1000 / FPS, this);

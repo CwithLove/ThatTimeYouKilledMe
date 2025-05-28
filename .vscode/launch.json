@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "MainApp",
+            "request": "launch",
+            "mainClass": "MainApp",
+            "projectName": "ThatTimeYouKilledMe_27cd52d6"
+        },
+        {
+            "type": "java",
+            "name": "Launch Current File",
+            "request": "launch",
+            "mainClass": "${MainApp}",
+            "console": "internalConsole"
+        },
+        {
+            "type": "java",
+            "name": "Launch Specific Main Class",
+            "request": "launch",
+            "mainClass": "com.yourpackage.YourMainClass"
+        }
+    ]
+}
